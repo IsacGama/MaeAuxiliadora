@@ -20,7 +20,6 @@
     "axios": "^1.8.4",
     "expo": "~52.0.38",
     "expo-clipboard": "~7.0.1",
-    "expo-dev-client": "~5.0.14",
     "expo-font": "~13.0.4",
     "expo-linking": "~7.0.5",
     "expo-router": "~4.0.19",

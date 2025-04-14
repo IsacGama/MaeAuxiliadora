@@ -33,6 +33,29 @@ export default function Index() {
           <Button href="./doacao" source={require('../../assets/images/donation.png')}>
             Doação
           </Button>
+
+          <Button href="https://api.whatsapp.com/send/?phone=5588988425385&text&type=phone_number&app_absent=0" source={require('../../assets/images/Whatsapp.png')}>
+            Whatsapp
+          </Button>
+
+          <Button href="https://www.youtube.com/c/TvM%C3%A3eAuxiliadora" source={require('../../assets/images/Youtube.png')}>
+            Youtube
+          </Button>
+        </View>
+
+        <View style={styles.buttonsContainer}>
+          {/* Botão de Doação */}
+          <Button href="https://www.instagram.com/paroquianossasenhorauxiliadora/" source={require('../../assets/images/Instagram.png')}>
+            Instagram
+          </Button>
+
+          <Button href="https://www.portalauxiliadora.com.br/" source={require('../../assets/images/Site.png')}>
+            Site
+          </Button>
+
+          <Button href="https://maps.app.goo.gl/iZpH12aYx7YaYbYP9" source={require('../../assets/images/Localizacao.png')}>
+            Mapa
+          </Button>
         </View>
       </View>
     </View>

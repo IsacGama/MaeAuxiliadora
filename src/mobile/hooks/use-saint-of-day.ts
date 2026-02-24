@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { publicApi } from '../api';
 import { getDayKey } from '../date';
 import { HttpError } from '../http';
-import { getCacheEnvelope, getDailyCacheValue, setCache } from '../storage';
+import { clearCache, getCacheEnvelope, getDailyCacheValue, setCache } from '../storage';
 import { SaintOfDayPayload } from '../types';
 
 type SaintState = {
@@ -15,6 +15,21 @@ type SaintState = {
 };
 
 const SAINT_CACHE_KEY = 'spd-mobile:saint-of-day';
+
+const isValidSaintPayload = (value: unknown): value is SaintOfDayPayload => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const payload = value as SaintOfDayPayload;
+  const title = payload?.title?.rendered;
+  const content = payload?.content?.rendered;
+  const excerpt = payload?.excerpt?.rendered;
+  return (
+    typeof title === 'string' ||
+    typeof content === 'string' ||
+    typeof excerpt === 'string'
+  );
+};
 
 const getMessage = (error: unknown, fallback: string) => {
   if (error instanceof HttpError) {
@@ -49,8 +64,8 @@ export const useSaintOfDay = () => {
     let hasAnyCache = false;
 
     if (!forceNetwork) {
-      const daily = await getDailyCacheValue<SaintOfDayPayload>(SAINT_CACHE_KEY, dayKey);
-      if (daily) {
+      const daily = await getDailyCacheValue<unknown>(SAINT_CACHE_KEY, dayKey);
+      if (isValidSaintPayload(daily)) {
         hasAnyCache = true;
         setState({
           saint: daily,
@@ -62,9 +77,12 @@ export const useSaintOfDay = () => {
         });
         return;
       }
+      if (daily !== null) {
+        await clearCache(SAINT_CACHE_KEY);
+      }
 
-      const stale = await getCacheEnvelope<SaintOfDayPayload>(SAINT_CACHE_KEY);
-      if (stale?.value) {
+      const stale = await getCacheEnvelope<unknown>(SAINT_CACHE_KEY);
+      if (isValidSaintPayload(stale?.value)) {
         hasAnyCache = true;
         setState({
           saint: stale.value,
@@ -74,11 +92,14 @@ export const useSaintOfDay = () => {
           source: 'cache',
           isToday: stale.dayKey === dayKey,
         });
+      } else if (stale?.value !== undefined) {
+        await clearCache(SAINT_CACHE_KEY);
       }
     }
 
     try {
-      const saint = await publicApi.fetchSaintOfDay();
+      const now = new Date();
+      const saint = await publicApi.fetchSaintOfDay(now.getDate(), now.getMonth() + 1);
       await setCache(SAINT_CACHE_KEY, saint, { dayKey });
       setState({
         saint,

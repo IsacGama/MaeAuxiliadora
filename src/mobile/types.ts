@@ -102,17 +102,17 @@ export type LiturgyPayload = {
 };
 
 export type SaintOfDayPayload = {
-  objective?: string;
-  source?: string;
-  today?: {
-    day?: string;
-    month?: string;
-    year?: string;
-    title?: string;
-    full_text?: string;
-    image?: string;
-    outros_santos?: string[];
+  id: number;
+  title: { rendered: string };
+  content: { rendered: string };
+  excerpt: { rendered: string };
+  meta?: {
+    'dia-festivo'?: string;
+    'imagem-sm'?: string;
   };
+  imagem_destacada?: string;
+  dia?: string;
+  mes?: string;
 };
 
 export type AuthUser = {

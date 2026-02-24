@@ -15,6 +15,79 @@ import {
 
 const api = (path: string) => `${appConfig.apiUrl}${path}`;
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+const readString = (value: unknown): string | undefined =>
+  typeof value === 'string' ? value : undefined;
+
+const toWordPressSaint = (value: unknown): SaintOfDayPayload | null => {
+  if (!isRecord(value)) return null;
+
+  const titleRecord = isRecord(value.title) ? value.title : null;
+  const contentRecord = isRecord(value.content) ? value.content : null;
+  const excerptRecord = isRecord(value.excerpt) ? value.excerpt : null;
+  const metaRecord = isRecord(value.meta) ? value.meta : null;
+
+  const title = readString(titleRecord?.rendered);
+  const content = readString(contentRecord?.rendered);
+  const excerpt = readString(excerptRecord?.rendered);
+
+  if (!title && !content && !excerpt) {
+    return null;
+  }
+
+  const image = readString(value.imagem_destacada);
+  const imageSm = readString(metaRecord?.['imagem-sm']);
+
+  return {
+    id: typeof value.id === 'number' ? value.id : 0,
+    title: { rendered: title ?? 'Santo do Dia' },
+    content: { rendered: content ?? '' },
+    excerpt: { rendered: excerpt ?? '' },
+    meta: {
+      'dia-festivo': readString(metaRecord?.['dia-festivo']),
+      'imagem-sm': imageSm,
+    },
+    imagem_destacada: image,
+    dia: readString(value.dia),
+    mes: readString(value.mes),
+  };
+};
+
+const toLegacySaint = (value: unknown): SaintOfDayPayload | null => {
+  if (!isRecord(value)) return null;
+  const today = isRecord(value.today) ? value.today : null;
+  if (!today) return null;
+
+  const title = readString(today.title);
+  const fullText = readString(today.full_text);
+  const image = readString(today.image);
+  const day = readString(today.day);
+  const month = readString(today.month);
+  const year = readString(today.year);
+
+  if (!title && !fullText) {
+    return null;
+  }
+
+  const festiveDay = [day, month, year].filter(Boolean).join(' ').trim();
+
+  return {
+    id: 0,
+    title: { rendered: title ?? 'Santo do Dia' },
+    content: { rendered: fullText ?? '' },
+    excerpt: { rendered: fullText ?? '' },
+    meta: {
+      'dia-festivo': festiveDay || undefined,
+      'imagem-sm': image,
+    },
+    imagem_destacada: image,
+    dia: day,
+    mes: month,
+  };
+};
+
 const resolveEntityFromDomain = async (domain: string): Promise<ResolvedOrgEntity> => {
   const normalized = encodeURIComponent(domain.trim());
 
@@ -103,7 +176,32 @@ export const publicApi = {
     ),
   fetchDailyLiturgy: (date: string) =>
     fetchJson<LiturgyPayload>(`${appConfig.liturgyApiUrl}/?date=${encodeURIComponent(date)}`),
-  fetchSaintOfDay: () => fetchJson<SaintOfDayPayload>(appConfig.saintApiUrl),
+  fetchSaintOfDay: async (day: number, month: number) => {
+    const response = await fetchJson<unknown>(
+      `${appConfig.saintApiUrl}?dia=${encodeURIComponent(String(day))}&mes=${encodeURIComponent(String(month))}`,
+    );
+
+    if (Array.isArray(response)) {
+      const first = response.find((item) => isRecord(item));
+      const parsed = first ? toWordPressSaint(first) : null;
+      if (parsed) {
+        return parsed;
+      }
+      throw new HttpError(404, 'Nenhum santo encontrado para a data informada.', response);
+    }
+
+    const wpParsed = toWordPressSaint(response);
+    if (wpParsed) {
+      return wpParsed;
+    }
+
+    const legacyParsed = toLegacySaint(response);
+    if (legacyParsed) {
+      return legacyParsed;
+    }
+
+    throw new HttpError(502, 'Formato inesperado da API de santo do dia.', response);
+  },
 };
 
 export const authApi = {

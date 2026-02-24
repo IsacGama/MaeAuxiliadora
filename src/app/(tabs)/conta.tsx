@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -89,15 +90,86 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: 'center',
   },
-  pickerList: {
+  selectTrigger: {
     borderRadius: 12,
     borderWidth: 1,
-    maxHeight: 200,
-  },
-  pickerOption: {
     paddingHorizontal: 12,
+    paddingVertical: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  selectTriggerTextWrap: {
+    flex: 1,
+    gap: 2,
+  },
+  selectTriggerLabel: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  selectTriggerHint: {
+    fontSize: 12,
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.45)',
+  },
+  modalPanel: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 12,
+    gap: 10,
+    maxHeight: '78%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalHeaderTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  modalCloseButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalSearchRow: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  modalSearchInput: {
+    flex: 1,
+    fontSize: 14,
+    paddingVertical: 9,
+  },
+  modalList: {
+    maxHeight: 320,
+  },
+  modalOption: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 11,
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    marginBottom: 8,
+    gap: 3,
+  },
+  modalOptionTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modalOptionSubtitle: {
+    fontSize: 12,
   },
   streakRow: {
     flexDirection: 'row',
@@ -129,6 +201,15 @@ const money = (value: number) =>
     minimumFractionDigits: 2,
   });
 
+const SEARCH_DEBOUNCE_MS = 300;
+
+const normalizeForSearch = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase();
+
 export default function AccountScreen() {
   const {
     session,
@@ -159,6 +240,12 @@ export default function AccountScreen() {
   const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
   const [selectedParishId, setSelectedParishId] = useState<string>('');
   const [selectedChapelId, setSelectedChapelId] = useState<string>('');
+  const [parishPickerOpen, setParishPickerOpen] = useState(false);
+  const [chapelPickerOpen, setChapelPickerOpen] = useState(false);
+  const [parishQuery, setParishQuery] = useState('');
+  const [chapelQuery, setChapelQuery] = useState('');
+  const [debouncedParishQuery, setDebouncedParishQuery] = useState('');
+  const [debouncedChapelQuery, setDebouncedChapelQuery] = useState('');
 
   const [parishes, setParishes] = useState<ParishPublic[]>([]);
   const [chapels, setChapels] = useState<ChapelPublic[]>([]);
@@ -217,6 +304,27 @@ export default function AccountScreen() {
 
     void loadChapels();
   }, [isAuthenticated, selectedParishId]);
+
+  useEffect(() => {
+    setChapelPickerOpen(false);
+    setChapelQuery('');
+  }, [selectedParishId]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedParishQuery(parishQuery);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [parishQuery]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedChapelQuery(chapelQuery);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => clearTimeout(timer);
+  }, [chapelQuery]);
 
   const onLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -313,6 +421,25 @@ export default function AccountScreen() {
   const streak = dashboard.dashboard?.titheSummary.currentStreakMonths ?? 0;
   const fireCount = Math.min(Math.max(streak, 0), 12);
   const selectedParish = parishes.find((parish) => parish.id === selectedParishId);
+  const selectedChapel = chapels.find((chapel) => chapel.id === selectedChapelId);
+  const filteredParishes = useMemo(() => {
+    const normalizedQuery = normalizeForSearch(debouncedParishQuery);
+    if (!normalizedQuery) {
+      return parishes;
+    }
+    return parishes.filter((parish) => {
+      const name = normalizeForSearch(parish.name);
+      const dioceseName = normalizeForSearch(parish.diocese?.name ?? '');
+      return name.includes(normalizedQuery) || dioceseName.includes(normalizedQuery);
+    });
+  }, [debouncedParishQuery, parishes]);
+  const filteredChapels = useMemo(() => {
+    const normalizedQuery = normalizeForSearch(debouncedChapelQuery);
+    if (!normalizedQuery) {
+      return chapels;
+    }
+    return chapels.filter((chapel) => normalizeForSearch(chapel.name).includes(normalizedQuery));
+  }, [chapels, debouncedChapelQuery]);
   const themeOptions: Array<{ value: ThemePreference; label: string }> = [
     { value: 'SYSTEM', label: 'Sistema' },
     { value: 'LIGHT', label: 'Claro' },
@@ -449,33 +576,29 @@ export default function AccountScreen() {
                 <Text style={[styles.statLabel, { color: theme.textSoft }]}>Paróquia</Text>
                 {loadingParishes ? (
                   <ActivityIndicator size="small" color={theme.secondary} />
+                ) : parishes.length ? (
+                  <Pressable
+                    style={[styles.selectTrigger, { borderColor: theme.border }]}
+                    onPress={() => {
+                      setParishQuery('');
+                      setParishPickerOpen(true);
+                    }}
+                  >
+                    <View style={styles.selectTriggerTextWrap}>
+                      <Text style={[styles.selectTriggerLabel, { color: theme.text }]} numberOfLines={1}>
+                        {selectedParish?.name ?? 'Escolher paróquia'}
+                      </Text>
+                      <Text style={[styles.selectTriggerHint, { color: theme.textSoft }]} numberOfLines={1}>
+                        {selectedParish?.diocese?.name ??
+                          `${parishes.length} ${
+                            parishes.length === 1 ? 'paróquia disponível' : 'paróquias disponíveis'
+                          }`}
+                      </Text>
+                    </View>
+                    <MaterialCommunityIcons name="chevron-down" size={20} color={theme.textSoft} />
+                  </Pressable>
                 ) : (
-                  <View style={[styles.pickerList, { borderColor: theme.border }]}>
-                    {parishes.map((parish, index) => (
-                      <Pressable
-                        key={parish.id}
-                        style={[
-                          styles.pickerOption,
-                          {
-                            borderBottomColor: theme.border,
-                            borderBottomWidth: index === parishes.length - 1 ? 0 : StyleSheet.hairlineWidth,
-                            backgroundColor: selectedParishId === parish.id ? 'rgba(218, 139, 60, 0.16)' : 'transparent',
-                          },
-                        ]}
-                        onPress={() => {
-                          setSelectedParishId(parish.id);
-                          setSelectedChapelId('');
-                        }}
-                      >
-                        <Text style={{ color: theme.text, fontWeight: selectedParishId === parish.id ? '700' : '500' }}>
-                          {parish.name}
-                        </Text>
-                        {!!parish.diocese?.name && (
-                          <Text style={{ color: theme.textSoft, fontSize: 12 }}>{parish.diocese.name}</Text>
-                        )}
-                      </Pressable>
-                    ))}
-                  </View>
+                  <Text style={{ color: theme.textSoft }}>Nenhuma paróquia disponível.</Text>
                 )}
 
                 {!!selectedParishId && (
@@ -486,41 +609,25 @@ export default function AccountScreen() {
                     {loadingChapels ? (
                       <ActivityIndicator size="small" color={theme.secondary} />
                     ) : chapels.length ? (
-                      <View style={[styles.pickerList, { borderColor: theme.border }]}>
-                        <Pressable
-                          style={[
-                            styles.pickerOption,
-                            {
-                              borderBottomColor: theme.border,
-                              borderBottomWidth: StyleSheet.hairlineWidth,
-                              backgroundColor: selectedChapelId ? 'transparent' : 'rgba(218, 139, 60, 0.16)',
-                            },
-                          ]}
-                          onPress={() => setSelectedChapelId('')}
-                        >
-                          <Text style={{ color: theme.text, fontWeight: selectedChapelId ? '500' : '700' }}>
-                            Sem capela (usar paróquia)
+                      <Pressable
+                        style={[styles.selectTrigger, { borderColor: theme.border }]}
+                        onPress={() => {
+                          setChapelQuery('');
+                          setChapelPickerOpen(true);
+                        }}
+                      >
+                        <View style={styles.selectTriggerTextWrap}>
+                          <Text style={[styles.selectTriggerLabel, { color: theme.text }]} numberOfLines={1}>
+                            {selectedChapel?.name ?? 'Sem capela (usar paróquia)'}
                           </Text>
-                        </Pressable>
-                        {chapels.map((chapel, index) => (
-                          <Pressable
-                            key={chapel.id}
-                            style={[
-                              styles.pickerOption,
-                              {
-                                borderBottomColor: theme.border,
-                                borderBottomWidth: index === chapels.length - 1 ? 0 : StyleSheet.hairlineWidth,
-                                backgroundColor: selectedChapelId === chapel.id ? 'rgba(218, 139, 60, 0.16)' : 'transparent',
-                              },
-                            ]}
-                            onPress={() => setSelectedChapelId(chapel.id)}
-                          >
-                            <Text style={{ color: theme.text, fontWeight: selectedChapelId === chapel.id ? '700' : '500' }}>
-                              {chapel.name}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
+                          <Text style={[styles.selectTriggerHint, { color: theme.textSoft }]} numberOfLines={1}>
+                            {selectedChapel
+                              ? 'Conta vinculada à capela selecionada'
+                              : 'Conta vinculada direto à paróquia'}
+                          </Text>
+                        </View>
+                        <MaterialCommunityIcons name="chevron-down" size={20} color={theme.textSoft} />
+                      </Pressable>
                     ) : (
                       <Text style={{ color: theme.textSoft }}>
                         {selectedParish ? `${selectedParish.name} não possui capelas cadastradas.` : 'Nenhuma capela disponível.'}
@@ -545,6 +652,179 @@ export default function AccountScreen() {
                 </Pressable>
               </>
             )}
+
+            <Modal
+              visible={parishPickerOpen}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setParishPickerOpen(false)}
+            >
+              <View style={styles.modalBackdrop}>
+                <Pressable style={StyleSheet.absoluteFill} onPress={() => setParishPickerOpen(false)} />
+                <View style={[styles.modalPanel, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                  <View style={styles.modalHeader}>
+                    <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>Escolher paróquia</Text>
+                    <Pressable
+                      style={[styles.modalCloseButton, { borderColor: theme.border }]}
+                      onPress={() => setParishPickerOpen(false)}
+                    >
+                      <MaterialCommunityIcons name="close" size={18} color={theme.textSoft} />
+                    </Pressable>
+                  </View>
+
+                  <View style={[styles.modalSearchRow, { borderColor: theme.border }]}>
+                    <MaterialCommunityIcons name="magnify" size={18} color={theme.textSoft} />
+                    <TextInput
+                      value={parishQuery}
+                      onChangeText={setParishQuery}
+                      placeholder="Buscar por nome da paróquia ou diocese"
+                      placeholderTextColor={theme.textSoft}
+                      style={[styles.modalSearchInput, { color: theme.text }]}
+                    />
+                  </View>
+
+                  <ScrollView style={styles.modalList} keyboardShouldPersistTaps="handled">
+                    {filteredParishes.length ? (
+                      filteredParishes.map((parish) => (
+                        <Pressable
+                          key={parish.id}
+                          style={[
+                            styles.modalOption,
+                            {
+                              borderColor: theme.border,
+                              backgroundColor:
+                                selectedParishId === parish.id ? 'rgba(218, 139, 60, 0.16)' : 'transparent',
+                            },
+                          ]}
+                          onPress={() => {
+                            setSelectedParishId(parish.id);
+                            setSelectedChapelId('');
+                            setParishPickerOpen(false);
+                            setParishQuery('');
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.modalOptionTitle,
+                              { color: theme.text, fontWeight: selectedParishId === parish.id ? '800' : '700' },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {parish.name}
+                          </Text>
+                          {!!parish.diocese?.name && (
+                            <Text style={[styles.modalOptionSubtitle, { color: theme.textSoft }]} numberOfLines={1}>
+                              {parish.diocese.name}
+                            </Text>
+                          )}
+                        </Pressable>
+                      ))
+                    ) : (
+                      <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+                        Nenhuma paróquia encontrada para "{parishQuery.trim()}".
+                      </Text>
+                    )}
+                  </ScrollView>
+                </View>
+              </View>
+            </Modal>
+
+            <Modal
+              visible={chapelPickerOpen}
+              transparent
+              animationType="fade"
+              onRequestClose={() => setChapelPickerOpen(false)}
+            >
+              <View style={styles.modalBackdrop}>
+                <Pressable style={StyleSheet.absoluteFill} onPress={() => setChapelPickerOpen(false)} />
+                <View style={[styles.modalPanel, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                  <View style={styles.modalHeader}>
+                    <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>Escolher capela</Text>
+                    <Pressable
+                      style={[styles.modalCloseButton, { borderColor: theme.border }]}
+                      onPress={() => setChapelPickerOpen(false)}
+                    >
+                      <MaterialCommunityIcons name="close" size={18} color={theme.textSoft} />
+                    </Pressable>
+                  </View>
+
+                  <View style={[styles.modalSearchRow, { borderColor: theme.border }]}>
+                    <MaterialCommunityIcons name="magnify" size={18} color={theme.textSoft} />
+                    <TextInput
+                      value={chapelQuery}
+                      onChangeText={setChapelQuery}
+                      placeholder="Buscar capela"
+                      placeholderTextColor={theme.textSoft}
+                      style={[styles.modalSearchInput, { color: theme.text }]}
+                    />
+                  </View>
+
+                  <ScrollView style={styles.modalList} keyboardShouldPersistTaps="handled">
+                    <Pressable
+                      style={[
+                        styles.modalOption,
+                        {
+                          borderColor: theme.border,
+                          backgroundColor: selectedChapelId ? 'transparent' : 'rgba(218, 139, 60, 0.16)',
+                        },
+                      ]}
+                      onPress={() => {
+                        setSelectedChapelId('');
+                        setChapelPickerOpen(false);
+                        setChapelQuery('');
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.modalOptionTitle,
+                          { color: theme.text, fontWeight: selectedChapelId ? '700' : '800' },
+                        ]}
+                      >
+                        Sem capela (usar paróquia)
+                      </Text>
+                      <Text style={[styles.modalOptionSubtitle, { color: theme.textSoft }]}>
+                        Recomendado para quem participa direto na matriz
+                      </Text>
+                    </Pressable>
+
+                    {filteredChapels.length ? (
+                      filteredChapels.map((chapel) => (
+                        <Pressable
+                          key={chapel.id}
+                          style={[
+                            styles.modalOption,
+                            {
+                              borderColor: theme.border,
+                              backgroundColor:
+                                selectedChapelId === chapel.id ? 'rgba(218, 139, 60, 0.16)' : 'transparent',
+                            },
+                          ]}
+                          onPress={() => {
+                            setSelectedChapelId(chapel.id);
+                            setChapelPickerOpen(false);
+                            setChapelQuery('');
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.modalOptionTitle,
+                              { color: theme.text, fontWeight: selectedChapelId === chapel.id ? '800' : '700' },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {chapel.name}
+                          </Text>
+                        </Pressable>
+                      ))
+                    ) : chapelQuery.trim() ? (
+                      <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+                        Nenhuma capela encontrada para "{chapelQuery.trim()}".
+                      </Text>
+                    ) : null}
+                  </ScrollView>
+                </View>
+              </View>
+            </Modal>
 
             {!!submitError && <Text style={{ color: '#FCA5A5' }}>{submitError}</Text>}
           </View>

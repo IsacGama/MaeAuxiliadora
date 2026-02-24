@@ -15,6 +15,18 @@ import { useSaintOfDay } from '../../mobile/hooks/use-saint-of-day';
 import { createThemeWithMode } from '../../mobile/theme';
 import { useThemePreference } from '../../mobile/theme-preference';
 
+const stripHtml = (html?: string) => {
+  if (!html) return '';
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
 const styles = StyleSheet.create({
   screen: { flex: 1 },
   content: {
@@ -61,8 +73,13 @@ export default function SaintOfDayScreen() {
     [org.branding, resolvedMode],
   );
 
-  const today = saint.saint?.today;
-  const paragraphs = (today?.full_text ?? '')
+  const saintData = saint.saint;
+  const saintName = stripHtml(saintData?.title?.rendered) || 'Santo do Dia';
+  const saintExcerpt = stripHtml(saintData?.excerpt?.rendered);
+  const saintContent = stripHtml(saintData?.content?.rendered);
+  const saintImage = saintData?.imagem_destacada || saintData?.meta?.['imagem-sm'] || null;
+  const festiveDay = saintData?.meta?.['dia-festivo'];
+  const paragraphs = (saintContent || saintExcerpt)
     .split('\n\n')
     .map((part) => part.trim())
     .filter(Boolean);
@@ -94,17 +111,18 @@ export default function SaintOfDayScreen() {
       >
         <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
           <Text style={[styles.title, { color: theme.text }]}>
-            {today?.title ?? 'Santo do Dia'}
+            {saintName}
           </Text>
-          {!!today?.day && !!today?.month && !!today?.year && (
-            <Text style={[styles.subtitle, { color: theme.textSoft }]}>Data litúrgica: {today.day} {today.month} {today.year}</Text>
+          {!!festiveDay && (
+            <Text style={[styles.subtitle, { color: theme.textSoft }]}>{festiveDay}</Text>
           )}
+          {!!saintExcerpt && <Text style={[styles.subtitle, { color: theme.textSoft }]}>{saintExcerpt}</Text>}
           {!!saint.error && <Text style={{ color: '#FCA5A5' }}>{saint.error}</Text>}
         </View>
 
-        {!!today?.image && (
+        {!!saintImage && (
           <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-            <Image source={{ uri: today.image }} style={styles.image} resizeMode="cover" />
+            <Image source={{ uri: saintImage }} style={styles.image} resizeMode="cover" />
           </View>
         )}
 

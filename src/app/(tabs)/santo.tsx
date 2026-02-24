@@ -8,9 +8,12 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useSaintOfDay } from '../../mobile/hooks/use-saint-of-day';
-import { createTheme } from '../../mobile/theme';
+import { createThemeWithMode } from '../../mobile/theme';
+import { useThemePreference } from '../../mobile/theme-preference';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -51,7 +54,12 @@ const styles = StyleSheet.create({
 export default function SaintOfDayScreen() {
   const org = useOrgContext();
   const saint = useSaintOfDay();
-  const theme = useMemo(() => createTheme(org.branding), [org.branding]);
+  const { resolvedMode } = useThemePreference();
+  const tabBarHeight = useBottomTabBarHeight();
+  const theme = useMemo(
+    () => createThemeWithMode(org.branding, resolvedMode),
+    [org.branding, resolvedMode],
+  );
 
   const today = saint.saint?.today;
   const paragraphs = (today?.full_text ?? '')
@@ -61,17 +69,20 @@ export default function SaintOfDayScreen() {
 
   if (saint.isLoading && !saint.saint) {
     return (
-      <View style={[styles.screen, { backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }]}> 
+      <SafeAreaView
+        edges={['top']}
+        style={[styles.screen, { backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }]}
+      >
         <ActivityIndicator size="large" color={theme.secondary} />
         <Text style={{ marginTop: 10, color: theme.textSoft }}>Carregando santo do dia...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.bg }]}> 
+    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 28 + tabBarHeight }]}
         refreshControl={
           <RefreshControl
             refreshing={saint.isRefreshing}
@@ -110,6 +121,6 @@ export default function SaintOfDayScreen() {
           )}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }

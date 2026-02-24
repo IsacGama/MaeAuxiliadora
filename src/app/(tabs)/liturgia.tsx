@@ -8,9 +8,12 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useDailyLiturgy } from '../../mobile/hooks/use-daily-liturgy';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
-import { createTheme } from '../../mobile/theme';
+import { createThemeWithMode } from '../../mobile/theme';
+import { useThemePreference } from '../../mobile/theme-preference';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -71,21 +74,29 @@ const readingSections: Array<{
 export default function LiturgyScreen() {
   const liturgy = useDailyLiturgy();
   const org = useOrgContext();
-  const theme = useMemo(() => createTheme(org.branding), [org.branding]);
+  const { resolvedMode } = useThemePreference();
+  const tabBarHeight = useBottomTabBarHeight();
+  const theme = useMemo(
+    () => createThemeWithMode(org.branding, resolvedMode),
+    [org.branding, resolvedMode],
+  );
 
   if (liturgy.isLoading && !liturgy.liturgy) {
     return (
-      <View style={[styles.screen, { backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }]}>
+      <SafeAreaView
+        edges={['top']}
+        style={[styles.screen, { backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }]}
+      >
         <ActivityIndicator size="large" color={theme.secondary} />
         <Text style={{ marginTop: 10, color: theme.textSoft }}>Carregando liturgia diária...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.bg }]}> 
+    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 28 + tabBarHeight }]}
         refreshControl={
           <RefreshControl
             refreshing={liturgy.isRefreshing}
@@ -144,6 +155,6 @@ export default function LiturgyScreen() {
           );
         })}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }

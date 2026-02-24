@@ -10,10 +10,12 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useOrgContext } from '../mobile/hooks/use-org-context';
 import { usePublicPosts } from '../mobile/hooks/use-public-posts';
-import { createTheme } from '../mobile/theme';
+import { createThemeWithMode } from '../mobile/theme';
 import { useAuth } from '../mobile/auth-context';
+import { useThemePreference } from '../mobile/theme-preference';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -81,7 +83,11 @@ const formatDate = (value?: string | null) => {
 export default function NewsScreen() {
   const { isAuthenticated } = useAuth();
   const org = useOrgContext();
-  const theme = useMemo(() => createTheme(org.branding), [org.branding]);
+  const { resolvedMode } = useThemePreference();
+  const theme = useMemo(
+    () => createThemeWithMode(org.branding, resolvedMode),
+    [org.branding, resolvedMode],
+  );
 
   const parishId =
     org.entity?.type === 'PARISH'
@@ -94,8 +100,8 @@ export default function NewsScreen() {
 
   if (!isAuthenticated) {
     return (
-      <View style={[styles.screen, { backgroundColor: theme.bg }]}>
-        <ScrollView contentContainerStyle={styles.content}>
+      <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
+        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 28 }]}>
           <View style={[styles.header, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Pressable
               style={[styles.backButton, { borderColor: theme.border }]}
@@ -110,23 +116,26 @@ export default function NewsScreen() {
             </Text>
           </View>
         </ScrollView>
-      </View>
+      </SafeAreaView>
     );
   }
 
   if (posts.isLoading && posts.posts.length === 0) {
     return (
-      <View style={[styles.screen, { backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }]}>
+      <SafeAreaView
+        edges={['top']}
+        style={[styles.screen, { backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }]}
+      >
         <ActivityIndicator size="large" color={theme.secondary} />
         <Text style={{ marginTop: 10, color: theme.textSoft }}>Carregando notícias...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.bg }]}>
+    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 28 }]}
         refreshControl={
           <RefreshControl
             refreshing={posts.isRefreshing}
@@ -178,6 +187,6 @@ export default function NewsScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }

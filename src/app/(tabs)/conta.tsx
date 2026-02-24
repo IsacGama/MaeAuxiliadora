@@ -11,12 +11,15 @@ import {
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useAuth } from '../../mobile/auth-context';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useMemberDashboard } from '../../mobile/hooks/use-member-dashboard';
-import { createTheme } from '../../mobile/theme';
+import { createThemeWithMode } from '../../mobile/theme';
 import { authApi, publicApi } from '../../mobile/api';
 import { ChapelPublic, ParishPublic } from '../../mobile/types';
+import { ThemePreference, useThemePreference } from '../../mobile/theme-preference';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -106,6 +109,17 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  themeOptionButton: {
+    flex: 1,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  themeOptionText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
 });
 
 const money = (value: number) =>
@@ -127,7 +141,12 @@ export default function AccountScreen() {
   } = useAuth();
   const dashboard = useMemberDashboard();
   const org = useOrgContext();
-  const theme = useMemo(() => createTheme(org.branding), [org.branding]);
+  const { preference, resolvedMode, setPreference } = useThemePreference();
+  const tabBarHeight = useBottomTabBarHeight();
+  const theme = useMemo(
+    () => createThemeWithMode(org.branding, resolvedMode),
+    [org.branding, resolvedMode],
+  );
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
 
@@ -281,9 +300,12 @@ export default function AccountScreen() {
 
   if (authLoading) {
     return (
-      <View style={[styles.screen, { backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }]}>
+      <SafeAreaView
+        edges={['top']}
+        style={[styles.screen, { backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }]}
+      >
         <ActivityIndicator size="large" color={theme.secondary} />
-      </View>
+      </SafeAreaView>
     );
   }
 
@@ -291,11 +313,16 @@ export default function AccountScreen() {
   const streak = dashboard.dashboard?.titheSummary.currentStreakMonths ?? 0;
   const fireCount = Math.min(Math.max(streak, 0), 12);
   const selectedParish = parishes.find((parish) => parish.id === selectedParishId);
+  const themeOptions: Array<{ value: ThemePreference; label: string }> = [
+    { value: 'SYSTEM', label: 'Sistema' },
+    { value: 'LIGHT', label: 'Claro' },
+    { value: 'DARK', label: 'Escuro' },
+  ];
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.bg }]}>
+    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 28 + tabBarHeight }]}
         refreshControl={
           isAuthenticated ? (
             <RefreshControl
@@ -624,7 +651,38 @@ export default function AccountScreen() {
             )}
           </>
         )}
+
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Text style={[styles.title, { color: theme.text }]}>Aparência</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+            Tema atual: {resolvedMode === 'dark' ? 'Escuro' : 'Claro'}
+          </Text>
+          <View style={styles.toggleRow}>
+            {themeOptions.map((option) => {
+              const active = preference === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  style={[
+                    styles.themeOptionButton,
+                    {
+                      borderColor: active ? theme.secondary : theme.border,
+                      backgroundColor: active ? 'rgba(218, 139, 60, 0.16)' : 'transparent',
+                    },
+                  ]}
+                  onPress={() => {
+                    void setPreference(option.value);
+                  }}
+                >
+                  <Text style={[styles.themeOptionText, { color: active ? theme.secondary : theme.textSoft }]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }

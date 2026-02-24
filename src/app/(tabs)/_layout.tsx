@@ -1,9 +1,12 @@
 import { Tabs } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const iconSize = 20;
 
 export default function TabsLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
@@ -11,9 +14,9 @@ export default function TabsLayout() {
         tabBarStyle: {
           backgroundColor: '#0F1E33',
           borderTopColor: 'rgba(255,255,255,0.09)',
-          height: 66,
+          height: 58 + insets.bottom,
           paddingTop: 8,
-          paddingBottom: 8,
+          paddingBottom: Math.max(8, insets.bottom),
         },
         tabBarActiveTintColor: '#E7A04A',
         tabBarInactiveTintColor: '#93A8C4',
@@ -56,6 +59,15 @@ export default function TabsLayout() {
           title: 'Bíblia',
           tabBarIcon: ({ color }) => (
             <MaterialCommunityIcons name="book-open-page-variant-outline" color={color} size={iconSize} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="doacoes"
+        options={{
+          title: 'Doações',
+          tabBarIcon: ({ color }) => (
+            <MaterialCommunityIcons name="heart-outline" color={color} size={iconSize} />
           ),
         }}
       />

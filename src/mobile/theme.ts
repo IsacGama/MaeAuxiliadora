@@ -22,6 +22,17 @@ const defaultTheme: AppTheme = {
   accent: '#8B2635',
 };
 
+const lightDefaultTheme: AppTheme = {
+  bg: '#F3F7FF',
+  surface: '#FFFFFF',
+  border: '#C6D4EC',
+  text: '#11243D',
+  textSoft: '#4C6486',
+  primary: '#1F3B70',
+  secondary: '#DA8B3C',
+  accent: '#8B2635',
+};
+
 const normalizeHex = (value?: string | null, fallback?: string) => {
   if (!value) {
     return fallback ?? '#000000';
@@ -62,13 +73,34 @@ export const getTextColorForBackground = (hex: string) => {
 };
 
 export const createTheme = (branding: OrgBranding | null): AppTheme => {
+  return createThemeWithMode(branding, 'dark');
+};
+
+export const createThemeWithMode = (
+  branding: OrgBranding | null,
+  mode: 'light' | 'dark',
+): AppTheme => {
+  const base = mode === 'dark' ? defaultTheme : lightDefaultTheme;
   if (!branding) {
-    return defaultTheme;
+    return base;
   }
 
-  const primary = normalizeHex(branding.primaryColor, defaultTheme.primary);
-  const secondary = normalizeHex(branding.secondaryColor, defaultTheme.secondary);
-  const accent = normalizeHex(branding.accentColor, defaultTheme.accent);
+  const primary = normalizeHex(branding.primaryColor, base.primary);
+  const secondary = normalizeHex(branding.secondaryColor, base.secondary);
+  const accent = normalizeHex(branding.accentColor, base.accent);
+
+  if (mode === 'light') {
+    return {
+      bg: '#F3F7FF',
+      surface: withAlpha(primary, 0.1),
+      border: withAlpha(primary, 0.3),
+      text: '#11243D',
+      textSoft: '#4C6486',
+      primary,
+      secondary,
+      accent,
+    };
+  }
 
   return {
     bg: '#0B1320',
@@ -82,4 +114,4 @@ export const createTheme = (branding: OrgBranding | null): AppTheme => {
   };
 };
 
-export { defaultTheme };
+export { defaultTheme, lightDefaultTheme };

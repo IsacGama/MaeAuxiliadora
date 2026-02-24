@@ -7,8 +7,11 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
-import { createTheme } from '../../mobile/theme';
+import { createThemeWithMode } from '../../mobile/theme';
+import { useThemePreference } from '../../mobile/theme-preference';
 
 type Verse = { versiculo: number; texto: string };
 type Chapter = { capitulo: number; versiculos: Verse[] };
@@ -122,7 +125,12 @@ const searchInBible = (query: string): SearchResult[] => {
 
 export default function BibleScreen() {
   const org = useOrgContext();
-  const theme = useMemo(() => createTheme(org.branding), [org.branding]);
+  const { resolvedMode } = useThemePreference();
+  const tabBarHeight = useBottomTabBarHeight();
+  const theme = useMemo(
+    () => createThemeWithMode(org.branding, resolvedMode),
+    [org.branding, resolvedMode],
+  );
 
   const [query, setQuery] = useState('');
   const [selectedBookIndex, setSelectedBookIndex] = useState(0);
@@ -148,8 +156,8 @@ export default function BibleScreen() {
   const searchResults = useMemo(() => searchInBible(query), [query]);
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.bg }]}> 
-      <ScrollView contentContainerStyle={styles.content}>
+    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 26 + tabBarHeight }]}>
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
           <Text style={[styles.title, { color: theme.text }]}>Bíblia Sagrada</Text>
           <Text style={[styles.subtitle, { color: theme.textSoft }]}>Busca local e leitura offline completa</Text>
@@ -247,6 +255,6 @@ export default function BibleScreen() {
           </>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }

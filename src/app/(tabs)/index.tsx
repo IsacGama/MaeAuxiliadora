@@ -13,12 +13,15 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
-import { createTheme, getTextColorForBackground } from '../../mobile/theme';
+import { createThemeWithMode, getTextColorForBackground } from '../../mobile/theme';
 import { getMediaUrl } from '../../mobile/media';
 import { useDailyLiturgy } from '../../mobile/hooks/use-daily-liturgy';
 import { useAuth } from '../../mobile/auth-context';
 import { buildPixPayload, buildPixQrImageUrl } from '../../mobile/pix';
+import { useThemePreference } from '../../mobile/theme-preference';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -136,9 +139,14 @@ export default function HomeScreen() {
   const org = useOrgContext();
   const liturgy = useDailyLiturgy();
   const { isAuthenticated } = useAuth();
+  const { resolvedMode } = useThemePreference();
+  const tabBarHeight = useBottomTabBarHeight();
 
   const isRefreshing = org.isRefreshing || liturgy.isRefreshing;
-  const theme = useMemo(() => createTheme(org.branding), [org.branding]);
+  const theme = useMemo(
+    () => createThemeWithMode(org.branding, resolvedMode),
+    [org.branding, resolvedMode],
+  );
 
   const logoUrl = getMediaUrl(org.branding?.logoAsset?.url ?? org.branding?.coatOfArmsAsset?.url);
   const coverUrl = getMediaUrl(org.branding?.coverAsset?.url);
@@ -152,8 +160,19 @@ export default function HomeScreen() {
     return `https://${trimmed}`;
   };
 
+  const normalizeWhatsappUrl = (value?: string | null) => {
+    if (!value) return null;
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (/^https?:\/\//i.test(trimmed)) return trimmed;
+    const digits = trimmed.replace(/\D/g, '');
+    if (!digits) return null;
+    return `https://wa.me/${digits}`;
+  };
+
   const socialRaw = org.branding?.socialLinks ?? {};
   const socialLinks = [
+    { key: 'whatsapp', label: 'WhatsApp', href: normalizeWhatsappUrl(socialRaw.whatsapp) },
     { key: 'facebook', label: 'Facebook', href: normalizeExternalUrl(socialRaw.facebook) },
     { key: 'instagram', label: 'Instagram', href: normalizeExternalUrl(socialRaw.instagram) },
     { key: 'youtube', label: 'YouTube', href: normalizeExternalUrl(socialRaw.youtube) },
@@ -185,17 +204,20 @@ export default function HomeScreen() {
 
   if (org.isLoading && !org.entity) {
     return (
-      <View style={[styles.screen, { backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }]}>
+      <SafeAreaView
+        edges={['top']}
+        style={[styles.screen, { backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }]}
+      >
         <ActivityIndicator size="large" color={theme.secondary} />
         <Text style={{ marginTop: 12, color: theme.textSoft }}>Carregando comunidade...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <View style={[styles.screen, { backgroundColor: theme.bg }]}>
+    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
       <ScrollView
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: 24 + tabBarHeight }]}
         refreshControl={
           <RefreshControl
             refreshing={isRefreshing}
@@ -264,6 +286,14 @@ export default function HomeScreen() {
             <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Conteúdo local completo</Text>
           </Pressable>
 
+          <Pressable
+            style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
+            onPress={() => router.push('/(tabs)/doacoes' as never)}
+          >
+            <Text style={[styles.actionTitle, { color: theme.text }]}>Doações</Text>
+            <Text style={[styles.actionDescription, { color: theme.textSoft }]}>PIX, dados bancários e localização</Text>
+          </Pressable>
+
           {isAuthenticated && (
             <Pressable
               style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
@@ -324,7 +354,9 @@ export default function HomeScreen() {
                 >
                   <MaterialCommunityIcons
                     name={
-                      social.key === 'facebook'
+                      social.key === 'whatsapp'
+                        ? 'whatsapp'
+                        : social.key === 'facebook'
                         ? 'facebook'
                         : social.key === 'instagram'
                           ? 'instagram'
@@ -340,6 +372,6 @@ export default function HomeScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }

@@ -1,32 +1,33 @@
 {
   "expo": {
-    "name": "MaeAuxiliadora",
-    "slug": "MaeAuxiliadora",
+    "name": "Paroquia Digital",
+    "slug": "paroquia-digital",
     "version": "1.1.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
-    "scheme": "myapp",
+    "icon": "./assets/images/icon-generic.png",
+    "scheme": "paroquiadigital",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/splash-icon.png",
+      "image": "./assets/images/splash-generic.png",
       "resizeMode": "contain",
       "backgroundColor": "#1E293B"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.paroquiadigital.app"
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "foregroundImage": "./assets/images/adaptive-icon-generic.png",
         "backgroundColor": "#1E293B"
       },
-      "package": "com.IsacGama.MaeAuxiliadora"
+      "package": "com.paroquiadigital.app"
     },
     "web": {
       "bundler": "metro",
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon-generic.png"
     },
     "plugins": [
       "expo-router"

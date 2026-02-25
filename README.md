@@ -46,6 +46,31 @@ Depois:
 npm run start
 ```
 
+## Build Android e compatibilidade
+
+- Android minimo suportado: `7.0` (API `24`).
+- Para distribuir APK fora da loja, use:
+
+```bash
+npm run android:release:apk
+```
+
+Esse build inclui `armeabi-v7a` + `arm64-v8a`, cobrindo a maioria dos aparelhos Android reais.
+
+- Se quiser APK otimizado apenas para 64-bit (menor), use:
+
+```bash
+npm run android:release:arm64
+```
+
+Esse artefato **nao** instala em aparelhos 32-bit.
+
+- Para publicacao em loja, prefira App Bundle:
+
+```bash
+npm run android:release:aab
+```
+
 ## Login do fiel
 
 A tela `Conta` usa `POST /auth/login` e o dashboard usa `/member/dashboard` com refresh automático de token em `/auth/refresh`.

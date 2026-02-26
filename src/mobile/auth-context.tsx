@@ -7,7 +7,11 @@ import {
   queuePushTokenForUnregister,
   unregisterPushNotifications,
 } from './notifications';
-import { clearCache, getCacheValue, setCache } from './storage';
+import {
+  AUTH_SESSION_TTL_MS,
+  loadAuthSession,
+  saveAuthSession,
+} from './auth-session-storage';
 import { AuthResponse, AuthUser } from './types';
 
 type AuthSession = {
@@ -35,9 +39,6 @@ type AuthContextValue = {
   requestWithAuth: <T>(request: (accessToken: string) => Promise<T>) => Promise<T>;
 };
 
-const SESSION_CACHE_KEY = 'spd-mobile:auth-session';
-const SESSION_TTL_MS = 3650 * 24 * 60 * 60 * 1000; // 10 anos
-
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const toSession = (payload: AuthResponse): AuthSession => ({
@@ -51,17 +52,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   const persistSession = useCallback(async (nextSession: AuthSession | null) => {
-    if (!nextSession) {
-      await clearCache(SESSION_CACHE_KEY);
-      return;
-    }
-
-    await setCache(SESSION_CACHE_KEY, nextSession, { ttlMs: SESSION_TTL_MS });
+    await saveAuthSession(nextSession, AUTH_SESSION_TTL_MS);
   }, []);
 
   useEffect(() => {
     const load = async () => {
-      const stored = await getCacheValue<AuthSession>(SESSION_CACHE_KEY);
+      const stored = await loadAuthSession<AuthSession>(AUTH_SESSION_TTL_MS);
       setSession(stored);
       setIsLoading(false);
     };

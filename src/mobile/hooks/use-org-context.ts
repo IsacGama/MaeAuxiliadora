@@ -199,13 +199,15 @@ export const useOrgContext = () => {
     void load();
   }, [load]);
 
+  const refresh = useCallback(() => load(true), [load]);
+
   return useMemo(
     () => ({
       ...state,
       domain: '',
-      refresh: () => load(true),
+      refresh,
       displayName: state.branding?.displayName ?? state.entity?.name ?? 'Comunidade',
     }),
-    [load, state],
+    [refresh, state],
   );
 };

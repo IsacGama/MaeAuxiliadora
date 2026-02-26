@@ -1,8 +1,11 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import {
+  Alert,
+  Clipboard,
   Image,
   Linking,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +15,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useFocusEffect } from '@react-navigation/native';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useAuth } from '../../mobile/auth-context';
 import { buildPixPayload, buildPixQrImageUrl } from '../../mobile/pix';
@@ -51,6 +55,20 @@ const styles = StyleSheet.create({
   pixKeyText: {
     fontSize: 16,
     fontWeight: '700',
+  },
+  pixCopyCodeBox: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 10,
+    gap: 6,
+  },
+  pixCopyCodeLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  pixCopyCodeValue: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   qrImage: {
     width: 210,
@@ -178,17 +196,48 @@ export default function DonationsScreen() {
   const pixPayload = pixKey
     ? buildPixPayload({
         key: pixKey,
+        keyType: pixKeyType,
         merchantName: org.displayName,
         merchantCity,
         description: `Doacao ${org.displayName}`,
       })
     : null;
   const pixQrUrl = pixPayload ? buildPixQrImageUrl(pixPayload, 420) : null;
+  const pixCopyCode = pixPayload || pixKey;
+
+  const onRefresh = useCallback(async () => {
+    await org.refresh();
+  }, [org.refresh]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void org.refresh();
+    }, [org.refresh]),
+  );
+
+  const copyPixCode = useCallback(() => {
+    if (!pixCopyCode) {
+      Alert.alert('PIX indisponível', 'Nenhum código PIX configurado no momento.');
+      return;
+    }
+    Clipboard.setString(pixCopyCode);
+    Alert.alert('Copiado', 'Código PIX copiado para a área de transferência.');
+  }, [pixCopyCode]);
 
   if (!isAuthenticated) {
     return (
       <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
-        <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 28 + tabBarHeight }]}>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: 28 + tabBarHeight }]}
+          refreshControl={
+            <RefreshControl
+              refreshing={org.isRefreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.secondary}
+              colors={[theme.secondary, theme.primary]}
+            />
+          }
+        >
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[styles.title, { color: theme.text }]}>Doações</Text>
             <Text style={[styles.subtitle, { color: theme.textSoft }]}>
@@ -208,7 +257,17 @@ export default function DonationsScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: 28 + tabBarHeight }]}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: 28 + tabBarHeight }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={org.isRefreshing}
+            onRefresh={onRefresh}
+            tintColor={theme.secondary}
+            colors={[theme.secondary, theme.primary]}
+          />
+        }
+      >
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.title, { color: theme.text }]}>Doações da comunidade</Text>
           <Text style={[styles.subtitle, { color: theme.textSoft }]}>
@@ -228,6 +287,24 @@ export default function DonationsScreen() {
             <Text style={[styles.infoText, { color: theme.textSoft }]}>
               O QR Code aparecerá quando a chave PIX estiver disponível.
             </Text>
+          )}
+          {!!pixCopyCode && (
+            <>
+              <View style={[styles.pixCopyCodeBox, { borderColor: theme.border, backgroundColor: theme.bg }]}>
+                <Text style={[styles.pixCopyCodeLabel, { color: theme.textSoft }]}>PIX copia e cola</Text>
+                <Text selectable style={[styles.pixCopyCodeValue, { color: theme.text }]}>
+                  {pixCopyCode}
+                </Text>
+              </View>
+              <Pressable
+                style={[styles.button, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.16)' }]}
+                onPress={copyPixCode}
+              >
+                <Text style={{ color: theme.secondary, fontWeight: '700' }}>
+                  {pixPayload ? 'Copiar PIX copia e cola' : 'Copiar chave PIX'}
+                </Text>
+              </Pressable>
+            </>
           )}
         </View>
 

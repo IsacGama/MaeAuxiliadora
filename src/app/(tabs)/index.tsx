@@ -190,9 +190,11 @@ export default function HomeScreen() {
 
   const rawEntity = org.entity?.raw as { city?: string; address?: { city?: string } } | undefined;
   const pixKey = (org.branding?.pixKey ?? '').trim();
+  const pixKeyType = org.branding?.pixKeyType?.trim() || 'PIX';
   const pixPayload = pixKey
     ? buildPixPayload({
         key: pixKey,
+        keyType: pixKeyType,
         merchantName: org.displayName,
         merchantCity: rawEntity?.address?.city ?? rawEntity?.city ?? 'BRASILIA',
         description: `Doacao ${org.displayName}`,

@@ -182,9 +182,27 @@ export type PublicPost = {
   versions?: PostVersion[];
 };
 
+export type PublicPostPaginatedResponse = {
+  items: PublicPost[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
 export type PublicContentBlock = {
   id: string;
-  type: 'HEADING' | 'RICH_TEXT' | 'IMAGE' | 'QUOTE' | 'DIVIDER' | 'BUTTON' | string;
+  type:
+    | 'HEADING'
+    | 'RICH_TEXT'
+    | 'IMAGE'
+    | 'QUOTE'
+    | 'DIVIDER'
+    | 'BUTTON'
+    | 'GALLERY'
+    | 'EMBED'
+    | 'COLUMNS'
+    | string;
   order: number;
   data: Record<string, unknown>;
   style?: Record<string, unknown> | null;

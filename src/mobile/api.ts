@@ -11,6 +11,7 @@ import {
   OrgBranding,
   ParishPublic,
   PublicPost,
+  PublicPostPaginatedResponse,
   PublicPostDetail,
   ResolvedOrgEntity,
   SaintOfDayPayload,
@@ -252,6 +253,21 @@ export const publicApi = {
     fetchJson<PublicPost[]>(
       api(`/public/posts${parishId ? `?parishId=${encodeURIComponent(parishId)}` : ''}`),
     ),
+  fetchPublicPostsPaginated: (options: {
+    parishId?: string;
+    page?: number;
+    pageSize?: number;
+  }) => {
+    const query = new URLSearchParams();
+    if (options.parishId) query.set('parishId', options.parishId);
+    if (options.page) query.set('page', String(options.page));
+    if (options.pageSize) query.set('pageSize', String(options.pageSize));
+
+    const suffix = query.toString();
+    return fetchJson<PublicPostPaginatedResponse>(
+      api(`/public/posts/paginated${suffix ? `?${suffix}` : ''}`),
+    );
+  },
   fetchPublicPostBySlug: (slug: string, parishId?: string) =>
     fetchJson<PublicPostDetail>(
       api(

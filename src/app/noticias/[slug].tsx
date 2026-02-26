@@ -78,6 +78,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
   },
+  galleryRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  galleryImage: {
+    width: 220,
+    height: 140,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
   actionButton: {
     borderRadius: 10,
     borderWidth: 1,
@@ -132,6 +142,12 @@ const formatDateTime = (value?: string | null) => {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+};
+
+const extractEmbedUrl = (value?: string) => {
+  if (!value?.trim()) return undefined;
+  const iframeSrc = value.match(/<iframe[^>]*src=["']([^"']+)["'][^>]*><\/iframe>/i)?.[1];
+  return normalizeUrl(iframeSrc ?? value);
 };
 
 const renderBlockText = (block: PublicContentBlock) => {
@@ -327,13 +343,60 @@ export default function PostDetailScreen() {
                         styles.blockImage,
                         { borderColor: theme.border, backgroundColor: theme.bg },
                       ]}
-                      resizeMode="cover"
+                      resizeMode="contain"
                     />
                     {!!asString(data.caption) && (
                       <Text style={[styles.meta, { color: theme.textSoft }]}>
                         {asString(data.caption)}
                       </Text>
                     )}
+                  </View>
+                );
+              }
+
+              if (block.type === 'GALLERY') {
+                const images = Array.isArray(data.images)
+                  ? (data.images as Array<Record<string, unknown>>)
+                  : [];
+                if (!images.length) {
+                  return null;
+                }
+                return (
+                  <View
+                    key={block.id || `${block.type}-${index}`}
+                    style={[
+                      styles.card,
+                      { backgroundColor: theme.surface, borderColor: theme.border },
+                    ]}
+                  >
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                      <View style={styles.galleryRow}>
+                        {images.map((entry, imageIndex) => {
+                          const url = normalizeUrl(asString(entry.url));
+                          if (!url) return null;
+                          return (
+                            <View key={`${block.id}-${imageIndex}`} style={{ gap: 6 }}>
+                              <Image
+                                source={{ uri: url }}
+                                style={[
+                                  styles.galleryImage,
+                                  {
+                                    borderColor: theme.border,
+                                    backgroundColor: theme.bg,
+                                  },
+                                ]}
+                                resizeMode="cover"
+                              />
+                              {!!asString(entry.caption) && (
+                                <Text style={[styles.meta, { color: theme.textSoft }]}>
+                                  {asString(entry.caption)}
+                                </Text>
+                              )}
+                            </View>
+                          );
+                        })}
+                      </View>
+                    </ScrollView>
                   </View>
                 );
               }
@@ -363,6 +426,71 @@ export default function PostDetailScreen() {
                         {label}
                       </Text>
                     </Pressable>
+                  </View>
+                );
+              }
+
+              if (block.type === 'EMBED') {
+                const embedUrl = extractEmbedUrl(asString(data.html) ?? asString(data.url));
+                if (!embedUrl) {
+                  return null;
+                }
+                return (
+                  <View
+                    key={block.id || `${block.type}-${index}`}
+                    style={[
+                      styles.card,
+                      { backgroundColor: theme.surface, borderColor: theme.border },
+                    ]}
+                  >
+                    <Pressable
+                      style={[styles.actionButton, { borderColor: theme.secondary }]}
+                      onPress={() => {
+                        void Linking.openURL(embedUrl).catch(() => undefined);
+                      }}
+                    >
+                      <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+                        Abrir vídeo
+                      </Text>
+                    </Pressable>
+                  </View>
+                );
+              }
+
+              if (block.type === 'COLUMNS') {
+                const columns = Array.isArray(data.columns)
+                  ? (data.columns as Array<Record<string, unknown>>)
+                  : [];
+                if (!columns.length) {
+                  return null;
+                }
+                return (
+                  <View
+                    key={block.id || `${block.type}-${index}`}
+                    style={[
+                      styles.card,
+                      { backgroundColor: theme.surface, borderColor: theme.border },
+                    ]}
+                  >
+                    {columns.map((column, columnIndex) => (
+                      <View key={`${block.id}-column-${columnIndex}`} style={{ gap: 4 }}>
+                        {!!asString(column.title) && (
+                          <Text style={[styles.headingBlock, { color: theme.text, fontSize: 17 }]}>
+                            {asString(column.title)}
+                          </Text>
+                        )}
+                        {!!asString(column.text) && (
+                          <Text style={[styles.blockText, { color: theme.text }]}>
+                            {asString(column.text)}
+                          </Text>
+                        )}
+                        {!!asString(column.html) && (
+                          <Text style={[styles.blockText, { color: theme.text }]}>
+                            {stripHtml(asString(column.html))}
+                          </Text>
+                        )}
+                      </View>
+                    ))}
                   </View>
                 );
               }

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -25,12 +26,18 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     gap: 14,
   },
+  listContent: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 28,
+  },
   header: {
     borderRadius: 16,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 10,
+    marginBottom: 14,
   },
   backButton: {
     alignSelf: 'flex-start',
@@ -56,6 +63,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     gap: 8,
+    marginBottom: 14,
   },
   cardTitle: {
     fontSize: 17,
@@ -65,6 +73,14 @@ const styles = StyleSheet.create({
   cardSummary: {
     fontSize: 14,
     lineHeight: 21,
+  },
+  footerSpacing: {
+    paddingBottom: 4,
+  },
+  loadingMore: {
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   date: {
     fontSize: 12,
@@ -134,8 +150,17 @@ export default function NewsScreen() {
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: 28 }]}
+      <FlatList
+        data={posts.posts}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        onEndReached={() => {
+          if (!posts.hasMore || posts.isLoadingMore || posts.isRefreshing || posts.isLoading) {
+            return;
+          }
+          posts.loadMore();
+        }}
+        onEndReachedThreshold={0.35}
         refreshControl={
           <RefreshControl
             refreshing={posts.isRefreshing}
@@ -144,58 +169,65 @@ export default function NewsScreen() {
             colors={[theme.secondary, theme.primary]}
           />
         }
-      >
-        <View style={[styles.header, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Pressable
-            style={[styles.backButton, { borderColor: theme.border }]}
-            onPress={() => router.back()}
-          >
-            <MaterialCommunityIcons name="arrow-left" size={16} color={theme.secondary} />
-            <Text style={{ color: theme.secondary, fontWeight: '700' }}>Voltar</Text>
-          </Pressable>
-          <Text style={[styles.title, { color: theme.text }]}>Notícias</Text>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>
-            Comunicados e conteúdos publicados pela sua comunidade.
-          </Text>
-        </View>
-
-        {posts.posts.length > 0 ? (
-          posts.posts.map((post) => {
-            const summary = post.versions?.[0]?.summary?.trim() || 'Toque para abrir o conteúdo.';
-            return (
-              <Pressable
-                key={post.id}
-                style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                onPress={() =>
-                  router.push({
-                    pathname: '/noticias/[slug]' as never,
-                    params: { slug: post.slug },
-                  } as never)
-                }
-              >
-                <Text style={[styles.cardTitle, { color: theme.text }]}>{post.title}</Text>
-                <Text style={[styles.date, { color: theme.textSoft }]}>
-                  {formatDate(post.publishedAt ?? post.createdAt)}
-                </Text>
-                <Text style={[styles.cardSummary, { color: theme.textSoft }]}>{summary}</Text>
-              </Pressable>
-            );
-          })
-        ) : (
+        ListHeaderComponent={
+          <View style={[styles.header, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Pressable
+              style={[styles.backButton, { borderColor: theme.border }]}
+              onPress={() => router.back()}
+            >
+              <MaterialCommunityIcons name="arrow-left" size={16} color={theme.secondary} />
+              <Text style={{ color: theme.secondary, fontWeight: '700' }}>Voltar</Text>
+            </Pressable>
+            <Text style={[styles.title, { color: theme.text }]}>Notícias</Text>
+            <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+              Comunicados e conteúdos publicados pela sua comunidade.
+            </Text>
+          </View>
+        }
+        ListEmptyComponent={
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[styles.cardTitle, { color: theme.text }]}>Nenhuma notícia publicada</Text>
             <Text style={[styles.cardSummary, { color: theme.textSoft }]}>
               Assim que houver novidades, elas aparecerão aqui.
             </Text>
           </View>
-        )}
-
-        {!!posts.error && (
-          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.cardSummary, { color: '#FCA5A5' }]}>{posts.error}</Text>
-          </View>
-        )}
-      </ScrollView>
+        }
+        ListFooterComponent={
+          <>
+            {!!posts.error && (
+              <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.cardSummary, { color: '#FCA5A5' }]}>{posts.error}</Text>
+              </View>
+            )}
+            {posts.isLoadingMore && (
+              <View style={styles.loadingMore}>
+                <ActivityIndicator size="small" color={theme.secondary} />
+              </View>
+            )}
+            <View style={styles.footerSpacing} />
+          </>
+        }
+        renderItem={({ item: post }) => {
+          const summary = post.versions?.[0]?.summary?.trim() || 'Toque para abrir o conteúdo.';
+          return (
+            <Pressable
+              style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              onPress={() =>
+                router.push({
+                  pathname: '/noticias/[slug]' as never,
+                  params: { slug: post.slug },
+                } as never)
+              }
+            >
+              <Text style={[styles.cardTitle, { color: theme.text }]}>{post.title}</Text>
+              <Text style={[styles.date, { color: theme.textSoft }]}>
+                {formatDate(post.publishedAt ?? post.createdAt)}
+              </Text>
+              <Text style={[styles.cardSummary, { color: theme.textSoft }]}>{summary}</Text>
+            </Pressable>
+          );
+        }}
+      />
     </SafeAreaView>
   );
 }

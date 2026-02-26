@@ -6,10 +6,12 @@ import {
   DevicePlatform,
   DiocesePublic,
   LiturgyPayload,
+  MemberNotificationItem,
   MemberDashboard,
   OrgBranding,
   ParishPublic,
   PublicPost,
+  PublicPostDetail,
   ResolvedOrgEntity,
   SaintOfDayPayload,
 } from './types';
@@ -250,6 +252,12 @@ export const publicApi = {
     fetchJson<PublicPost[]>(
       api(`/public/posts${parishId ? `?parishId=${encodeURIComponent(parishId)}` : ''}`),
     ),
+  fetchPublicPostBySlug: (slug: string, parishId?: string) =>
+    fetchJson<PublicPostDetail>(
+      api(
+        `/public/posts/${encodeURIComponent(slug)}${parishId ? `?parishId=${encodeURIComponent(parishId)}` : ''}`,
+      ),
+    ),
   fetchDailyLiturgy: (date: string) =>
     fetchJson<LiturgyPayload>(`${appConfig.liturgyApiUrl}/?date=${encodeURIComponent(date)}`),
   fetchSaintOfDay: async (day: number, month: number) => {
@@ -287,6 +295,9 @@ export const authApi = {
     password: string;
     parishId: string;
     chapelId?: string;
+    primaryPhone?: string;
+    cpf?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
   }) =>
     fetchJson<AuthResponse>(api('/auth/register'), {
       method: 'POST',
@@ -309,6 +320,17 @@ export const authApi = {
     fetchJson<MemberDashboard>(api('/member/dashboard'), {
       headers: { Authorization: `Bearer ${accessToken}` },
     }),
+  memberNotifications: (accessToken: string) =>
+    fetchJson<MemberNotificationItem[]>(api('/member/notifications'), {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }),
+  memberNotification: (accessToken: string, notificationId: string) =>
+    fetchJson<MemberNotificationItem>(
+      api(`/member/notifications/${encodeURIComponent(notificationId)}`),
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    ),
   enrollTither: (accessToken: string) =>
     fetchJson(api('/member/enroll-tither'), {
       method: 'POST',

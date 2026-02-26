@@ -11,11 +11,11 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useOrgContext } from '../mobile/hooks/use-org-context';
-import { usePublicPosts } from '../mobile/hooks/use-public-posts';
-import { createThemeWithMode } from '../mobile/theme';
-import { useAuth } from '../mobile/auth-context';
-import { useThemePreference } from '../mobile/theme-preference';
+import { useOrgContext } from '../../mobile/hooks/use-org-context';
+import { usePublicPosts } from '../../mobile/hooks/use-public-posts';
+import { createThemeWithMode } from '../../mobile/theme';
+import { useAuth } from '../../mobile/auth-context';
+import { useThemePreference } from '../../mobile/theme-preference';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -161,15 +161,24 @@ export default function NewsScreen() {
 
         {posts.posts.length > 0 ? (
           posts.posts.map((post) => {
-            const summary = post.versions?.[0]?.summary?.trim() || 'Toque para ver no portal web.';
+            const summary = post.versions?.[0]?.summary?.trim() || 'Toque para abrir o conteúdo.';
             return (
-              <View key={post.id} style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+              <Pressable
+                key={post.id}
+                style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                onPress={() =>
+                  router.push({
+                    pathname: '/noticias/[slug]' as never,
+                    params: { slug: post.slug },
+                  } as never)
+                }
+              >
                 <Text style={[styles.cardTitle, { color: theme.text }]}>{post.title}</Text>
                 <Text style={[styles.date, { color: theme.textSoft }]}>
                   {formatDate(post.publishedAt ?? post.createdAt)}
                 </Text>
                 <Text style={[styles.cardSummary, { color: theme.textSoft }]}>{summary}</Text>
-              </View>
+              </Pressable>
             );
           })
         ) : (

@@ -186,3 +186,12 @@ export async function addNotificationResponseListener(
     subscription.remove();
   };
 }
+
+export async function getLastNotificationResponse() {
+  if (isExpoGo) {
+    return null;
+  }
+
+  const Notifications = await loadNotificationsModule();
+  return Notifications.getLastNotificationResponseAsync();
+}

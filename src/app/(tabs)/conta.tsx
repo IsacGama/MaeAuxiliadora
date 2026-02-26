@@ -14,6 +14,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { router } from 'expo-router';
 import { useAuth } from '../../mobile/auth-context';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useMemberDashboard } from '../../mobile/hooks/use-member-dashboard';
@@ -89,6 +90,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: 10,
     alignItems: 'center',
+  },
+  genderRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  genderOption: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  genderOptionText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   selectTrigger: {
     borderRadius: 12,
@@ -203,6 +219,48 @@ const money = (value: number) =>
 
 const SEARCH_DEBOUNCE_MS = 300;
 
+const onlyDigits = (value: string) => value.replace(/\D/g, '');
+
+const formatCpf = (value: string) => {
+  const digits = onlyDigits(value).slice(0, 11);
+  return digits
+    .replace(/^(\d{3})(\d)/, '$1.$2')
+    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1-$2');
+};
+
+const isValidCpf = (value: string) => {
+  const cpf = onlyDigits(value);
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false;
+
+  let sum = 0;
+  for (let i = 0; i < 9; i += 1) sum += Number(cpf[i]) * (10 - i);
+  let remainder = (sum * 10) % 11;
+  if (remainder === 10) remainder = 0;
+  if (remainder !== Number(cpf[9])) return false;
+
+  sum = 0;
+  for (let i = 0; i < 10; i += 1) sum += Number(cpf[i]) * (11 - i);
+  remainder = (sum * 10) % 11;
+  if (remainder === 10) remainder = 0;
+  return remainder === Number(cpf[10]);
+};
+
+const formatPhoneBR = (value: string) => {
+  const digits = onlyDigits(value).slice(0, 11);
+  if (digits.length <= 2) return digits ? `(${digits}` : '';
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+};
+
+const isValidPhoneBR = (value: string) => {
+  const len = onlyDigits(value).length;
+  return len === 10 || len === 11;
+};
+
 const normalizeForSearch = (value: string) =>
   value
     .normalize('NFD')
@@ -236,6 +294,11 @@ export default function AccountScreen() {
 
   const [registerName, setRegisterName] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPhone, setRegisterPhone] = useState('');
+  const [registerCpf, setRegisterCpf] = useState('');
+  const [registerGender, setRegisterGender] = useState<
+    'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED'
+  >('UNDECLARED');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
   const [selectedParishId, setSelectedParishId] = useState<string>('');
@@ -351,6 +414,22 @@ export default function AccountScreen() {
       setSubmitError('Preencha nome, e-mail e senha.');
       return;
     }
+    if (!registerPhone.trim()) {
+      setSubmitError('Informe o telefone.');
+      return;
+    }
+    if (!isValidPhoneBR(registerPhone)) {
+      setSubmitError('Telefone inválido.');
+      return;
+    }
+    if (!registerCpf.trim()) {
+      setSubmitError('Informe o CPF.');
+      return;
+    }
+    if (!isValidCpf(registerCpf)) {
+      setSubmitError('CPF inválido.');
+      return;
+    }
     if (registerPassword.length < 6) {
       setSubmitError('A senha deve ter no mínimo 6 caracteres.');
       return;
@@ -374,7 +453,13 @@ export default function AccountScreen() {
         password: registerPassword,
         parishId: selectedParishId,
         chapelId: selectedChapelId || undefined,
+        primaryPhone: onlyDigits(registerPhone),
+        cpf: onlyDigits(registerCpf),
+        gender: registerGender,
       });
+      setRegisterPhone('');
+      setRegisterCpf('');
+      setRegisterGender('UNDECLARED');
       setRegisterPassword('');
       setRegisterPasswordConfirm('');
     } catch (error) {
@@ -556,6 +641,63 @@ export default function AccountScreen() {
                   placeholderTextColor={theme.textSoft}
                   style={[styles.input, { borderColor: theme.border, color: theme.text }]}
                 />
+                <TextInput
+                  value={registerPhone}
+                  onChangeText={(value) => setRegisterPhone(formatPhoneBR(value))}
+                  keyboardType="phone-pad"
+                  placeholder="Telefone (88) 99999-9999"
+                  placeholderTextColor={theme.textSoft}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                />
+                <TextInput
+                  value={registerCpf}
+                  onChangeText={(value) => setRegisterCpf(formatCpf(value))}
+                  keyboardType="number-pad"
+                  placeholder="CPF 000.000.000-00"
+                  placeholderTextColor={theme.textSoft}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                />
+
+                <Text style={[styles.statLabel, { color: theme.textSoft }]}>Gênero</Text>
+                <View style={styles.genderRow}>
+                  {[
+                    { value: 'MALE', label: 'Masculino' },
+                    { value: 'FEMALE', label: 'Feminino' },
+                    { value: 'OTHER', label: 'Outro' },
+                    { value: 'UNDECLARED', label: 'Prefiro não informar' },
+                  ].map((option) => (
+                    <Pressable
+                      key={option.value}
+                      style={[
+                        styles.genderOption,
+                        {
+                          borderColor:
+                            registerGender === option.value ? theme.secondary : theme.border,
+                          backgroundColor:
+                            registerGender === option.value
+                              ? 'rgba(218, 139, 60, 0.16)'
+                              : 'transparent',
+                        },
+                      ]}
+                      onPress={() => setRegisterGender(option.value as typeof registerGender)}
+                    >
+                      <Text
+                        style={[
+                          styles.genderOptionText,
+                          {
+                            color:
+                              registerGender === option.value
+                                ? theme.secondary
+                                : theme.textSoft,
+                          },
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+
                 <TextInput
                   value={registerPassword}
                   onChangeText={setRegisterPassword}
@@ -834,6 +976,21 @@ export default function AccountScreen() {
               <Text style={[styles.title, { color: theme.text }]}>Minha conta</Text>
               <Text style={[styles.subtitle, { color: theme.textSoft }]}>{session?.user.name}</Text>
               <Text style={[styles.subtitle, { color: theme.textSoft }]}>{session?.user.email}</Text>
+
+              <Pressable
+                style={[
+                  styles.button,
+                  {
+                    borderColor: theme.secondary,
+                    backgroundColor: 'rgba(218, 139, 60, 0.16)',
+                  },
+                ]}
+                onPress={() => router.push('/mensagens' as never)}
+              >
+                <Text style={[styles.buttonText, { color: theme.secondary }]}>
+                  Ver mensagens recebidas
+                </Text>
+              </Pressable>
 
               <Pressable
                 style={[styles.button, { borderColor: '#F87171', backgroundColor: 'rgba(248, 113, 113, 0.14)' }]}

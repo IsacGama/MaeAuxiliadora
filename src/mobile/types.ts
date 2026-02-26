@@ -181,3 +181,45 @@ export type PublicPost = {
   createdAt: string;
   versions?: PostVersion[];
 };
+
+export type PublicContentBlock = {
+  id: string;
+  type: 'HEADING' | 'RICH_TEXT' | 'IMAGE' | 'QUOTE' | 'DIVIDER' | 'BUTTON' | string;
+  order: number;
+  data: Record<string, unknown>;
+  style?: Record<string, unknown> | null;
+};
+
+export type PublicPostDetail = {
+  id: string;
+  parishId: string;
+  title: string;
+  slug: string;
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+  publishedAt?: string | null;
+  createdAt: string;
+  parish?: { id: string; name: string } | null;
+  versions?: Array<{
+    id: string;
+    version: number;
+    title?: string | null;
+    summary?: string | null;
+    createdAt: string;
+    blocks?: PublicContentBlock[];
+  }>;
+};
+
+export type MemberNotificationItem = {
+  id: string;
+  parishId: string;
+  title: string;
+  body: string;
+  channel: 'PUSH' | 'EMAIL';
+  data?: Record<string, unknown> | null;
+  createdAt: string;
+  deliveredAt: string;
+  parish?: {
+    id: string;
+    name: string;
+  } | null;
+};

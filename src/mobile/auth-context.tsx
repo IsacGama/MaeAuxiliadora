@@ -21,6 +21,9 @@ type AuthContextValue = {
     password: string;
     parishId: string;
     chapelId?: string;
+    primaryPhone?: string;
+    cpf?: string;
+    gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
   }) => Promise<void>;
   logout: () => Promise<void>;
   requestWithAuth: <T>(request: (accessToken: string) => Promise<T>) => Promise<T>;
@@ -74,6 +77,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       password: string;
       parishId: string;
       chapelId?: string;
+      primaryPhone?: string;
+      cpf?: string;
+      gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
     }) => {
       const response = await authApi.register(payload);
       const nextSession = toSession(response);

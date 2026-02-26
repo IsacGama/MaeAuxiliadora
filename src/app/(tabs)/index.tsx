@@ -313,7 +313,7 @@ export default function HomeScreen() {
 
         <View style={[styles.sectionCard, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
           <Text style={[styles.sectionTitle, { color: theme.text }]}>Liturgia em destaque</Text>
-          <Text style={[styles.paragraph, { color: theme.text }]}> {liturgyExcerpt}</Text>
+          <Text style={[styles.paragraph, { color: theme.text }]}>{liturgyExcerpt}</Text>
           {!!liturgy.error && <Text style={{ color: '#FCA5A5' }}>{liturgy.error}</Text>}
         </View>
 

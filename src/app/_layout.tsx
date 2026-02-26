@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { useCallback, useEffect, useRef } from 'react';
+import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../mobile/auth-context';
 import { appConfig } from '../mobile/config';
@@ -8,11 +9,92 @@ import { ThemePreferenceProvider, useThemePreference } from '../mobile/theme-pre
 import {
   addNotificationResponseListener,
   configureNotificationHandling,
+  getLastNotificationResponse,
   registerForPushNotifications,
 } from '../mobile/notifications';
+import type { NotificationResponse } from 'expo-notifications';
+
+type PushAction =
+  | { type: 'POST'; slug: string }
+  | { type: 'MESSAGE'; notificationId?: string }
+  | { type: 'EXTERNAL_URL'; url: string };
+
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
+
+const asString = (value: unknown): string | undefined =>
+  typeof value === 'string' && value.trim() ? value.trim() : undefined;
+
+const parsePushAction = (response: NotificationResponse): PushAction => {
+  const data = asRecord(response.notification.request.content.data) ?? {};
+  const destination =
+    asString(data.destinationType)?.toUpperCase() ??
+    asString(data.destination)?.toUpperCase();
+
+  if (destination === 'POST') {
+    const slug = asString(data.postSlug) ?? asString(data.slug);
+    if (slug) {
+      return { type: 'POST', slug };
+    }
+  }
+
+  if (destination === 'EXTERNAL_URL') {
+    const url = asString(data.url) ?? asString(data.href);
+    if (url) {
+      return { type: 'EXTERNAL_URL', url };
+    }
+  }
+
+  return {
+    type: 'MESSAGE',
+    notificationId: asString(data.notificationId) ?? asString(data.id),
+  };
+};
 
 function NotificationRegistrar() {
   const { isAuthenticated, session, requestWithAuth } = useAuth();
+  const router = useRouter();
+  const handledResponseIdsRef = useRef<Set<string>>(new Set());
+
+  const openPushAction = useCallback(
+    (response: NotificationResponse) => {
+      const responseId = response.notification.request.identifier;
+      if (handledResponseIdsRef.current.has(responseId)) {
+        return;
+      }
+      handledResponseIdsRef.current.add(responseId);
+
+      const action = parsePushAction(response);
+
+      if (action.type === 'POST') {
+        router.push(
+          {
+            pathname: '/noticias/[slug]' as never,
+            params: { slug: action.slug },
+          } as never,
+        );
+        return;
+      }
+
+      if (action.type === 'EXTERNAL_URL') {
+        void Linking.openURL(action.url).catch(() => undefined);
+        return;
+      }
+
+      if (action.notificationId) {
+        router.push(
+          {
+            pathname: '/mensagens' as never,
+            params: { id: action.notificationId },
+          } as never,
+        );
+        return;
+      }
+
+      router.push('/mensagens' as never);
+    },
+    [router],
+  );
 
   useEffect(() => {
     void configureNotificationHandling();
@@ -60,8 +142,8 @@ function NotificationRegistrar() {
     let removeListener: (() => void) | null = null;
     let cancelled = false;
 
-    void addNotificationResponseListener(() => {
-      // reservado para deep linking no próximo passo
+    void addNotificationResponseListener((response) => {
+      openPushAction(response);
     }).then((unsubscribe) => {
       if (cancelled) {
         unsubscribe();
@@ -74,7 +156,22 @@ function NotificationRegistrar() {
       cancelled = true;
       removeListener?.();
     };
-  }, []);
+  }, [openPushAction]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void getLastNotificationResponse().then((response) => {
+      if (cancelled || !response) {
+        return;
+      }
+      openPushAction(response);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [openPushAction]);
 
   return null;
 }

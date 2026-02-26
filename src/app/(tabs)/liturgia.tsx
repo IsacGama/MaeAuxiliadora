@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -10,6 +11,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { DayKeyPicker } from '../../mobile/components/day-key-picker';
+import { formatDateLabel } from '../../mobile/date';
 import { useDailyLiturgy } from '../../mobile/hooks/use-daily-liturgy';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { createThemeWithMode } from '../../mobile/theme';
@@ -58,6 +61,11 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     alignSelf: 'flex-start',
   },
+  loadingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
 });
 
 const readingSections: Array<{
@@ -80,6 +88,21 @@ export default function LiturgyScreen() {
     () => createThemeWithMode(org.branding, resolvedMode),
     [org.branding, resolvedMode],
   );
+
+  useEffect(() => {
+    if (!liturgy.dateMismatch) {
+      return;
+    }
+
+    Alert.alert(
+      'Liturgia indisponível',
+      `Ainda não há liturgia para ${formatDateLabel(liturgy.dateMismatch.requestedDate)}. Exibimos ${formatDateLabel(
+        liturgy.dateMismatch.payloadDate,
+      )}.`,
+      [{ text: 'OK', onPress: liturgy.clearDateMismatch }],
+      { cancelable: true, onDismiss: liturgy.clearDateMismatch },
+    );
+  }, [liturgy.clearDateMismatch, liturgy.dateMismatch]);
 
   if (liturgy.isLoading && !liturgy.liturgy) {
     return (
@@ -106,6 +129,25 @@ export default function LiturgyScreen() {
           />
         }
       >
+        <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <DayKeyPicker
+            value={liturgy.selectedDate}
+            onChange={liturgy.setDate}
+            theme={theme}
+            label="Data da liturgia"
+            title="Escolher data da liturgia"
+          />
+        </View>
+
+        {liturgy.isLoading && !!liturgy.liturgy && (
+          <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={styles.loadingRow}>
+              <ActivityIndicator size="small" color={theme.secondary} />
+              <Text style={[styles.text, { color: theme.textSoft }]}>Carregando a data selecionada...</Text>
+            </View>
+          </View>
+        )}
+
         <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
           <Text style={[styles.title, { color: theme.text }]}>{liturgy.liturgy?.liturgia ?? 'Liturgia diária'}</Text>
           <Text style={[styles.subtitle, { color: theme.textSoft }]}>

@@ -167,7 +167,13 @@ export default function HomeScreen() {
     if (/^https?:\/\//i.test(trimmed)) return trimmed;
     const digits = trimmed.replace(/\D/g, '');
     if (!digits) return null;
-    return `https://wa.me/${digits}`;
+    const internationalDigits =
+      digits.startsWith('55')
+        ? digits
+        : digits.length === 10 || digits.length === 11
+          ? `55${digits}`
+          : digits;
+    return `https://wa.me/${internationalDigits}`;
   };
 
   const socialRaw = org.branding?.socialLinks ?? {};

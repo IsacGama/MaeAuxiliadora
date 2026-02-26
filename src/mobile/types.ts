@@ -1,4 +1,5 @@
 export type OrgEntityType = 'DIOCESE' | 'PARISH' | 'CHAPEL';
+export type DevicePlatform = 'ANDROID' | 'IOS';
 
 export type MediaAsset = {
   id: string;

@@ -30,7 +30,13 @@
       "favicon": "./assets/images/favicon-generic.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "color": "#1E293B"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

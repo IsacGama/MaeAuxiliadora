@@ -3,6 +3,7 @@ import { fetchJson, HttpError } from './http';
 import {
   AuthResponse,
   ChapelPublic,
+  DevicePlatform,
   DiocesePublic,
   LiturgyPayload,
   MemberDashboard,
@@ -21,6 +22,81 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const readString = (value: unknown): string | undefined =>
   typeof value === 'string' ? value : undefined;
 
+const decodeHtmlEntities = (value: string) =>
+  value
+    .replace(/&#038;/gi, '&')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+
+const normalizeImageUrl = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+
+  let url = decodeHtmlEntities(value.trim()).replace(/\\\//g, '/');
+  if (!url) return undefined;
+
+  if (url.startsWith('//')) {
+    url = `https:${url}`;
+  }
+
+  // Android costuma bloquear cleartext por padrão em release.
+  if (url.startsWith('http://')) {
+    url = `https://${url.slice('http://'.length)}`;
+  }
+
+  if (!/^https?:\/\//i.test(url)) {
+    return undefined;
+  }
+
+  // `Image` do React Native não renderiza SVG remoto sem biblioteca extra.
+  if (/\.svg(?:\?|#|$)/i.test(url)) {
+    return undefined;
+  }
+
+  return url;
+};
+
+const extractFirstImageFromHtml = (html?: string): string | undefined => {
+  if (!html) return undefined;
+  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return normalizeImageUrl(match?.[1]);
+};
+
+const resolveWordPressSaintImage = (value: Record<string, unknown>) => {
+  const metaRecord = isRecord(value.meta) ? value.meta : null;
+  const contentRecord = isRecord(value.content) ? value.content : null;
+  const excerptRecord = isRecord(value.excerpt) ? value.excerpt : null;
+  const embeddedRecord = isRecord(value._embedded) ? value._embedded : null;
+  const yoastRecord = isRecord(value.yoast_head_json) ? value.yoast_head_json : null;
+
+  const embeddedFeaturedRaw = embeddedRecord?.['wp:featuredmedia'];
+  const embeddedFeatured = Array.isArray(embeddedFeaturedRaw)
+    ? embeddedFeaturedRaw[0]
+    : null;
+  const embeddedFeaturedRecord = isRecord(embeddedFeatured) ? embeddedFeatured : null;
+
+  const yoastImagesRaw = yoastRecord?.og_image;
+  const yoastImage = Array.isArray(yoastImagesRaw) ? yoastImagesRaw[0] : null;
+  const yoastImageRecord = isRecord(yoastImage) ? yoastImage : null;
+
+  const candidates: Array<unknown> = [
+    value.imagem_destacada,
+    metaRecord?.['imagem-sm'],
+    value.jetpack_featured_media_url,
+    embeddedFeaturedRecord?.source_url,
+    yoastImageRecord?.url,
+    extractFirstImageFromHtml(readString(contentRecord?.rendered)),
+    extractFirstImageFromHtml(readString(excerptRecord?.rendered)),
+  ];
+
+  for (const candidate of candidates) {
+    const normalized = normalizeImageUrl(candidate);
+    if (normalized) return normalized;
+  }
+
+  return undefined;
+};
+
 const toWordPressSaint = (value: unknown): SaintOfDayPayload | null => {
   if (!isRecord(value)) return null;
 
@@ -37,8 +113,8 @@ const toWordPressSaint = (value: unknown): SaintOfDayPayload | null => {
     return null;
   }
 
-  const image = readString(value.imagem_destacada);
-  const imageSm = readString(metaRecord?.['imagem-sm']);
+  const image = resolveWordPressSaintImage(value);
+  const imageSm = normalizeImageUrl(metaRecord?.['imagem-sm']);
 
   return {
     id: typeof value.id === 'number' ? value.id : 0,
@@ -80,9 +156,9 @@ const toLegacySaint = (value: unknown): SaintOfDayPayload | null => {
     excerpt: { rendered: fullText ?? '' },
     meta: {
       'dia-festivo': festiveDay || undefined,
-      'imagem-sm': image,
+      'imagem-sm': normalizeImageUrl(image),
     },
-    imagem_destacada: image,
+    imagem_destacada: normalizeImageUrl(image),
     dia: day,
     mes: month,
   };
@@ -178,7 +254,7 @@ export const publicApi = {
     fetchJson<LiturgyPayload>(`${appConfig.liturgyApiUrl}/?date=${encodeURIComponent(date)}`),
   fetchSaintOfDay: async (day: number, month: number) => {
     const response = await fetchJson<unknown>(
-      `${appConfig.saintApiUrl}?dia=${encodeURIComponent(String(day))}&mes=${encodeURIComponent(String(month))}`,
+      `${appConfig.saintApiUrl}?dia=${encodeURIComponent(String(day))}&mes=${encodeURIComponent(String(month))}&_embed=wp:featuredmedia`,
     );
 
     if (Array.isArray(response)) {
@@ -241,6 +317,23 @@ export const authApi = {
   unenrollTither: (accessToken: string) =>
     fetchJson(api('/member/unenroll-tither'), {
       method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }),
+  registerDevice: (
+    accessToken: string,
+    payload: { token: string; platform: DevicePlatform },
+  ) =>
+    fetchJson(api('/notifications/devices'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    }),
+  unregisterDevice: (accessToken: string, token: string) =>
+    fetchJson(api(`/notifications/devices/${encodeURIComponent(token)}`), {
+      method: 'DELETE',
       headers: { Authorization: `Bearer ${accessToken}` },
     }),
 };

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { publicApi } from '../api';
-import { getDayKey } from '../date';
+import { getDayKey, normalizeDayKey, parseDayKey, shiftDayKey } from '../date';
 import { HttpError } from '../http';
 import { clearCache, getCacheEnvelope, getDailyCacheValue, setCache } from '../storage';
 import { SaintOfDayPayload } from '../types';
@@ -31,6 +31,13 @@ const isValidSaintPayload = (value: unknown): value is SaintOfDayPayload => {
   );
 };
 
+const isRenderableImage = (value?: string | null) =>
+  Boolean(value && !/\.svg(?:\?|#|$)/i.test(value));
+
+const hasSaintImage = (value: SaintOfDayPayload | null | undefined) =>
+  isRenderableImage(value?.imagem_destacada) ||
+  isRenderableImage(value?.meta?.['imagem-sm']);
+
 const getMessage = (error: unknown, fallback: string) => {
   if (error instanceof HttpError) {
     if (error.status === 0 || error.status === 408) {
@@ -43,6 +50,7 @@ const getMessage = (error: unknown, fallback: string) => {
 };
 
 export const useSaintOfDay = () => {
+  const [selectedDate, setSelectedDate] = useState(() => getDayKey());
   const [state, setState] = useState<SaintState>({
     saint: null,
     isLoading: true,
@@ -52,8 +60,10 @@ export const useSaintOfDay = () => {
     isToday: false,
   });
 
-  const load = useCallback(async (forceNetwork = false) => {
-    const dayKey = getDayKey();
+  const load = useCallback(async (dayKey: string, forceNetwork = false) => {
+    const normalizedDayKey = normalizeDayKey(dayKey);
+    const parsedDate = parseDayKey(normalizedDayKey) ?? new Date();
+    const isToday = normalizedDayKey === getDayKey();
 
     if (forceNetwork) {
       setState((prev) => ({ ...prev, isRefreshing: true, error: null }));
@@ -64,7 +74,7 @@ export const useSaintOfDay = () => {
     let hasAnyCache = false;
 
     if (!forceNetwork) {
-      const daily = await getDailyCacheValue<unknown>(SAINT_CACHE_KEY, dayKey);
+      const daily = await getDailyCacheValue<unknown>(SAINT_CACHE_KEY, normalizedDayKey);
       if (isValidSaintPayload(daily)) {
         hasAnyCache = true;
         setState({
@@ -73,16 +83,18 @@ export const useSaintOfDay = () => {
           isRefreshing: false,
           error: null,
           source: 'cache',
-          isToday: true,
+          isToday,
         });
-        return;
+        if (hasSaintImage(daily)) {
+          return;
+        }
       }
       if (daily !== null) {
         await clearCache(SAINT_CACHE_KEY);
       }
 
       const stale = await getCacheEnvelope<unknown>(SAINT_CACHE_KEY);
-      if (isValidSaintPayload(stale?.value)) {
+      if (isValidSaintPayload(stale?.value) && stale.dayKey === normalizedDayKey) {
         hasAnyCache = true;
         setState({
           saint: stale.value,
@@ -90,24 +102,26 @@ export const useSaintOfDay = () => {
           isRefreshing: false,
           error: null,
           source: 'cache',
-          isToday: stale.dayKey === dayKey,
+          isToday,
         });
+        if (hasSaintImage(stale.value)) {
+          return;
+        }
       } else if (stale?.value !== undefined) {
         await clearCache(SAINT_CACHE_KEY);
       }
     }
 
     try {
-      const now = new Date();
-      const saint = await publicApi.fetchSaintOfDay(now.getDate(), now.getMonth() + 1);
-      await setCache(SAINT_CACHE_KEY, saint, { dayKey });
+      const saint = await publicApi.fetchSaintOfDay(parsedDate.getDate(), parsedDate.getMonth() + 1);
+      await setCache(SAINT_CACHE_KEY, saint, { dayKey: normalizedDayKey });
       setState({
         saint,
         isLoading: false,
         isRefreshing: false,
         error: null,
         source: 'network',
-        isToday: true,
+        isToday,
       });
     } catch (error) {
       setState((prev) => ({
@@ -120,14 +134,35 @@ export const useSaintOfDay = () => {
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load(selectedDate);
+  }, [load, selectedDate]);
+
+  const goToPreviousDate = useCallback(() => {
+    setSelectedDate((prev) => shiftDayKey(prev, -1));
+  }, []);
+
+  const goToNextDate = useCallback(() => {
+    setSelectedDate((prev) => shiftDayKey(prev, 1));
+  }, []);
+
+  const goToToday = useCallback(() => {
+    setSelectedDate(getDayKey());
+  }, []);
+
+  const setDate = useCallback((dayKey: string) => {
+    setSelectedDate(normalizeDayKey(dayKey));
+  }, []);
 
   return useMemo(
     () => ({
       ...state,
-      refresh: () => load(true),
+      selectedDate,
+      refresh: () => load(selectedDate, true),
+      goToPreviousDate,
+      goToNextDate,
+      goToToday,
+      setDate,
     }),
-    [load, state],
+    [goToNextDate, goToPreviousDate, goToToday, load, selectedDate, setDate, state],
   );
 };

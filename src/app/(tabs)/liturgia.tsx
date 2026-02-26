@@ -149,7 +149,7 @@ export default function LiturgyScreen() {
         )}
 
         <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-          <Text style={[styles.title, { color: theme.text }]}>{liturgy.liturgy?.liturgia ?? 'Liturgia diária'}</Text>
+          <Text style={[styles.title, { color: theme.primary }]}>{liturgy.liturgy?.liturgia ?? 'Liturgia diária'}</Text>
           <Text style={[styles.subtitle, { color: theme.textSoft }]}>
             {liturgy.liturgy?.data ?? 'Sem data'} • {liturgy.liturgy?.cor ?? 'Cor não informada'}
           </Text>
@@ -164,7 +164,7 @@ export default function LiturgyScreen() {
 
         {!!liturgy.liturgy?.oracoes?.coleta && (
           <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-            <Text style={[styles.sectionTitle, { color: theme.secondary }]}>Orações</Text>
+            <Text style={[styles.sectionTitle, { color: theme.primary }]}>Orações</Text>
             {!!liturgy.liturgy.oracoes?.coleta && (
               <Text style={[styles.text, { color: theme.text }]}>Coleta: {liturgy.liturgy.oracoes.coleta}</Text>
             )}
@@ -185,10 +185,10 @@ export default function LiturgyScreen() {
 
           return (
             <View key={section.key} style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-              <Text style={[styles.sectionTitle, { color: theme.secondary }]}>{section.title}</Text>
+              <Text style={[styles.sectionTitle, { color: theme.primary }]}>{section.title}</Text>
               {items.map((item, index) => (
                 <View key={`${section.key}-${index}`} style={{ gap: 6 }}>
-                  <Text style={[styles.reference, { color: theme.text }]}>{item.titulo} ({item.referencia})</Text>
+                  <Text style={[styles.reference, { color: theme.secondary }]}>{item.titulo} ({item.referencia})</Text>
                   <Text style={[styles.text, { color: theme.text }]}>{item.texto}</Text>
                   {!!item.refrao && <Text style={[styles.text, { color: theme.textSoft }]}>R: {item.refrao}</Text>}
                 </View>

@@ -587,7 +587,7 @@ export default function AccountScreen() {
 
             {mode === 'login' ? (
               <>
-                <Text style={[styles.title, { color: theme.text }]}>Entrar como fiel</Text>
+                <Text style={[styles.title, { color: theme.primary }]}>Entrar como fiel</Text>
                 <Text style={[styles.subtitle, { color: theme.textSoft }]}>Acesse seu perfil para acompanhar seu dízimo.</Text>
 
                 <TextInput
@@ -620,7 +620,7 @@ export default function AccountScreen() {
               </>
             ) : (
               <>
-                <Text style={[styles.title, { color: theme.text }]}>Criar conta de fiel</Text>
+                <Text style={[styles.title, { color: theme.primary }]}>Criar conta de fiel</Text>
                 <Text style={[styles.subtitle, { color: theme.textSoft }]}>
                   Escolha sua paróquia e, se for o caso, sua capela.
                 </Text>
@@ -973,7 +973,7 @@ export default function AccountScreen() {
         ) : (
           <>
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.title, { color: theme.text }]}>Minha conta</Text>
+              <Text style={[styles.title, { color: theme.primary }]}>Minha conta</Text>
               <Text style={[styles.subtitle, { color: theme.textSoft }]}>{session?.user.name}</Text>
               <Text style={[styles.subtitle, { color: theme.textSoft }]}>{session?.user.email}</Text>
 
@@ -1008,7 +1008,7 @@ export default function AccountScreen() {
             ) : (
               <>
                 <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                  <Text style={[styles.title, { color: theme.text }]}>Resumo do dízimo</Text>
+                  <Text style={[styles.title, { color: theme.primary }]}>Resumo do dízimo</Text>
                   <View style={styles.statRow}>
                     <View style={[styles.statItem, { borderColor: theme.border }]}>
                       <Text style={[styles.statLabel, { color: theme.textSoft }]}>Total</Text>
@@ -1042,7 +1042,7 @@ export default function AccountScreen() {
                 </View>
 
                 <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                  <Text style={[styles.title, { color: theme.text }]}>Status dizimista</Text>
+                  <Text style={[styles.title, { color: theme.primary }]}>Status dizimista</Text>
                   {dashboard.dashboard?.titherProfiles?.length ? (
                     dashboard.dashboard.titherProfiles.map((profile) => (
                       <View key={profile.id} style={[styles.statItem, { borderColor: theme.border }]}>
@@ -1090,7 +1090,7 @@ export default function AccountScreen() {
         )}
 
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.title, { color: theme.text }]}>Aparência</Text>
+          <Text style={[styles.title, { color: theme.primary }]}>Aparência</Text>
           <Text style={[styles.subtitle, { color: theme.textSoft }]}>
             Tema atual: {resolvedMode === 'dark' ? 'Escuro' : 'Claro'}
           </Text>

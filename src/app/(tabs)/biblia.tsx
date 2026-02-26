@@ -371,7 +371,7 @@ export default function BibleScreen() {
         scrollEventThrottle={16}
       >
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-          <Text style={[styles.title, { color: theme.text }]}>Bíblia Sagrada</Text>
+          <Text style={[styles.title, { color: theme.primary }]}>Bíblia Sagrada</Text>
           <Text style={[styles.subtitle, { color: theme.textSoft }]}>Busca local e leitura offline completa</Text>
 
           <TextInput
@@ -414,7 +414,7 @@ export default function BibleScreen() {
         ) : (
           <>
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-              <Text style={[styles.subtitle, { color: theme.textSoft }]}>Livro</Text>
+              <Text style={[styles.subtitle, { color: theme.secondary }]}>Livro</Text>
               <Pressable
                 style={[styles.selectTrigger, { borderColor: theme.border }]}
                 onPress={() => {
@@ -423,7 +423,7 @@ export default function BibleScreen() {
                 }}
               >
                 <View style={styles.selectTriggerTextWrap}>
-                  <Text style={[styles.selectTriggerLabel, { color: theme.text }]} numberOfLines={1}>
+                  <Text style={[styles.selectTriggerLabel, { color: theme.primary }]} numberOfLines={1}>
                     {selectedBook?.nome}
                   </Text>
                   <Text style={[styles.selectTriggerHint, { color: theme.textSoft }]} numberOfLines={1}>
@@ -435,7 +435,7 @@ export default function BibleScreen() {
             </View>
 
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-              <Text style={[styles.subtitle, { color: theme.textSoft }]}>Capítulo</Text>
+              <Text style={[styles.subtitle, { color: theme.secondary }]}>Capítulo</Text>
               <Pressable
                 style={[styles.selectTrigger, { borderColor: theme.border }]}
                 onPress={() => {
@@ -444,7 +444,7 @@ export default function BibleScreen() {
                 }}
               >
                 <View style={styles.selectTriggerTextWrap}>
-                  <Text style={[styles.selectTriggerLabel, { color: theme.text }]} numberOfLines={1}>
+                  <Text style={[styles.selectTriggerLabel, { color: theme.primary }]} numberOfLines={1}>
                     Capítulo {selectedChapter}
                   </Text>
                   <Text style={[styles.selectTriggerHint, { color: theme.textSoft }]} numberOfLines={1}>
@@ -456,7 +456,7 @@ export default function BibleScreen() {
             </View>
 
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-              <Text style={[styles.title, { color: theme.text }]}>{selectedBook?.nome} {selectedChapter}</Text>
+              <Text style={[styles.title, { color: theme.primary }]}>{selectedBook?.nome} {selectedChapter}</Text>
               {chapterData?.versiculos.map((verse) => (
                 <View key={`${selectedBook?.nome}-${selectedChapter}-${verse.versiculo}`} style={[styles.verseCard, { borderColor: theme.border }]}> 
                   <Text style={[styles.verseRef, { color: theme.secondary }]}>v.{verse.versiculo}</Text>

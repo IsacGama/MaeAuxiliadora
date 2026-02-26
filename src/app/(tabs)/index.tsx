@@ -282,7 +282,7 @@ export default function HomeScreen() {
             style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
             onPress={() => router.push('/liturgia')}
           >
-            <Text style={[styles.actionTitle, { color: theme.text }]}>Liturgia do Dia</Text>
+            <Text style={[styles.actionTitle, { color: theme.primary }]}>Liturgia do Dia</Text>
             <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Leitura com cache diário</Text>
           </Pressable>
 
@@ -290,7 +290,7 @@ export default function HomeScreen() {
             style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
             onPress={() => router.push('/biblia')}
           >
-            <Text style={[styles.actionTitle, { color: theme.text }]}>Bíblia Offline</Text>
+            <Text style={[styles.actionTitle, { color: theme.primary }]}>Bíblia Offline</Text>
             <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Conteúdo local completo</Text>
           </Pressable>
 
@@ -298,7 +298,7 @@ export default function HomeScreen() {
             style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
             onPress={() => router.push('/(tabs)/doacoes' as never)}
           >
-            <Text style={[styles.actionTitle, { color: theme.text }]}>Doações</Text>
+            <Text style={[styles.actionTitle, { color: theme.primary }]}>Doações</Text>
             <Text style={[styles.actionDescription, { color: theme.textSoft }]}>PIX, dados bancários e localização</Text>
           </Pressable>
 
@@ -307,21 +307,21 @@ export default function HomeScreen() {
               style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
               onPress={() => router.push('/noticias')}
             >
-              <Text style={[styles.actionTitle, { color: theme.text }]}>Notícias</Text>
+              <Text style={[styles.actionTitle, { color: theme.primary }]}>Notícias</Text>
               <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Veja os avisos e comunicados</Text>
             </Pressable>
           )}
         </View>
 
         <View style={[styles.sectionCard, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>Liturgia em destaque</Text>
+          <Text style={[styles.sectionTitle, { color: theme.primary }]}>Liturgia em destaque</Text>
           <Text style={[styles.paragraph, { color: theme.text }]}>{liturgyExcerpt}</Text>
           {!!liturgy.error && <Text style={{ color: '#FCA5A5' }}>{liturgy.error}</Text>}
         </View>
 
         {!isAuthenticated && (
           <View style={[styles.sectionCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Acesso da sua comunidade</Text>
+            <Text style={[styles.sectionTitle, { color: theme.primary }]}>Acesso da sua comunidade</Text>
             <Text style={[styles.paragraph, { color: theme.textSoft }]}>
               Faça login ou cadastre-se para ver notícias, informações da sua paróquia/capela e seu painel de dízimo.
             </Text>
@@ -339,7 +339,7 @@ export default function HomeScreen() {
 
         {!!pixKey && isAuthenticated && (
           <View style={[styles.sectionCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Doações via PIX</Text>
+            <Text style={[styles.sectionTitle, { color: theme.primary }]}>Doações via PIX</Text>
             <Text style={[styles.pixKeyText, { color: theme.secondary }]}>{pixKey}</Text>
             {!!pixQrUrl && <Image source={{ uri: pixQrUrl }} style={styles.qrImage} resizeMode="contain" />}
             <Text style={[styles.paragraph, { color: theme.textSoft }]}>
@@ -350,7 +350,7 @@ export default function HomeScreen() {
 
         {socialLinks.length > 0 && isAuthenticated && (
           <View style={[styles.sectionCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>Redes sociais</Text>
+            <Text style={[styles.sectionTitle, { color: theme.primary }]}>Redes sociais</Text>
             <View style={styles.socialRow}>
               {socialLinks.map((social) => (
                 <Pressable

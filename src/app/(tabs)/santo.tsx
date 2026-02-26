@@ -173,11 +173,11 @@ export default function SaintOfDayScreen() {
         )}
 
         <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-          <Text style={[styles.title, { color: theme.text }]}>
+          <Text style={[styles.title, { color: theme.primary }]}>
             {saintName}
           </Text>
           {!!festiveDay && (
-            <Text style={[styles.subtitle, { color: theme.textSoft }]}>{festiveDay}</Text>
+            <Text style={[styles.subtitle, { color: theme.secondary }]}>{festiveDay}</Text>
           )}
           {!!saintExcerpt && <Text style={[styles.subtitle, { color: theme.textSoft }]}>{saintExcerpt}</Text>}
           {!!saint.error && <Text style={{ color: '#FCA5A5' }}>{saint.error}</Text>}
@@ -197,7 +197,7 @@ export default function SaintOfDayScreen() {
         )}
 
         <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-          <Text style={[styles.text, { color: theme.textSoft }]}>Reflexão do dia</Text>
+          <Text style={[styles.text, { color: theme.secondary }]}>Reflexão do dia</Text>
           {paragraphs.length > 0 ? (
             paragraphs.map((paragraph, index) => (
               <Text key={`saint-p-${index}`} style={[styles.text, { color: theme.text }]}>

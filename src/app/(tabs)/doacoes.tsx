@@ -239,7 +239,7 @@ export default function DonationsScreen() {
           }
         >
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.title, { color: theme.text }]}>Doações</Text>
+            <Text style={[styles.title, { color: theme.primary }]}>Doações</Text>
             <Text style={[styles.subtitle, { color: theme.textSoft }]}>
               Faça login para ver os dados de doação da sua paróquia/capela e abrir a localização no Google Maps.
             </Text>
@@ -269,14 +269,15 @@ export default function DonationsScreen() {
         }
       >
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.title, { color: theme.text }]}>Doações da comunidade</Text>
+          <Text style={[styles.title, { color: theme.primary }]}>Doações da comunidade</Text>
           <Text style={[styles.subtitle, { color: theme.textSoft }]}>
             Contribua com segurança via PIX e acompanhe os dados oficiais da sua comunidade.
           </Text>
         </View>
 
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.infoLabel, { color: theme.textSoft }]}>
+          <Text style={[styles.title, { color: theme.primary }]}>PIX</Text>
+          <Text style={[styles.infoLabel, { color: theme.secondary }]}>
             Chave {pixKeyType.toUpperCase()}
           </Text>
           <Text style={[styles.pixKeyText, { color: theme.secondary }]}>
@@ -291,7 +292,7 @@ export default function DonationsScreen() {
           {!!pixCopyCode && (
             <>
               <View style={[styles.pixCopyCodeBox, { borderColor: theme.border, backgroundColor: theme.bg }]}>
-                <Text style={[styles.pixCopyCodeLabel, { color: theme.textSoft }]}>PIX copia e cola</Text>
+                <Text style={[styles.pixCopyCodeLabel, { color: theme.secondary }]}>PIX copia e cola</Text>
                 <Text selectable style={[styles.pixCopyCodeValue, { color: theme.text }]}>
                   {pixCopyCode}
                 </Text>
@@ -309,23 +310,23 @@ export default function DonationsScreen() {
         </View>
 
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.title, { color: theme.text }]}>Dados bancários</Text>
-          <Text style={[styles.infoText, { color: theme.textSoft }]}>
+          <Text style={[styles.title, { color: theme.primary }]}>Dados bancários</Text>
+          <Text style={[styles.infoText, { color: theme.secondary }]}>
             Banco: {org.branding?.bankName || 'Não informado'}
           </Text>
-          <Text style={[styles.infoText, { color: theme.textSoft }]}>
+          <Text style={[styles.infoText, { color: theme.secondary }]}>
             Agência: {org.branding?.bankAgency || 'Não informado'}
           </Text>
-          <Text style={[styles.infoText, { color: theme.textSoft }]}>
+          <Text style={[styles.infoText, { color: theme.secondary }]}>
             Conta: {org.branding?.bankAccount || 'Não informado'}
           </Text>
-          <Text style={[styles.infoText, { color: theme.textSoft }]}>
+          <Text style={[styles.infoText, { color: theme.secondary }]}>
             Titular: {org.branding?.bankHolder || 'Não informado'}
           </Text>
         </View>
 
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.title, { color: theme.text }]}>Localização</Text>
+          <Text style={[styles.title, { color: theme.primary }]}>Localização</Text>
           <Text style={[styles.infoText, { color: theme.textSoft }]}>
             {addressText || 'Endereço ainda não configurado.'}
           </Text>
@@ -343,7 +344,7 @@ export default function DonationsScreen() {
 
         {socialLinks.length > 0 && (
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.title, { color: theme.text }]}>Redes sociais</Text>
+            <Text style={[styles.title, { color: theme.primary }]}>Redes sociais</Text>
             <View style={styles.socialRow}>
               {socialLinks.map((social) => (
                 <Pressable

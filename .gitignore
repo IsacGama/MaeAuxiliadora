@@ -16,6 +16,9 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+google-services.json
+android/app/google-services.json
+paroquiadigital-123a0-8d65aaea6664.json
 
 # Metro
 .metro-health-check*

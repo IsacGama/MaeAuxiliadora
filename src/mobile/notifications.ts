@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import * as Device from 'expo-device';
 import type { NotificationResponse } from 'expo-notifications';
 import { authApi } from './api';
+import { HttpError } from './http';
 
 type ExpoNotificationsModule = typeof import('expo-notifications');
 type NotificationResponseListener = (response: NotificationResponse) => void;
@@ -33,6 +34,25 @@ const resolvePlatform = (): 'ANDROID' | 'IOS' =>
 export const isPushRegistrationSupported = () =>
   !isExpoGo && Device.isDevice;
 
+export type PushRegistrationResult =
+  | {
+      status: 'registered';
+      token: string;
+    }
+  | {
+      status: 'skipped';
+      reason:
+        | 'expo-go'
+        | 'not-a-physical-device'
+        | 'permission-not-granted'
+        | 'missing-project-id';
+    }
+  | {
+      status: 'failed';
+      reason: 'token-unavailable' | 'backend-register-failed' | 'unexpected-error';
+      message?: string;
+    };
+
 export async function configureNotificationHandling() {
   if (isExpoGo || notificationHandlerConfigured) {
     return;
@@ -53,8 +73,18 @@ export async function configureNotificationHandling() {
 }
 
 export async function registerForPushNotifications(accessToken: string) {
-  if (!isPushRegistrationSupported()) {
-    return null;
+  if (isExpoGo) {
+    return {
+      status: 'skipped',
+      reason: 'expo-go',
+    } satisfies PushRegistrationResult;
+  }
+
+  if (!Device.isDevice) {
+    return {
+      status: 'skipped',
+      reason: 'not-a-physical-device',
+    } satisfies PushRegistrationResult;
   }
 
   const Notifications = await loadNotificationsModule();
@@ -69,7 +99,10 @@ export async function registerForPushNotifications(accessToken: string) {
   }
 
   if (permission !== 'granted') {
-    return null;
+    return {
+      status: 'skipped',
+      reason: 'permission-not-granted',
+    } satisfies PushRegistrationResult;
   }
 
   if (Platform.OS === 'android') {
@@ -83,21 +116,48 @@ export async function registerForPushNotifications(accessToken: string) {
   }
 
   const projectId = resolveProjectId();
-  const tokenResponse = await Notifications.getExpoPushTokenAsync(
-    projectId ? { projectId } : undefined,
-  );
-  const token = tokenResponse.data;
-
-  if (!token) {
-    return null;
+  if (!projectId) {
+    return {
+      status: 'skipped',
+      reason: 'missing-project-id',
+    } satisfies PushRegistrationResult;
   }
 
-  await authApi.registerDevice(accessToken, {
-    token,
-    platform: resolvePlatform(),
-  });
+  try {
+    const tokenResponse = await Notifications.getExpoPushTokenAsync({ projectId });
+    const token = tokenResponse.data;
 
-  return token;
+    if (!token) {
+      return {
+        status: 'failed',
+        reason: 'token-unavailable',
+      } satisfies PushRegistrationResult;
+    }
+
+    await authApi.registerDevice(accessToken, {
+      token,
+      platform: resolvePlatform(),
+    });
+
+    return {
+      status: 'registered',
+      token,
+    } satisfies PushRegistrationResult;
+  } catch (error) {
+    if (error instanceof HttpError) {
+      return {
+        status: 'failed',
+        reason: 'backend-register-failed',
+        message: `HTTP ${error.status}: ${error.message}`,
+      } satisfies PushRegistrationResult;
+    }
+
+    return {
+      status: 'failed',
+      reason: 'unexpected-error',
+      message: error instanceof Error ? error.message : 'Erro desconhecido',
+    } satisfies PushRegistrationResult;
+  }
 }
 
 export async function unregisterPushNotifications(

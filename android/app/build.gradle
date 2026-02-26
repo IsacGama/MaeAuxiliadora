@@ -188,3 +188,6 @@ dependencies {
         implementation jscFlavor
     }
 }
+
+// Firebase services (required for Android push token generation)
+apply plugin: "com.google.gms.google-services"

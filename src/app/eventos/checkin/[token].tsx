@@ -1,0 +1,166 @@
+import { useMemo, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router, useLocalSearchParams } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '../../../mobile/auth-context';
+import { authApi } from '../../../mobile/api';
+import { useOrgContext } from '../../../mobile/hooks/use-org-context';
+import { createThemeWithMode } from '../../../mobile/theme';
+import { useThemePreference } from '../../../mobile/theme-preference';
+
+const styles = StyleSheet.create({
+  screen: { flex: 1 },
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 28,
+    gap: 12,
+  },
+  card: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  title: {
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  subtitle: {
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  actionButton: {
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    paddingVertical: 11,
+  },
+  actionButtonText: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+});
+
+export default function EventCheckInScreen() {
+  const { token } = useLocalSearchParams<{ token?: string }>();
+  const { isAuthenticated, requestWithAuth } = useAuth();
+  const org = useOrgContext();
+  const { resolvedMode } = useThemePreference();
+  const theme = useMemo(
+    () => createThemeWithMode(org.branding, resolvedMode),
+    [org.branding, resolvedMode],
+  );
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [statusLabel, setStatusLabel] = useState<string | null>(null);
+
+  const handleCheckIn = async () => {
+    if (typeof token !== 'string' || !token.trim()) {
+      Alert.alert('Check-in', 'Token inválido.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const result = await requestWithAuth((accessToken) =>
+        authApi.checkInEventByToken(accessToken, token),
+      );
+
+      if (result.alreadyCheckedIn) {
+        setStatusLabel('Presença já registrada anteriormente.');
+      } else {
+        setStatusLabel('Check-in registrado com sucesso.');
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Não foi possível registrar presença.';
+      Alert.alert('Check-in', message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
+      <ScrollView contentContainerStyle={styles.content}>
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <Pressable
+            style={[styles.backButton, { borderColor: theme.border }]}
+            onPress={() => router.back()}
+          >
+            <MaterialCommunityIcons name="arrow-left" size={16} color={theme.secondary} />
+            <Text style={{ color: theme.secondary, fontWeight: '700' }}>Voltar</Text>
+          </Pressable>
+
+          <Text style={[styles.title, { color: theme.text }]}>Check-in do evento</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+            Use esta tela para confirmar sua presença no evento.
+          </Text>
+
+          {!isAuthenticated ? (
+            <>
+              <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+                Faça login na sua conta para finalizar o check-in.
+              </Text>
+              <Pressable
+                style={[styles.actionButton, { borderColor: theme.secondary }]}
+                onPress={() => router.replace('/(tabs)/conta')}
+              >
+                <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+                  Ir para login
+                </Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+              <Pressable
+                style={[styles.actionButton, { borderColor: theme.secondary, opacity: isSubmitting ? 0.7 : 1 }]}
+                onPress={() => {
+                  void handleCheckIn();
+                }}
+                disabled={isSubmitting}
+              >
+                <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+                  Confirmar check-in
+                </Text>
+              </Pressable>
+
+              {isSubmitting ? (
+                <View style={{ alignItems: 'center', paddingVertical: 6 }}>
+                  <ActivityIndicator size="small" color={theme.secondary} />
+                </View>
+              ) : null}
+
+              {!!statusLabel && (
+                <Text style={[styles.subtitle, { color: theme.secondary }]}>
+                  {statusLabel}
+                </Text>
+              )}
+            </>
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+

@@ -241,3 +241,48 @@ export type MemberNotificationItem = {
     name: string;
   } | null;
 };
+
+export type EventRsvpStatus = 'GOING' | 'MAYBE' | 'DECLINED';
+
+export type CommunityEvent = {
+  id: string;
+  parishId: string;
+  chapelId?: string | null;
+  title: string;
+  description?: string | null;
+  startsAt: string;
+  endsAt?: string | null;
+  location?: string | null;
+  coverImageUrl?: string | null;
+  maxAttendees?: number | null;
+  isPublic: boolean;
+  isActive: boolean;
+  checkInToken: string;
+  metrics?: {
+    goingCount: number;
+    checkedInCount: number;
+  };
+  chapel?: {
+    id: string;
+    name: string;
+  } | null;
+};
+
+export type MemberEventRsvp = {
+  id: string;
+  eventId: string;
+  personId: string;
+  status: EventRsvpStatus;
+  guests: number;
+  notes?: string | null;
+  respondedAt: string;
+  checkedInAt?: string | null;
+  event?: CommunityEvent;
+};
+
+export type MemberEventCheckInResponse = {
+  alreadyCheckedIn: boolean;
+  checkedInAt?: string;
+  eventId?: string;
+  eventTitle?: string;
+};

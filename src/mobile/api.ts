@@ -3,9 +3,13 @@ import { fetchJson, HttpError } from './http';
 import {
   AuthResponse,
   ChapelPublic,
+  CommunityEvent,
   DevicePlatform,
   DiocesePublic,
+  EventRsvpStatus,
   LiturgyPayload,
+  MemberEventCheckInResponse,
+  MemberEventRsvp,
   MemberNotificationItem,
   MemberDashboard,
   OrgBranding,
@@ -268,6 +272,21 @@ export const publicApi = {
       api(`/public/posts/paginated${suffix ? `?${suffix}` : ''}`),
     );
   },
+  fetchPublicEvents: (options: {
+    parishId: string;
+    from?: string;
+    to?: string;
+    take?: number;
+  }) => {
+    const query = new URLSearchParams();
+    query.set('parishId', options.parishId);
+    if (options.from) query.set('from', options.from);
+    if (options.to) query.set('to', options.to);
+    if (typeof options.take === 'number') query.set('take', String(options.take));
+
+    const suffix = query.toString();
+    return fetchJson<CommunityEvent[]>(api(`/public/events?${suffix}`));
+  },
   fetchPublicPostBySlug: (slug: string, parishId?: string) =>
     fetchJson<PublicPostDetail>(
       api(
@@ -357,6 +376,39 @@ export const authApi = {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
     }),
+  memberEventRsvps: (accessToken: string, parishId?: string) =>
+    fetchJson<MemberEventRsvp[]>(
+      api(
+        `/member/events/rsvps${parishId ? `?parishId=${encodeURIComponent(parishId)}` : ''}`,
+      ),
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    ),
+  rsvpEvent: (
+    accessToken: string,
+    eventId: string,
+    payload: { status: EventRsvpStatus; guests?: number; notes?: string },
+  ) =>
+    fetchJson<MemberEventRsvp>(
+      api(`/member/events/${encodeURIComponent(eventId)}/rsvp`),
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      },
+    ),
+  checkInEventByToken: (accessToken: string, token: string) =>
+    fetchJson<MemberEventCheckInResponse>(
+      api(`/member/events/checkin/${encodeURIComponent(token)}`),
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    ),
   registerDevice: (
     accessToken: string,
     payload: { token: string; platform: DevicePlatform },

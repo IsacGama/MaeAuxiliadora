@@ -101,6 +101,7 @@ const styles = StyleSheet.create({
 type NotificationDestination =
   | { type: 'POST'; slug: string }
   | { type: 'EXTERNAL_URL'; url: string }
+  | { type: 'EVENT'; checkInToken?: string }
   | { type: 'MESSAGE' }
   | null;
 
@@ -131,6 +132,11 @@ const extractDestination = (
     if (url) {
       return { type: 'EXTERNAL_URL', url };
     }
+  }
+
+  if (destinationType === 'EVENT' || destinationType === 'CHECKIN') {
+    const checkInToken = asString(data.checkInToken) ?? asString(data.token);
+    return { type: 'EVENT', checkInToken };
   }
 
   if (destinationType === 'MESSAGE') {
@@ -354,6 +360,28 @@ export default function MessagesScreen() {
               >
                 <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
                   Abrir link externo
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {selectedDestination?.type === 'EVENT' ? (
+              <Pressable
+                style={[styles.actionButton, { borderColor: theme.secondary }]}
+                onPress={() => {
+                  if (selectedDestination.checkInToken) {
+                    router.push(
+                      {
+                        pathname: '/eventos/checkin/[token]' as never,
+                        params: { token: selectedDestination.checkInToken },
+                      } as never,
+                    );
+                    return;
+                  }
+                  router.push('/eventos' as never);
+                }}
+              >
+                <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+                  Abrir evento relacionado
                 </Text>
               </Pressable>
             ) : null}

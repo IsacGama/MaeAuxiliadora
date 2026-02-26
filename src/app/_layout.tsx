@@ -17,7 +17,8 @@ import type { NotificationResponse } from 'expo-notifications';
 type PushAction =
   | { type: 'POST'; slug: string }
   | { type: 'MESSAGE'; notificationId?: string }
-  | { type: 'EXTERNAL_URL'; url: string };
+  | { type: 'EXTERNAL_URL'; url: string }
+  | { type: 'EVENT'; checkInToken?: string };
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
@@ -43,6 +44,11 @@ const parsePushAction = (response: NotificationResponse): PushAction => {
     if (url) {
       return { type: 'EXTERNAL_URL', url };
     }
+  }
+
+  if (destination === 'EVENT' || destination === 'CHECKIN') {
+    const checkInToken = asString(data.checkInToken) ?? asString(data.token);
+    return { type: 'EVENT', checkInToken };
   }
 
   return {
@@ -78,6 +84,20 @@ function NotificationRegistrar() {
 
       if (action.type === 'EXTERNAL_URL') {
         void Linking.openURL(action.url).catch(() => undefined);
+        return;
+      }
+
+      if (action.type === 'EVENT') {
+        if (action.checkInToken) {
+          router.push(
+            {
+              pathname: '/eventos/checkin/[token]' as never,
+              params: { token: action.checkInToken },
+            } as never,
+          );
+          return;
+        }
+        router.push('/eventos' as never);
         return;
       }
 

@@ -305,6 +305,16 @@ export default function HomeScreen() {
           {isAuthenticated && (
             <Pressable
               style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
+              onPress={() => router.push('/eventos' as never)}
+            >
+              <Text style={[styles.actionTitle, { color: theme.primary }]}>Eventos</Text>
+              <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Confirme presença e acompanhe a agenda</Text>
+            </Pressable>
+          )}
+
+          {isAuthenticated && (
+            <Pressable
+              style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
               onPress={() => router.push('/noticias')}
             >
               <Text style={[styles.actionTitle, { color: theme.primary }]}>Notícias</Text>

@@ -1,6 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { authApi } from './api';
 import { HttpError } from './http';
+import {
+  clearRegisteredPushToken,
+  getRegisteredPushToken,
+  queuePushTokenForUnregister,
+  unregisterPushNotifications,
+} from './notifications';
 import { clearCache, getCacheValue, setCache } from './storage';
 import { AuthResponse, AuthUser } from './types';
 
@@ -90,9 +96,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   );
 
   const logout = useCallback(async () => {
-    setSession(null);
-    await persistSession(null);
-  }, [persistSession]);
+    const currentAccessToken = session?.accessToken;
+
+    try {
+      const registeredPushToken = await getRegisteredPushToken();
+
+      if (registeredPushToken) {
+        if (currentAccessToken) {
+          try {
+            await unregisterPushNotifications(
+              currentAccessToken,
+              registeredPushToken,
+            );
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : 'erro desconhecido';
+            console.warn(
+              `[push] falha ao desregistrar dispositivo no logout: ${message}`,
+            );
+            await queuePushTokenForUnregister(registeredPushToken);
+          }
+        } else {
+          await queuePushTokenForUnregister(registeredPushToken);
+        }
+      }
+    } finally {
+      await clearRegisteredPushToken();
+      setSession(null);
+      await persistSession(null);
+    }
+  }, [persistSession, session?.accessToken]);
 
   const refreshSession = useCallback(async () => {
     if (!session?.refreshToken) {

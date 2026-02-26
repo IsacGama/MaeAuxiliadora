@@ -4,6 +4,7 @@ import * as Device from 'expo-device';
 import type { NotificationResponse } from 'expo-notifications';
 import { authApi } from './api';
 import { HttpError } from './http';
+import { clearCache, getCacheValue, setCache } from './storage';
 
 type ExpoNotificationsModule = typeof import('expo-notifications');
 type NotificationResponseListener = (response: NotificationResponse) => void;
@@ -11,6 +12,10 @@ type NotificationResponseListener = (response: NotificationResponse) => void;
 const isExpoGo =
   Constants.appOwnership === 'expo' ||
   Constants.executionEnvironment === 'storeClient';
+const PUSH_TOKEN_CACHE_KEY = 'spd-mobile:push-token';
+const PUSH_TOKEN_PENDING_UNREGISTER_CACHE_KEY =
+  'spd-mobile:push-token-pending-unregister';
+const PUSH_TOKEN_TTL_MS = 3650 * 24 * 60 * 60 * 1000; // 10 anos
 
 let notificationsModulePromise: Promise<ExpoNotificationsModule> | null = null;
 let notificationHandlerConfigured = false;
@@ -73,6 +78,8 @@ export async function configureNotificationHandling() {
 }
 
 export async function registerForPushNotifications(accessToken: string) {
+  await flushPendingPushTokenUnregister(accessToken);
+
   if (isExpoGo) {
     return {
       status: 'skipped',
@@ -138,6 +145,7 @@ export async function registerForPushNotifications(accessToken: string) {
       token,
       platform: resolvePlatform(),
     });
+    await setCache(PUSH_TOKEN_CACHE_KEY, token, { ttlMs: PUSH_TOKEN_TTL_MS });
 
     return {
       status: 'registered',
@@ -168,7 +176,64 @@ export async function unregisterPushNotifications(
     return;
   }
   await authApi.unregisterDevice(accessToken, token);
+  await clearCache(PUSH_TOKEN_CACHE_KEY);
 }
+
+export const getRegisteredPushToken = () =>
+  getCacheValue<string>(PUSH_TOKEN_CACHE_KEY);
+
+export const clearRegisteredPushToken = () =>
+  clearCache(PUSH_TOKEN_CACHE_KEY);
+
+export const queuePushTokenForUnregister = async (token: string) => {
+  const normalized = token.trim();
+  if (!normalized) {
+    return;
+  }
+
+  const currentPending =
+    (await getCacheValue<string[]>(PUSH_TOKEN_PENDING_UNREGISTER_CACHE_KEY)) ??
+    [];
+
+  if (currentPending.includes(normalized)) {
+    return;
+  }
+
+  await setCache(
+    PUSH_TOKEN_PENDING_UNREGISTER_CACHE_KEY,
+    [...currentPending, normalized],
+    { ttlMs: PUSH_TOKEN_TTL_MS },
+  );
+};
+
+export const flushPendingPushTokenUnregister = async (accessToken: string) => {
+  const pendingTokens =
+    (await getCacheValue<string[]>(PUSH_TOKEN_PENDING_UNREGISTER_CACHE_KEY)) ??
+    [];
+
+  if (!pendingTokens.length) {
+    return;
+  }
+
+  const stillPending: string[] = [];
+
+  for (const token of pendingTokens) {
+    try {
+      await authApi.unregisterDevice(accessToken, token);
+    } catch {
+      stillPending.push(token);
+    }
+  }
+
+  if (stillPending.length) {
+    await setCache(PUSH_TOKEN_PENDING_UNREGISTER_CACHE_KEY, stillPending, {
+      ttlMs: PUSH_TOKEN_TTL_MS,
+    });
+    return;
+  }
+
+  await clearCache(PUSH_TOKEN_PENDING_UNREGISTER_CACHE_KEY);
+};
 
 export async function addNotificationResponseListener(
   listener: NotificationResponseListener,

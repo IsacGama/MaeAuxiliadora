@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -12,6 +12,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useOrgContext } from '../mobile/hooks/use-org-context';
+import { useSpeech, speechRateLabels, type SpeechRate } from '../mobile/hooks/use-speech';
 import { createThemeWithMode } from '../mobile/theme';
 import { useThemePreference } from '../mobile/theme-preference';
 import {
@@ -284,6 +285,56 @@ export default function RosaryScreen() {
     return `Sequência completa: ${getRosaryMysteryOrder().map((key) => rosaryMysteryLabels[key]).join(' • ')}`;
   };
 
+  // --- Leitura em voz alta ---
+  const [isAutoPlaying, setIsAutoPlaying] = useState(false);
+  const languageCode = language === 'pt' ? 'pt-BR' : 'la';
+
+  // Refs for latest values in async callbacks
+  const isAutoPlayingRef = useRef(false);
+  isAutoPlayingRef.current = isAutoPlaying;
+  const stepIndexRef = useRef(stepIndex);
+  stepIndexRef.current = stepIndex;
+  const guidedStepsLengthRef = useRef(guidedSteps.length);
+  guidedStepsLengthRef.current = guidedSteps.length;
+  const prayerTextRef = useRef(prayerText);
+  prayerTextRef.current = prayerText;
+  const languageCodeRef = useRef(languageCode);
+  languageCodeRef.current = languageCode;
+
+  const { isSpeaking, speak, stop, rate, setRate } = useSpeech({
+    onDone: () => {
+      if (!isAutoPlayingRef.current) return;
+      if (stepIndexRef.current >= guidedStepsLengthRef.current - 1) {
+        setIsAutoPlaying(false);
+        return;
+      }
+      setTimeout(() => {
+        setStepIndex((prev) => Math.min(prev + 1, guidedStepsLengthRef.current - 1));
+      }, 1500);
+    },
+  });
+
+  const speakRef = useRef(speak);
+  speakRef.current = speak;
+
+  // Speak whenever auto-play is on and step changes
+  useEffect(() => {
+    if (!isAutoPlaying) return;
+    speakRef.current(prayerTextRef.current, languageCodeRef.current);
+  }, [stepIndex, isAutoPlaying]);
+
+  // Stop audio when mode/language changes
+  useEffect(() => { stop(); }, [mode, language, stop]);
+
+  const handleToggleAutoPlay = useCallback(() => {
+    if (isAutoPlaying) {
+      stop();
+      setIsAutoPlaying(false);
+    } else {
+      setIsAutoPlaying(true);
+    }
+  }, [isAutoPlaying, stop]);
+
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}> 
       <ScrollView contentContainerStyle={styles.content}>
@@ -400,6 +451,50 @@ export default function RosaryScreen() {
             )}
 
             <Text style={[styles.prayerText, { color: theme.text }]}>{prayerText}</Text>
+
+            <View style={styles.buttonRow}>
+              <Pressable
+                style={[
+                  styles.chip,
+                  {
+                    borderColor: isAutoPlaying ? theme.secondary : theme.border,
+                    backgroundColor: isAutoPlaying ? 'rgba(218, 139, 60, 0.15)' : theme.surface,
+                  },
+                ]}
+                onPress={handleToggleAutoPlay}
+              >
+                <MaterialCommunityIcons
+                  name={isAutoPlaying ? 'stop-circle' : 'play-circle'}
+                  size={15}
+                  color={isAutoPlaying ? theme.secondary : theme.primary}
+                />
+                <Text style={[styles.chipText, { color: isAutoPlaying ? theme.secondary : theme.primary }]}>
+                  {isAutoPlaying ? 'Parar leitura' : isSpeaking ? 'Lendo...' : 'Rezar em voz alta'}
+                </Text>
+              </Pressable>
+
+              {(Object.keys(speechRateLabels) as string[]).map((key) => {
+                const r = Number(key) as SpeechRate;
+                const isSelected = r === rate;
+                return (
+                  <Pressable
+                    key={key}
+                    style={[
+                      styles.chip,
+                      {
+                        borderColor: isSelected ? theme.secondary : theme.border,
+                        backgroundColor: isSelected ? 'rgba(218, 139, 60, 0.15)' : theme.surface,
+                      },
+                    ]}
+                    onPress={() => setRate(r)}
+                  >
+                    <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft }]}>
+                      {speechRateLabels[r]}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
 
             <View style={styles.actionRow}>
               <Pressable

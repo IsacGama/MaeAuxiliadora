@@ -236,10 +236,17 @@ export type MemberNotificationItem = {
   data?: Record<string, unknown> | null;
   createdAt: string;
   deliveredAt: string;
+  isRead: boolean;
+  readAt?: string | null;
   parish?: {
     id: string;
     name: string;
   } | null;
+};
+
+export type MemberNotificationPreferences = {
+  autoDeleteAfterDays: number | null;
+  updatedAt?: string | null;
 };
 
 export type EventRsvpStatus = 'GOING' | 'MAYBE' | 'DECLINED';

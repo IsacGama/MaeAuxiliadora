@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Linking,
   Pressable,
   RefreshControl,
@@ -18,7 +19,7 @@ import { useMemberNotifications } from '../mobile/hooks/use-member-notifications
 import { useOrgContext } from '../mobile/hooks/use-org-context';
 import { createThemeWithMode } from '../mobile/theme';
 import { useThemePreference } from '../mobile/theme-preference';
-import { MemberNotificationItem } from '../mobile/types';
+import { MemberNotificationItem, MemberNotificationPreferences } from '../mobile/types';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -96,6 +97,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });
 
 type NotificationDestination =
@@ -155,6 +171,17 @@ const formatDateTime = (value: string) =>
 const channelLabel = (channel: MemberNotificationItem['channel']) =>
   channel === 'EMAIL' ? 'E-mail' : 'Push';
 
+const RETENTION_OPTIONS: Array<{
+  value: number | null;
+  label: string;
+}> = [
+  { value: null, label: 'Sem limpeza automática' },
+  { value: 7, label: '7 dias' },
+  { value: 30, label: '30 dias' },
+  { value: 60, label: '60 dias' },
+  { value: 90, label: '90 dias' },
+];
+
 export default function MessagesScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { isAuthenticated, requestWithAuth } = useAuth();
@@ -169,6 +196,12 @@ export default function MessagesScreen() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedFromFetch, setSelectedFromFetch] =
     useState<MemberNotificationItem | null>(null);
+  const [preferences, setPreferences] =
+    useState<MemberNotificationPreferences | null>(null);
+  const [savingPreferences, setSavingPreferences] = useState(false);
+  const [markingRead, setMarkingRead] = useState(false);
+  const [hidingNotification, setHidingNotification] = useState(false);
+  const [clearingReadHistory, setClearingReadHistory] = useState(false);
 
   useEffect(() => {
     if (typeof id !== 'string' || !id.trim()) {
@@ -202,6 +235,32 @@ export default function MessagesScreen() {
     selectedId,
   ]);
 
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setPreferences(null);
+      return;
+    }
+
+    let cancelled = false;
+    void requestWithAuth((token) =>
+      authApi.memberNotificationPreferences(token),
+    )
+      .then((result) => {
+        if (!cancelled) {
+          setPreferences(result);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPreferences({ autoDeleteAfterDays: null });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, requestWithAuth]);
+
   const selectedNotification = useMemo(() => {
     if (!selectedId) return null;
     const fromList = notificationsState.notifications.find(
@@ -213,9 +272,90 @@ export default function MessagesScreen() {
   const orderedNotifications = useMemo(() => {
     return notificationsState.notifications;
   }, [notificationsState.notifications]);
+
+  const selectedRetention = preferences?.autoDeleteAfterDays ?? null;
   const selectedDestination = selectedNotification
     ? extractDestination(selectedNotification)
     : null;
+
+  const updateRetentionPreference = async (days: number | null) => {
+    if (!isAuthenticated) {
+      return;
+    }
+
+    setSavingPreferences(true);
+    try {
+      const updated = await requestWithAuth((token) =>
+        authApi.updateMemberNotificationPreferences(token, {
+          autoDeleteAfterDays: days,
+        }),
+      );
+      setPreferences(updated);
+    } catch {
+      Alert.alert('Falha', 'Não foi possível salvar a preferência.');
+    } finally {
+      setSavingPreferences(false);
+    }
+  };
+
+  const markSelectedAsRead = async () => {
+    if (!selectedNotification?.id) {
+      return;
+    }
+    setMarkingRead(true);
+    try {
+      await requestWithAuth((token) =>
+        authApi.markMemberNotificationRead(token, selectedNotification.id),
+      );
+      await notificationsState.refresh();
+      setSelectedFromFetch(null);
+    } catch {
+      Alert.alert('Falha', 'Não foi possível marcar a mensagem como lida.');
+    } finally {
+      setMarkingRead(false);
+    }
+  };
+
+  const hideSelectedNotification = async () => {
+    if (!selectedNotification?.id) {
+      return;
+    }
+    setHidingNotification(true);
+    try {
+      await requestWithAuth((token) =>
+        authApi.hideMemberNotification(token, selectedNotification.id),
+      );
+      setSelectedId(null);
+      setSelectedFromFetch(null);
+      await notificationsState.refresh();
+    } catch {
+      Alert.alert('Falha', 'Não foi possível remover a mensagem.');
+    } finally {
+      setHidingNotification(false);
+    }
+  };
+
+  const clearReadHistory = async () => {
+    const olderThanDays = selectedRetention ?? 30;
+    setClearingReadHistory(true);
+    try {
+      const result = await requestWithAuth((token) =>
+        authApi.clearMemberNotifications(token, {
+          olderThanDays,
+          onlyRead: true,
+        }),
+      );
+      await notificationsState.refresh();
+      Alert.alert(
+        'Concluído',
+        `${result.hidden} mensagem(ns) removida(s) da sua lista.`,
+      );
+    } catch {
+      Alert.alert('Falha', 'Não foi possível limpar o histórico.');
+    } finally {
+      setClearingReadHistory(false);
+    }
+  };
 
   if (!isAuthenticated) {
     return (
@@ -301,6 +441,64 @@ export default function MessagesScreen() {
           </View>
         ) : null}
 
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: theme.surface, borderColor: theme.border },
+          ]}
+        >
+          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+            Configuração de notificações
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+            A limpeza é aplicada só na sua conta.
+          </Text>
+          <View style={styles.chipRow}>
+            {RETENTION_OPTIONS.map((option) => {
+              const active = option.value === selectedRetention;
+              return (
+                <Pressable
+                  key={option.label}
+                  style={[
+                    styles.chip,
+                    {
+                      borderColor: active ? theme.secondary : theme.border,
+                      backgroundColor: active
+                        ? `${theme.secondary}22`
+                        : 'transparent',
+                      opacity: savingPreferences ? 0.65 : 1,
+                    },
+                  ]}
+                  disabled={savingPreferences}
+                  onPress={() => {
+                    void updateRetentionPreference(option.value);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.chipText,
+                      { color: active ? theme.secondary : theme.textSoft },
+                    ]}
+                  >
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Pressable
+            style={[styles.actionButton, { borderColor: theme.secondary }]}
+            disabled={clearingReadHistory}
+            onPress={() => {
+              void clearReadHistory();
+            }}
+          >
+            <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+              {clearingReadHistory ? 'Limpando...' : 'Limpar lidas antigas'}
+            </Text>
+          </Pressable>
+        </View>
+
         {selectedNotification ? (
           <View
             style={[
@@ -312,15 +510,32 @@ export default function MessagesScreen() {
               Mensagem selecionada
             </Text>
             <View style={styles.rowBetween}>
-              <View
-                style={[
-                  styles.badge,
-                  { borderColor: theme.border, backgroundColor: 'transparent' },
-                ]}
-              >
-                <Text style={[styles.badgeText, { color: theme.secondary }]}>
-                  {channelLabel(selectedNotification.channel)}
-                </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View
+                  style={[
+                    styles.badge,
+                    { borderColor: theme.border, backgroundColor: 'transparent' },
+                  ]}
+                >
+                  <Text style={[styles.badgeText, { color: theme.secondary }]}>
+                    {channelLabel(selectedNotification.channel)}
+                  </Text>
+                </View>
+                {!selectedNotification.isRead ? (
+                  <View
+                    style={[
+                      styles.badge,
+                      {
+                        borderColor: theme.secondary,
+                        backgroundColor: `${theme.secondary}22`,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.badgeText, { color: theme.secondary }]}>
+                      Nova
+                    </Text>
+                  </View>
+                ) : null}
               </View>
               <Text style={[styles.metaText, { color: theme.textSoft }]}>
                 {formatDateTime(selectedNotification.deliveredAt)}
@@ -385,6 +600,34 @@ export default function MessagesScreen() {
                 </Text>
               </Pressable>
             ) : null}
+
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+              {!selectedNotification.isRead ? (
+                <Pressable
+                  style={[styles.actionButton, { borderColor: theme.secondary }]}
+                  disabled={markingRead}
+                  onPress={() => {
+                    void markSelectedAsRead();
+                  }}
+                >
+                  <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+                    {markingRead ? 'Marcando...' : 'Marcar como lida'}
+                  </Text>
+                </Pressable>
+              ) : null}
+
+              <Pressable
+                style={[styles.actionButton, { borderColor: theme.secondary }]}
+                disabled={hidingNotification}
+                onPress={() => {
+                  void hideSelectedNotification();
+                }}
+              >
+                <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+                  {hidingNotification ? 'Removendo...' : 'Remover da minha lista'}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         ) : null}
 
@@ -417,21 +660,43 @@ export default function MessagesScreen() {
               onPress={() => setSelectedId(notification.id)}
             >
               <View style={styles.rowBetween}>
-                <View
-                  style={[
-                    styles.badge,
-                    { borderColor: theme.border, backgroundColor: 'transparent' },
-                  ]}
-                >
-                  <Text style={[styles.badgeText, { color: theme.secondary }]}>
-                    {channelLabel(notification.channel)}
-                  </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View
+                    style={[
+                      styles.badge,
+                      { borderColor: theme.border, backgroundColor: 'transparent' },
+                    ]}
+                  >
+                    <Text style={[styles.badgeText, { color: theme.secondary }]}>
+                      {channelLabel(notification.channel)}
+                    </Text>
+                  </View>
+                  {!notification.isRead ? (
+                    <View
+                      style={[
+                        styles.badge,
+                        {
+                          borderColor: theme.secondary,
+                          backgroundColor: `${theme.secondary}22`,
+                        },
+                      ]}
+                    >
+                      <Text style={[styles.badgeText, { color: theme.secondary }]}>
+                        Nova
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
                 <Text style={[styles.metaText, { color: theme.textSoft }]}>
                   {formatDateTime(notification.deliveredAt)}
                 </Text>
               </View>
-              <Text style={[styles.itemTitle, { color: theme.text }]}>
+              <Text
+                style={[
+                  styles.itemTitle,
+                  { color: theme.text, fontWeight: notification.isRead ? '700' : '800' },
+                ]}
+              >
                 {notification.title}
               </Text>
               <Text

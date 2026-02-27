@@ -10,6 +10,7 @@ import {
   LiturgyPayload,
   MemberEventCheckInResponse,
   MemberEventRsvp,
+  MemberNotificationPreferences,
   MemberNotificationItem,
   MemberDashboard,
   OrgBranding,
@@ -359,6 +360,28 @@ export const authApi = {
     fetchJson<MemberNotificationItem[]>(api('/member/notifications'), {
       headers: { Authorization: `Bearer ${accessToken}` },
     }),
+  memberNotificationPreferences: (accessToken: string) =>
+    fetchJson<MemberNotificationPreferences>(
+      api('/member/notifications/preferences'),
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    ),
+  updateMemberNotificationPreferences: (
+    accessToken: string,
+    payload: { autoDeleteAfterDays: number | null },
+  ) =>
+    fetchJson<MemberNotificationPreferences>(
+      api('/member/notifications/preferences'),
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(payload),
+      },
+    ),
   memberNotification: (accessToken: string, notificationId: string) =>
     fetchJson<MemberNotificationItem>(
       api(`/member/notifications/${encodeURIComponent(notificationId)}`),
@@ -366,6 +389,36 @@ export const authApi = {
         headers: { Authorization: `Bearer ${accessToken}` },
       },
     ),
+  markMemberNotificationRead: (accessToken: string, notificationId: string) =>
+    fetchJson<MemberNotificationItem>(
+      api(`/member/notifications/${encodeURIComponent(notificationId)}/read`),
+      {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    ),
+  hideMemberNotification: (accessToken: string, notificationId: string) =>
+    fetchJson(api(`/member/notifications/${encodeURIComponent(notificationId)}`), {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }),
+  clearMemberNotifications: (
+    accessToken: string,
+    payload: {
+      channel?: 'PUSH' | 'EMAIL';
+      before?: string;
+      olderThanDays?: number;
+      onlyRead?: boolean;
+    },
+  ) =>
+    fetchJson<{ hidden: number }>(api('/member/notifications/clear'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
+    }),
   enrollTither: (accessToken: string) =>
     fetchJson(api('/member/enroll-tither'), {
       method: 'POST',

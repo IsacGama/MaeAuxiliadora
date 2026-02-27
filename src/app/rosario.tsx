@@ -287,7 +287,9 @@ export default function RosaryScreen() {
 
   // --- Leitura em voz alta ---
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
-  const languageCode = language === 'pt' ? 'pt-BR' : 'la';
+  // Latin ('la') is not supported by TTS engines; Italian is the closest
+  // phonetically and matches the standard ecclesiastical Latin pronunciation.
+  const languageCode = language === 'pt' ? 'pt-BR' : 'it-IT';
 
   // Refs for latest values in async callbacks
   const isAutoPlayingRef = useRef(false);

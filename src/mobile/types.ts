@@ -255,12 +255,21 @@ export type CommunityEvent = {
   location?: string | null;
   coverImageUrl?: string | null;
   maxAttendees?: number | null;
+  reminderHoursBefore?: number | null;
+  reminderPushEnabled: boolean;
+  reminderEmailEnabled: boolean;
+  reminderPushSentAt?: string | null;
+  reminderEmailSentAt?: string | null;
   isPublic: boolean;
   isActive: boolean;
   checkInToken: string;
   metrics?: {
     goingCount: number;
+    maybeCount: number;
+    declinedCount: number;
     checkedInCount: number;
+    noShowCount: number;
+    attendanceRate: number;
   };
   chapel?: {
     id: string;

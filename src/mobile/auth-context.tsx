@@ -148,11 +148,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           throw error;
         }
 
-        const nextSession = await refreshSession();
-        return request(nextSession.accessToken);
+        try {
+          const nextSession = await refreshSession();
+          return request(nextSession.accessToken);
+        } catch {
+          setSession(null);
+          await persistSession(null);
+          throw new HttpError(
+            401,
+            'Sessão expirada. Faça login novamente.',
+            null,
+          );
+        }
       }
     },
-    [refreshSession, session],
+    [persistSession, refreshSession, session],
   );
 
   const value = useMemo<AuthContextValue>(

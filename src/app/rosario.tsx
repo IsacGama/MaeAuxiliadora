@@ -15,26 +15,36 @@ import { useOrgContext } from '../mobile/hooks/use-org-context';
 import { createThemeWithMode } from '../mobile/theme';
 import { useThemePreference } from '../mobile/theme-preference';
 import {
+  buildGuidedRosarySteps,
   devotionLanguageLabels,
   getRosaryMysteryByDate,
+  getRosarySegmentLabel,
+  getRosaryStepPrayerText,
   getRosaryWeekdayByDate,
   getRosaryWeekdayLabel,
   getRosaryWeeklySchedule,
-  getRosaryStepPrayerText,
-  rosary,
+  getRosaryMysteriesByKey,
+  getRosaryMysteryOrder,
   rosaryMysteryLabels,
-  type RosaryWeekdayKey,
   type DevotionLanguage,
+  type RosaryMode,
   type RosaryMysteryKey,
+  type RosaryWeekdayKey,
 } from '../mobile/devotions';
 
 type RosaryProgressPayload = {
-  mysteryKey: RosaryMysteryKey;
-  language: DevotionLanguage;
-  stepIndex: number;
+  mode?: RosaryMode;
+  mysteryKey?: RosaryMysteryKey;
+  language?: DevotionLanguage;
+  stepIndex?: number;
 };
 
 const STORAGE_KEY = '@devotions:rosary:progress';
+
+const modeLabels: Record<RosaryMode, string> = {
+  terco: 'Terço (mistério do dia)',
+  rosario: 'Rosário (todos os mistérios)',
+};
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -129,6 +139,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 10,
     paddingVertical: 8,
+    gap: 3,
   },
   mysteryItemText: {
     fontSize: 13,
@@ -160,15 +171,20 @@ export default function RosaryScreen() {
     [org.branding, resolvedMode],
   );
 
+  const [mode, setMode] = useState<RosaryMode>('terco');
   const [mysteryKey, setMysteryKey] = useState<RosaryMysteryKey>(() => getRosaryMysteryByDate(new Date()));
   const [language, setLanguage] = useState<DevotionLanguage>('pt');
   const [stepIndex, setStepIndex] = useState(0);
+
   const todayWeekdayKey = useMemo<RosaryWeekdayKey>(() => getRosaryWeekdayByDate(new Date()), []);
   const todayMysteryKey = useMemo<RosaryMysteryKey>(() => getRosaryMysteryByDate(new Date()), []);
   const weeklySchedule = useMemo(() => getRosaryWeeklySchedule(), []);
+  const effectiveMysteryKey = mode === 'terco' ? todayMysteryKey : mysteryKey;
 
-  const steps = rosary.structure;
-  const currentStep = steps[stepIndex] ?? steps[0];
+  const guidedSteps = useMemo(
+    () => buildGuidedRosarySteps({ mode, mysteryKey: effectiveMysteryKey }),
+    [effectiveMysteryKey, mode],
+  );
 
   useEffect(() => {
     let active = true;
@@ -185,6 +201,9 @@ export default function RosaryScreen() {
         }
 
         const parsed = JSON.parse(raw) as RosaryProgressPayload;
+        if (parsed.mode) {
+          setMode(parsed.mode);
+        }
         if (parsed.mysteryKey) {
           setMysteryKey(parsed.mysteryKey);
         }
@@ -192,7 +211,7 @@ export default function RosaryScreen() {
           setLanguage(parsed.language);
         }
         if (typeof parsed.stepIndex === 'number' && parsed.stepIndex >= 0) {
-          setStepIndex(Math.min(parsed.stepIndex, steps.length - 1));
+          setStepIndex(parsed.stepIndex);
         }
       } catch {
         // Ignora payload inválido.
@@ -204,42 +223,55 @@ export default function RosaryScreen() {
     return () => {
       active = false;
     };
-  }, [forceTodayPreset, steps.length]);
+  }, [forceTodayPreset]);
 
   useEffect(() => {
     if (!forceTodayPreset) {
       return;
     }
 
+    setMode('terco');
     setMysteryKey(getRosaryMysteryByDate(new Date()));
     setStepIndex(0);
   }, [forceTodayPreset]);
 
   useEffect(() => {
-    const safeIndex = Math.max(0, Math.min(stepIndex, steps.length - 1));
+    setStepIndex((current) => Math.max(0, Math.min(current, guidedSteps.length - 1)));
+  }, [guidedSteps.length]);
+
+  useEffect(() => {
+    const safeIndex = Math.max(0, Math.min(stepIndex, guidedSteps.length - 1));
     const payload: RosaryProgressPayload = {
+      mode,
       mysteryKey,
       language,
       stepIndex: safeIndex,
     };
 
     void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  }, [language, mysteryKey, stepIndex, steps.length]);
+  }, [guidedSteps.length, language, mode, mysteryKey, stepIndex]);
 
-  const progress = steps.length > 0 ? ((stepIndex + 1) / steps.length) * 100 : 0;
-  const currentMystery =
-    currentStep.decade > 0
-      ? rosary.mysteries[mysteryKey][currentStep.decade - 1] ?? null
-      : null;
-  const prayerText = getRosaryStepPrayerText(currentStep.type, language);
+  const currentStep = guidedSteps[stepIndex] ?? guidedSteps[0];
+
+  const progress = guidedSteps.length > 0 ? ((stepIndex + 1) / guidedSteps.length) * 100 : 0;
+  const prayerText = currentStep
+    ? getRosaryStepPrayerText(currentStep.type, language)
+    : 'Sem conteúdo disponível.';
 
   const moveStep = (direction: 'prev' | 'next') => {
     setStepIndex((current) => {
       if (direction === 'prev') {
         return Math.max(0, current - 1);
       }
-      return Math.min(steps.length - 1, current + 1);
+      return Math.min(guidedSteps.length - 1, current + 1);
     });
+  };
+
+  const renderModeSummary = () => {
+    if (mode === 'terco') {
+      return `Hoje (${getRosaryWeekdayLabel(todayWeekdayKey)}): ${rosaryMysteryLabels[todayMysteryKey]}`;
+    }
+    return `Sequência completa: ${getRosaryMysteryOrder().map((key) => rosaryMysteryLabels[key]).join(' • ')}`;
   };
 
   return (
@@ -252,17 +284,17 @@ export default function RosaryScreen() {
           </Pressable>
 
           <Text style={[styles.title, { color: theme.primary }]}>Terço e Rosário Guiado</Text>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Seu progresso fica salvo automaticamente no dispositivo e os mistérios seguem o dia da semana.</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Escolha o modo de oração: terço de hoje ou rosário completo.</Text>
         </View>
 
         <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Mistérios</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Modo</Text>
           <View style={styles.buttonRow}>
-            {(Object.keys(rosaryMysteryLabels) as RosaryMysteryKey[]).map((nextMystery) => {
-              const isSelected = nextMystery === mysteryKey;
+            {(['terco', 'rosario'] as RosaryMode[]).map((nextMode) => {
+              const isSelected = nextMode === mode;
               return (
                 <Pressable
-                  key={nextMystery}
+                  key={nextMode}
                   style={[
                     styles.chip,
                     {
@@ -271,17 +303,23 @@ export default function RosaryScreen() {
                     },
                   ]}
                   onPress={() => {
-                    setMysteryKey(nextMystery);
+                    setMode(nextMode);
                     setStepIndex(0);
                   }}
                 >
                   <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft }]}>
-                    {rosaryMysteryLabels[nextMystery]}
+                    {modeLabels[nextMode]}
                   </Text>
                 </Pressable>
               );
             })}
           </View>
+
+          {mode === 'terco' ? (
+            <Text style={[styles.subtitle, { color: theme.secondary }]}>
+              No modo Terço, o app usa automaticamente o mistério do dia: {rosaryMysteryLabels[todayMysteryKey]}
+            </Text>
+          ) : null}
 
           <View style={styles.buttonRow}>
             {(Object.keys(devotionLanguageLabels) as DevotionLanguage[]).map((nextLanguage) => {
@@ -298,7 +336,7 @@ export default function RosaryScreen() {
                   ]}
                   onPress={() => setLanguage(nextLanguage)}
                 >
-                  <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft }]}>
+                  <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft }]}> 
                     {devotionLanguageLabels[nextLanguage]}
                   </Text>
                 </Pressable>
@@ -308,104 +346,139 @@ export default function RosaryScreen() {
             <Pressable
               style={[styles.chip, { borderColor: theme.border, backgroundColor: theme.surface }]}
               onPress={() => {
-                setMysteryKey(getRosaryMysteryByDate(new Date()));
+                setMode('terco');
                 setStepIndex(0);
               }}
             >
-              <Text style={[styles.chipText, { color: theme.primary }]}>Mistérios de hoje</Text>
+              <Text style={[styles.chipText, { color: theme.primary }]}>Terço de hoje</Text>
             </Pressable>
           </View>
-          <Text style={[styles.subtitle, { color: theme.secondary }]}>
-            Hoje ({getRosaryWeekdayLabel(todayWeekdayKey)}): {rosaryMysteryLabels[todayMysteryKey]}
-          </Text>
+          <Text style={[styles.subtitle, { color: theme.secondary }]}>{renderModeSummary()}</Text>
         </View>
 
         <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Etapa {stepIndex + 1} de {steps.length}</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Etapa {stepIndex + 1} de {guidedSteps.length}</Text>
           <View style={[styles.progressTrack, { borderColor: theme.border, backgroundColor: theme.bg }]}> 
             <View style={[styles.progressFill, { backgroundColor: theme.secondary, width: `${progress}%` }]} />
           </View>
           <Text style={[styles.subtitle, { color: theme.textSoft }]}>{Math.round(progress)}% concluído</Text>
         </View>
 
-        <View style={[styles.card, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.08)' }]}> 
-          <Text style={[styles.stepTitle, { color: theme.primary }]}>{currentStep.label}</Text>
-          {currentMystery ? (
-            <Text style={[styles.mysteryText, { color: theme.secondary }]}>{currentStep.decade}º mistério: {currentMystery}</Text>
-          ) : (
-            <Text style={[styles.mysteryText, { color: theme.secondary }]}>Orações iniciais/finais</Text>
-          )}
+        {currentStep && (
+          <View style={[styles.card, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.08)' }]}> 
+            <Text style={[styles.stepTitle, { color: theme.primary }]}>{currentStep.label}</Text>
+            <Text style={[styles.mysteryText, { color: theme.secondary }]}> 
+              {getRosarySegmentLabel(
+                mode,
+                currentStep.mysteryKey,
+                currentStep.segmentIndex,
+                currentStep.segmentTotal,
+              )}
+            </Text>
+            {!!currentStep.mysteryTitle && (
+              <Text style={[styles.mysteryText, { color: theme.secondary }]}> 
+                {currentStep.decade}º mistério: {currentStep.mysteryTitle}
+              </Text>
+            )}
 
-          <Text style={[styles.prayerText, { color: theme.text }]}>{prayerText}</Text>
+            <Text style={[styles.prayerText, { color: theme.text }]}>{prayerText}</Text>
 
-          <View style={styles.actionRow}>
-            <Pressable
-              style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
-              onPress={() => moveStep('prev')}
-              disabled={stepIndex === 0}
-            >
-              <MaterialCommunityIcons name="chevron-left" size={16} color={stepIndex === 0 ? theme.textSoft : theme.primary} />
-              <Text style={[styles.actionButtonText, { color: stepIndex === 0 ? theme.textSoft : theme.primary }]}>Anterior</Text>
-            </Pressable>
-
-            <Pressable
-              style={[styles.actionButton, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.15)' }]}
-              onPress={() => moveStep('next')}
-              disabled={stepIndex >= steps.length - 1}
-            >
-              <Text style={[styles.actionButtonText, { color: stepIndex >= steps.length - 1 ? theme.textSoft : theme.secondary }]}>Próxima oração</Text>
-              <MaterialCommunityIcons name="chevron-right" size={16} color={stepIndex >= steps.length - 1 ? theme.textSoft : theme.secondary} />
-            </Pressable>
-
-            <Pressable
-              style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
-              onPress={() => setStepIndex(0)}
-            >
-              <MaterialCommunityIcons name="refresh" size={16} color={theme.primary} />
-              <Text style={[styles.actionButtonText, { color: theme.primary }]}>Recomeçar</Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
-          <Text style={[styles.subtitle, { color: theme.primary }]}>Mistérios selecionados</Text>
-          {rosary.mysteries[mysteryKey].map((mystery, index) => {
-            const decade = index + 1;
-            const isCurrent = currentStep.decade === decade;
-
-            return (
-              <View
-                key={`${mysteryKey}-${decade}`}
-                style={[
-                  styles.mysteryItem,
-                  {
-                    borderColor: isCurrent ? theme.secondary : theme.border,
-                    backgroundColor: isCurrent ? 'rgba(218, 139, 60, 0.12)' : theme.surface,
-                  },
-                ]}
+            <View style={styles.actionRow}>
+              <Pressable
+                style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
+                onPress={() => moveStep('prev')}
+                disabled={stepIndex === 0}
               >
-                <Text
+                <MaterialCommunityIcons name="chevron-left" size={16} color={stepIndex === 0 ? theme.textSoft : theme.primary} />
+                <Text style={[styles.actionButtonText, { color: stepIndex === 0 ? theme.textSoft : theme.primary }]}>Anterior</Text>
+              </Pressable>
+
+              <Pressable
+                style={[styles.actionButton, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.15)' }]}
+                onPress={() => moveStep('next')}
+                disabled={stepIndex >= guidedSteps.length - 1}
+              >
+                <Text style={[styles.actionButtonText, { color: stepIndex >= guidedSteps.length - 1 ? theme.textSoft : theme.secondary }]}>Próxima oração</Text>
+                <MaterialCommunityIcons name="chevron-right" size={16} color={stepIndex >= guidedSteps.length - 1 ? theme.textSoft : theme.secondary} />
+              </Pressable>
+
+              <Pressable
+                style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
+                onPress={() => setStepIndex(0)}
+              >
+                <MaterialCommunityIcons name="refresh" size={16} color={theme.primary} />
+                <Text style={[styles.actionButtonText, { color: theme.primary }]}>Recomeçar</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {mode === 'terco' ? (
+          <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+            <Text style={[styles.subtitle, { color: theme.primary }]}>Mistérios selecionados</Text>
+            {getRosaryMysteriesByKey(effectiveMysteryKey).map((mystery, index) => {
+              const decade = index + 1;
+              const isCurrent =
+                currentStep?.mysteryKey === effectiveMysteryKey &&
+                currentStep?.decade === decade;
+
+              return (
+                <View
+                  key={`${effectiveMysteryKey}-${decade}`}
                   style={[
-                    styles.mysteryItemText,
-                    { color: isCurrent ? theme.text : theme.textSoft },
+                    styles.mysteryItem,
+                    {
+                      borderColor: isCurrent ? theme.secondary : theme.border,
+                      backgroundColor: isCurrent ? 'rgba(218, 139, 60, 0.12)' : theme.surface,
+                    },
                   ]}
                 >
-                  <Text style={{ fontWeight: '800' }}>{decade}. </Text>
-                  {mystery}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
+                  <Text style={[styles.mysteryItemText, { color: isCurrent ? theme.text : theme.textSoft }]}> 
+                    <Text style={{ fontWeight: '800' }}>{decade}. </Text>
+                    {mystery}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : (
+          <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+            <Text style={[styles.subtitle, { color: theme.primary }]}>Ordem dos mistérios no Rosário completo</Text>
+            {getRosaryMysteryOrder().map((segmentKey, segmentIndex) => {
+              const isActiveSegment = currentStep?.mysteryKey === segmentKey;
+              return (
+                <View
+                  key={`segment-${segmentKey}`}
+                  style={[
+                    styles.mysteryItem,
+                    {
+                      borderColor: isActiveSegment ? theme.secondary : theme.border,
+                      backgroundColor: isActiveSegment ? 'rgba(218, 139, 60, 0.10)' : theme.surface,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.weekdayLabel, { color: isActiveSegment ? theme.secondary : theme.textSoft }]}> 
+                    {segmentIndex + 1}. {rosaryMysteryLabels[segmentKey]}
+                  </Text>
+                  {getRosaryMysteriesByKey(segmentKey).map((title, idx) => (
+                    <Text key={`${segmentKey}-${idx + 1}`} style={[styles.mysteryItemText, { color: theme.textSoft }]}> 
+                      <Text style={{ fontWeight: '800' }}>{idx + 1}. </Text>
+                      {title}
+                    </Text>
+                  ))}
+                </View>
+              );
+            })}
+          </View>
+        )}
 
         <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
           <Text style={[styles.subtitle, { color: theme.primary }]}>Mistérios por dia da semana</Text>
           {weeklySchedule.map((entry) => {
             const isToday = entry.weekdayKey === todayWeekdayKey;
-            const isSelected = entry.mysteryKey === mysteryKey;
 
             return (
-              <Pressable
+              <View
                 key={entry.weekdayKey}
                 style={[
                   styles.weekdayItem,
@@ -414,18 +487,12 @@ export default function RosaryScreen() {
                     backgroundColor: isToday ? 'rgba(218, 139, 60, 0.12)' : theme.surface,
                   },
                 ]}
-                onPress={() => {
-                  setMysteryKey(entry.mysteryKey);
-                  setStepIndex(0);
-                }}
               >
-                <Text style={[styles.weekdayLabel, { color: isToday ? theme.secondary : theme.textSoft }]}>
+                <Text style={[styles.weekdayLabel, { color: isToday ? theme.secondary : theme.textSoft }]}> 
                   {entry.weekdayLabel}
                 </Text>
-                <Text style={[styles.weekdayMystery, { color: isSelected ? theme.primary : theme.text }]}>
-                  {entry.mysteryLabel}
-                </Text>
-              </Pressable>
+                <Text style={[styles.weekdayMystery, { color: theme.text }]}>{entry.mysteryLabel}</Text>
+              </View>
             );
           })}
         </View>

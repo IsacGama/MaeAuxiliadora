@@ -131,6 +131,7 @@ export default function PrayersScreen() {
 
   const [query, setQuery] = useState('');
   const [language, setLanguage] = useState<DevotionLanguage>('pt');
+  const [expandedById, setExpandedById] = useState<Record<string, boolean>>({});
 
   const filteredPrayers = useMemo(() => {
     const normalizedQuery = normalize(query);
@@ -144,10 +145,18 @@ export default function PrayersScreen() {
     });
   }, [query]);
 
+  const togglePrayer = (prayerId: string) => {
+    setExpandedById((current) => ({
+      ...current,
+      [prayerId]: !current[prayerId],
+    }));
+  };
+
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}> 
       <FlatList
         data={filteredPrayers}
+        extraData={expandedById}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         refreshControl={
@@ -210,14 +219,27 @@ export default function PrayersScreen() {
         }
         renderItem={({ item }) => {
           const prayerText = getPrayerTextByLanguage(item, language);
+          const isExpanded = !!expandedById[item.id];
+          const compactText =
+            prayerText.replace(/\s+/g, ' ').slice(0, 120) +
+            (prayerText.length > 120 ? '...' : '');
 
           return (
             <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
-              <View style={styles.cardTitleRow}>
-                <MaterialCommunityIcons name={iconByPrayer(item)} size={18} color={theme.secondary} />
-                <Text style={[styles.cardTitle, { color: theme.primary }]}>{item.title}</Text>
-              </View>
-              <Text style={[styles.prayerText, { color: theme.text }]}>{prayerText}</Text>
+              <Pressable style={[styles.cardTitleRow, { justifyContent: 'space-between' }]} onPress={() => togglePrayer(item.id)}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                  <MaterialCommunityIcons name={iconByPrayer(item)} size={18} color={theme.secondary} />
+                  <Text style={[styles.cardTitle, { color: theme.primary }]}>{item.title}</Text>
+                </View>
+                <MaterialCommunityIcons
+                  name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={20}
+                  color={theme.textSoft}
+                />
+              </Pressable>
+              <Text style={[styles.prayerText, { color: theme.text }]}>
+                {isExpanded ? prayerText : compactText}
+              </Text>
             </View>
           );
         }}

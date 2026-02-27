@@ -1,5 +1,6 @@
 export type DevotionLanguage = 'pt' | 'la';
 export type RosaryMysteryKey = 'gozosos' | 'dolorosos' | 'gloriosos' | 'luminosos';
+export type RosaryMode = 'terco' | 'rosario';
 export type RosaryWeekdayKey =
   | 'monday'
   | 'tuesday'
@@ -31,6 +32,15 @@ export type RosaryData = {
   weekdayLabels?: Partial<Record<RosaryWeekdayKey, string>>;
   structure: RosaryStep[];
   extraPrayers: Record<string, { pt: string; la: string }>;
+};
+
+export type GuidedRosaryStep = RosaryStep & {
+  id: string;
+  segmentIndex: number;
+  segmentTotal: number;
+  mysteryKey: RosaryMysteryKey;
+  mysteryLabel: string;
+  mysteryTitle?: string | null;
 };
 
 const prayersData = require('../data/prayers.json') as PrayerRecord[];
@@ -85,6 +95,13 @@ const defaultMysterySchedule: Record<RosaryWeekdayKey, RosaryMysteryKey> = {
   sunday: 'gloriosos',
 };
 
+const defaultMysteryOrder: RosaryMysteryKey[] = [
+  'gozosos',
+  'dolorosos',
+  'gloriosos',
+  'luminosos',
+];
+
 export const getRosaryWeekdayByDate = (date: Date = new Date()): RosaryWeekdayKey => {
   const weekday = date.getDay();
 
@@ -124,6 +141,53 @@ export const getRosaryMysteryLabel = (mysteryKey: RosaryMysteryKey) =>
 
 export const getRosaryMysteriesByKey = (mysteryKey: RosaryMysteryKey) => {
   return rosary.mysteries[mysteryKey] ?? [];
+};
+
+export const getRosaryMysteryOrder = () => {
+  const available = new Set(Object.keys(rosary.mysteries) as RosaryMysteryKey[]);
+  return defaultMysteryOrder.filter((key) => available.has(key));
+};
+
+export const getRosarySegmentLabel = (
+  mode: RosaryMode,
+  mysteryKey: RosaryMysteryKey,
+  segmentIndex: number,
+  segmentTotal: number,
+) => {
+  if (mode === 'terco') {
+    return `Mistérios do Terço: ${getRosaryMysteryLabel(mysteryKey)}`;
+  }
+  return `Rosário ${segmentIndex + 1}/${segmentTotal}: ${getRosaryMysteryLabel(mysteryKey)}`;
+};
+
+export const buildGuidedRosarySteps = (options: {
+  mode: RosaryMode;
+  mysteryKey: RosaryMysteryKey;
+}): GuidedRosaryStep[] => {
+  const segmentKeys =
+    options.mode === 'terco' ? [options.mysteryKey] : getRosaryMysteryOrder();
+  const segmentTotal = segmentKeys.length;
+  const steps: GuidedRosaryStep[] = [];
+
+  segmentKeys.forEach((segmentMysteryKey, segmentIndex) => {
+    rosary.structure.forEach((baseStep, baseIndex) => {
+      const mysteries = getRosaryMysteriesByKey(segmentMysteryKey);
+      const mysteryTitle =
+        baseStep.decade > 0 ? (mysteries[baseStep.decade - 1] ?? null) : null;
+
+      steps.push({
+        ...baseStep,
+        id: `${options.mode}-${segmentIndex + 1}-${baseIndex + 1}-${baseStep.type}`,
+        segmentIndex,
+        segmentTotal,
+        mysteryKey: segmentMysteryKey,
+        mysteryLabel: getRosaryMysteryLabel(segmentMysteryKey),
+        mysteryTitle,
+      });
+    });
+  });
+
+  return steps;
 };
 
 export const getPrayerTextByLanguage = (

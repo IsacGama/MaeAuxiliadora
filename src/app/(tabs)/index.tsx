@@ -296,6 +296,22 @@ export default function HomeScreen() {
 
           <Pressable
             style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
+            onPress={() => router.push('/oracoes' as never)}
+          >
+            <Text style={[styles.actionTitle, { color: theme.primary }]}>Orações</Text>
+            <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Biblioteca com textos em português e latim</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
+            onPress={() => router.push('/rosario' as never)}
+          >
+            <Text style={[styles.actionTitle, { color: theme.primary }]}>Rosário Guiado</Text>
+            <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Passo a passo com progresso salvo</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
             onPress={() => router.push('/(tabs)/doacoes' as never)}
           >
             <Text style={[styles.actionTitle, { color: theme.primary }]}>Doações</Text>

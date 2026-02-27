@@ -476,7 +476,7 @@ export default function BibleScreen() {
       >
         <View style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setBookPickerOpen(false)} />
-          <View style={[styles.modalPanel, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={[styles.modalPanel, { backgroundColor: theme.surfaceOpaque, borderColor: theme.border }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>Escolher livro</Text>
               <Pressable
@@ -549,7 +549,7 @@ export default function BibleScreen() {
       >
         <View style={styles.modalBackdrop}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setChapterPickerOpen(false)} />
-          <View style={[styles.modalPanel, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={[styles.modalPanel, { backgroundColor: theme.surfaceOpaque, borderColor: theme.border }]}>
             <View style={styles.modalHeader}>
               <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>Escolher capítulo</Text>
               <Pressable

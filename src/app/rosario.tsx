@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useOrgContext } from '../mobile/hooks/use-org-context';
@@ -17,9 +17,13 @@ import { useThemePreference } from '../mobile/theme-preference';
 import {
   devotionLanguageLabels,
   getRosaryMysteryByDate,
+  getRosaryWeekdayByDate,
+  getRosaryWeekdayLabel,
+  getRosaryWeeklySchedule,
   getRosaryStepPrayerText,
   rosary,
   rosaryMysteryLabels,
+  type RosaryWeekdayKey,
   type DevotionLanguage,
   type RosaryMysteryKey,
 } from '../mobile/devotions';
@@ -130,11 +134,27 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
+  weekdayItem: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 2,
+  },
+  weekdayLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  weekdayMystery: {
+    fontSize: 13,
+  },
 });
 
 export default function RosaryScreen() {
   const org = useOrgContext();
   const { resolvedMode } = useThemePreference();
+  const params = useLocalSearchParams<{ preset?: string }>();
+  const forceTodayPreset = params.preset === 'today';
   const theme = useMemo(
     () => createThemeWithMode(org.branding, resolvedMode),
     [org.branding, resolvedMode],
@@ -143,6 +163,9 @@ export default function RosaryScreen() {
   const [mysteryKey, setMysteryKey] = useState<RosaryMysteryKey>(() => getRosaryMysteryByDate(new Date()));
   const [language, setLanguage] = useState<DevotionLanguage>('pt');
   const [stepIndex, setStepIndex] = useState(0);
+  const todayWeekdayKey = useMemo<RosaryWeekdayKey>(() => getRosaryWeekdayByDate(new Date()), []);
+  const todayMysteryKey = useMemo<RosaryMysteryKey>(() => getRosaryMysteryByDate(new Date()), []);
+  const weeklySchedule = useMemo(() => getRosaryWeeklySchedule(), []);
 
   const steps = rosary.structure;
   const currentStep = steps[stepIndex] ?? steps[0];
@@ -151,6 +174,10 @@ export default function RosaryScreen() {
     let active = true;
 
     const loadState = async () => {
+      if (forceTodayPreset) {
+        return;
+      }
+
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         if (!active || !raw) {
@@ -177,7 +204,16 @@ export default function RosaryScreen() {
     return () => {
       active = false;
     };
-  }, [steps.length]);
+  }, [forceTodayPreset, steps.length]);
+
+  useEffect(() => {
+    if (!forceTodayPreset) {
+      return;
+    }
+
+    setMysteryKey(getRosaryMysteryByDate(new Date()));
+    setStepIndex(0);
+  }, [forceTodayPreset]);
 
   useEffect(() => {
     const safeIndex = Math.max(0, Math.min(stepIndex, steps.length - 1));
@@ -215,8 +251,8 @@ export default function RosaryScreen() {
             <Text style={{ color: theme.secondary, fontWeight: '700' }}>Voltar</Text>
           </Pressable>
 
-          <Text style={[styles.title, { color: theme.primary }]}>Rosário Guiado</Text>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Seu progresso fica salvo automaticamente no dispositivo.</Text>
+          <Text style={[styles.title, { color: theme.primary }]}>Terço e Rosário Guiado</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Seu progresso fica salvo automaticamente no dispositivo e os mistérios seguem o dia da semana.</Text>
         </View>
 
         <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
@@ -279,6 +315,9 @@ export default function RosaryScreen() {
               <Text style={[styles.chipText, { color: theme.primary }]}>Mistérios de hoje</Text>
             </Pressable>
           </View>
+          <Text style={[styles.subtitle, { color: theme.secondary }]}>
+            Hoje ({getRosaryWeekdayLabel(todayWeekdayKey)}): {rosaryMysteryLabels[todayMysteryKey]}
+          </Text>
         </View>
 
         <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
@@ -355,6 +394,38 @@ export default function RosaryScreen() {
                   {mystery}
                 </Text>
               </View>
+            );
+          })}
+        </View>
+
+        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+          <Text style={[styles.subtitle, { color: theme.primary }]}>Mistérios por dia da semana</Text>
+          {weeklySchedule.map((entry) => {
+            const isToday = entry.weekdayKey === todayWeekdayKey;
+            const isSelected = entry.mysteryKey === mysteryKey;
+
+            return (
+              <Pressable
+                key={entry.weekdayKey}
+                style={[
+                  styles.weekdayItem,
+                  {
+                    borderColor: isToday ? theme.secondary : theme.border,
+                    backgroundColor: isToday ? 'rgba(218, 139, 60, 0.12)' : theme.surface,
+                  },
+                ]}
+                onPress={() => {
+                  setMysteryKey(entry.mysteryKey);
+                  setStepIndex(0);
+                }}
+              >
+                <Text style={[styles.weekdayLabel, { color: isToday ? theme.secondary : theme.textSoft }]}>
+                  {entry.weekdayLabel}
+                </Text>
+                <Text style={[styles.weekdayMystery, { color: isSelected ? theme.primary : theme.text }]}>
+                  {entry.mysteryLabel}
+                </Text>
+              </Pressable>
             );
           })}
         </View>

@@ -29,6 +29,27 @@
       "A Instituição da Eucaristia"
     ]
   },
+
+  "mysterySchedule": {
+    "monday": "gozosos",
+    "tuesday": "dolorosos",
+    "wednesday": "gloriosos",
+    "thursday": "luminosos",
+    "friday": "dolorosos",
+    "saturday": "gozosos",
+    "sunday": "gloriosos"
+  },
+
+  "weekdayLabels": {
+    "monday": "Segunda-feira",
+    "tuesday": "Terça-feira",
+    "wednesday": "Quarta-feira",
+    "thursday": "Quinta-feira",
+    "friday": "Sexta-feira",
+    "saturday": "Sábado",
+    "sunday": "Domingo"
+  },
+
   "structure": [
     { "type": "sinal-cruz", "label": "Sinal da Cruz", "decade": 0 },
     { "type": "credo", "label": "Credo", "decade": 0 },
@@ -110,6 +131,7 @@
 
     { "type": "salve-rainha", "label": "Salve Rainha", "decade": 0 }
   ],
+
   "extraPrayers": {
     "sinal-cruz": {
       "pt": "Em nome do Pai, e do Filho, e do Espírito Santo. Amém.",

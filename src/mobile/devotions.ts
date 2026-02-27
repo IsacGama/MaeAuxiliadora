@@ -1,5 +1,13 @@
 export type DevotionLanguage = 'pt' | 'la';
 export type RosaryMysteryKey = 'gozosos' | 'dolorosos' | 'gloriosos' | 'luminosos';
+export type RosaryWeekdayKey =
+  | 'monday'
+  | 'tuesday'
+  | 'wednesday'
+  | 'thursday'
+  | 'friday'
+  | 'saturday'
+  | 'sunday';
 
 export type PrayerRecord = {
   id: string;
@@ -19,6 +27,8 @@ export type RosaryStep = {
 
 export type RosaryData = {
   mysteries: Record<RosaryMysteryKey, string[]>;
+  mysterySchedule?: Partial<Record<RosaryWeekdayKey, RosaryMysteryKey>>;
+  weekdayLabels?: Partial<Record<RosaryWeekdayKey, string>>;
   structure: RosaryStep[];
   extraPrayers: Record<string, { pt: string; la: string }>;
 };
@@ -45,20 +55,75 @@ export const devotionLanguageLabels: Record<DevotionLanguage, string> = {
   la: 'Latim',
 };
 
-export const getRosaryMysteryByDate = (date: Date = new Date()): RosaryMysteryKey => {
+const weekdayOrder: RosaryWeekdayKey[] = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+];
+
+const defaultWeekdayLabels: Record<RosaryWeekdayKey, string> = {
+  monday: 'Segunda-feira',
+  tuesday: 'Terça-feira',
+  wednesday: 'Quarta-feira',
+  thursday: 'Quinta-feira',
+  friday: 'Sexta-feira',
+  saturday: 'Sábado',
+  sunday: 'Domingo',
+};
+
+const defaultMysterySchedule: Record<RosaryWeekdayKey, RosaryMysteryKey> = {
+  monday: 'gozosos',
+  tuesday: 'dolorosos',
+  wednesday: 'gloriosos',
+  thursday: 'luminosos',
+  friday: 'dolorosos',
+  saturday: 'gozosos',
+  sunday: 'gloriosos',
+};
+
+export const getRosaryWeekdayByDate = (date: Date = new Date()): RosaryWeekdayKey => {
   const weekday = date.getDay();
 
-  if (weekday === 1 || weekday === 6) {
-    return 'gozosos';
-  }
-  if (weekday === 2 || weekday === 5) {
-    return 'dolorosos';
-  }
-  if (weekday === 4) {
-    return 'luminosos';
-  }
+  if (weekday === 0) return 'sunday';
+  if (weekday === 1) return 'monday';
+  if (weekday === 2) return 'tuesday';
+  if (weekday === 3) return 'wednesday';
+  if (weekday === 4) return 'thursday';
+  if (weekday === 5) return 'friday';
+  return 'saturday';
+};
 
-  return 'gloriosos';
+export const getRosaryMysteryByDate = (date: Date = new Date()): RosaryMysteryKey => {
+  const weekdayKey = getRosaryWeekdayByDate(date);
+  return rosary.mysterySchedule?.[weekdayKey] ?? defaultMysterySchedule[weekdayKey];
+};
+
+export const getRosaryWeeklySchedule = () =>
+  weekdayOrder.map((weekdayKey) => {
+    const mysteryKey = rosary.mysterySchedule?.[weekdayKey] ?? defaultMysterySchedule[weekdayKey];
+    const weekdayLabel = rosary.weekdayLabels?.[weekdayKey] ?? defaultWeekdayLabels[weekdayKey];
+    return {
+      weekdayKey,
+      weekdayLabel,
+      mysteryKey,
+      mysteryLabel: rosaryMysteryLabels[mysteryKey],
+    };
+  });
+
+export const getRosaryWeekdayLabel = (weekdayKey: RosaryWeekdayKey) =>
+  rosary.weekdayLabels?.[weekdayKey] ?? defaultWeekdayLabels[weekdayKey];
+
+export const getRosaryWeekdayOrder = () => weekdayOrder;
+
+export const getRosaryMysteryLabel = (mysteryKey: RosaryMysteryKey) =>
+  rosaryMysteryLabels[mysteryKey];
+
+export const getRosaryMysteriesByKey = (mysteryKey: RosaryMysteryKey) => {
+  return rosary.mysteries[mysteryKey] ?? [];
 };
 
 export const getPrayerTextByLanguage = (

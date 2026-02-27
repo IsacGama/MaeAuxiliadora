@@ -22,6 +22,7 @@ import { useDailyLiturgy } from '../../mobile/hooks/use-daily-liturgy';
 import { useAuth } from '../../mobile/auth-context';
 import { buildPixPayload, buildPixQrImageUrl } from '../../mobile/pix';
 import { useThemePreference } from '../../mobile/theme-preference';
+import { getRosaryMysteryByDate, rosaryMysteryLabels } from '../../mobile/devotions';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -83,6 +84,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 12,
     opacity: 0.8,
+  },
+  actionBadge: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    fontSize: 11,
+    fontWeight: '700',
   },
   socialRow: {
     flexDirection: 'row',
@@ -151,6 +161,10 @@ export default function HomeScreen() {
   const logoUrl = getMediaUrl(org.branding?.logoAsset?.url ?? org.branding?.coatOfArmsAsset?.url);
   const coverUrl = getMediaUrl(org.branding?.coverAsset?.url);
   const heroTitleColor = getTextColorForBackground(theme.primary);
+  const todayRosaryMysteryLabel = useMemo(
+    () => rosaryMysteryLabels[getRosaryMysteryByDate(new Date())],
+    [],
+  );
 
   const normalizeExternalUrl = (url?: string | null) => {
     if (!url) return null;
@@ -300,6 +314,19 @@ export default function HomeScreen() {
           >
             <Text style={[styles.actionTitle, { color: theme.primary }]}>Orações</Text>
             <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Biblioteca com textos em português e latim</Text>
+          </Pressable>
+
+          <Pressable
+            style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
+            onPress={() =>
+              router.push({ pathname: '/rosario', params: { preset: 'today' } } as never)
+            }
+          >
+            <Text style={[styles.actionTitle, { color: theme.primary }]}>Terço de hoje</Text>
+            <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Abre direto nos mistérios do dia</Text>
+            <Text style={[styles.actionBadge, { color: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.16)' }]}>
+              Hoje: {todayRosaryMysteryLabel}
+            </Text>
           </Pressable>
 
           <Pressable

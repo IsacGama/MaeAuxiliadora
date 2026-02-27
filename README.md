@@ -1,76 +1,142 @@
-# App Mobile - Sistema Paroquial
+# App Mobile — Paróquia Digital (Expo)
 
-Aplicativo refeito com Expo Router (React Native) com foco em:
+Aplicativo móvel do ecossistema **Paróquia Digital** para fiéis e membros administrativos vinculados a pessoa.
 
-- Visual novo e organização por abas (`Início`, `Liturgia`, `Bíblia`, `Conta`)
-- Integração com a API do sistema paroquial
-- Cache offline por 24h para dados principais
+## Stack
 
-## Cache offline (24h)
+- Expo SDK 54
+- React Native 0.81
+- Expo Router
+- AsyncStorage + SecureStore
+- Expo Notifications
 
-- Branding + unidade organizacional por domínio
-- Liturgia diária
-- Sessão de login do fiel
-- Painel do fiel (`/member/dashboard`)
+## Pré-requisitos
 
-Sempre que houver internet e o cache do dia não existir, o app busca e salva os dados automaticamente.
+- Node.js `>=20 <22`
+- npm
+- Android Studio + SDK (para build local Android)
+- Java 17 (recomendado para Gradle/Android)
 
-## Variáveis de ambiente
-
-Copie `.env.example` para `.env` e ajuste:
-
-- `EXPO_PUBLIC_API_URL`
-- `EXPO_PUBLIC_LITURGY_API_URL`
-- `EXPO_PUBLIC_SAINT_API_URL`
-- `EXPO_PUBLIC_ORG_DOMAIN`
-- `EXPO_PUBLIC_REQUEST_TIMEOUT_MS`
-
-## Executar
-
-Use Node LTS 20 (arquivo `.nvmrc`):
+## Instalação
 
 ```bash
-nvm use
-```
-
-Se o ambiente estiver quebrado, reinstale dependências:
-
-```bash
-rm -rf node_modules package-lock.json
 npm install
 ```
 
-Depois:
+## Variáveis de ambiente
+
+Copie:
+
+```bash
+cp .env.example .env
+```
+
+### Variáveis suportadas
+
+| Variável | Obrigatória | Exemplo | Descrição |
+|---|---|---|---|
+| `EXPO_PUBLIC_API_URL` | Sim | `http://localhost:3000` | URL da API backend. |
+| `EXPO_PUBLIC_LITURGY_API_URL` | Não | `https://liturgia.up.railway.app/v2` | API de liturgia diária. |
+| `EXPO_PUBLIC_SAINT_API_URL` | Não | `https://catolicoapp.com/wp-json/wp/v2/santos` | API de santo do dia. |
+| `EXPO_PUBLIC_ORG_DOMAIN` | Não | `paroquia.seudominio.com` | Domínio da unidade para resolver branding/entidade. |
+| `EXPO_PUBLIC_REQUEST_TIMEOUT_MS` | Não | `10000` | Timeout de requisições HTTP (ms). |
+
+## Executar em desenvolvimento
 
 ```bash
 npm run start
 ```
 
-## Build Android e compatibilidade
+Depois escolha:
 
-- Android minimo suportado: `7.0` (API `24`).
-- Para distribuir APK fora da loja, use:
+- `a` para Android Emulator
+- QR code para device (quando aplicável)
+
+## Scripts principais
+
+| Script | Descrição |
+|---|---|
+| `npm run start` | Expo dev server. |
+| `npm run android` | Executa no Android local (`expo run:android`). |
+| `npm run ios` | Executa no iOS local (`expo run:ios`). |
+| `npm run web` | Roda versão web via Expo. |
+| `npm run test` | Jest watch. |
+
+## Builds Android (local)
+
+| Script | Saída |
+|---|---|
+| `npm run android:release:apk` | APK release (`armeabi-v7a` + `arm64-v8a`) |
+| `npm run android:release:apk:universal` | APK universal (inclui x86/x86_64) |
+| `npm run android:release:arm64` | APK release apenas arm64 |
+| `npm run android:release:aab` | App Bundle (Play Store) |
+
+## Push notifications
+
+### Importante
+
+Push remoto no Android **não funciona no Expo Go** para SDKs recentes. Use:
+
+- Development Build
+- APK/AAB release
+
+### Arquivos e credenciais
+
+- `google-services.json` (Android Firebase)
+- Service Account FCM V1 (EAS credentials)
+
+Arquivos sensíveis já ignorados em `.gitignore`:
+
+- `google-services.json`
+- `android/app/google-services.json`
+- arquivos de service account `.json`
+
+## EAS (opcional)
+
+Este projeto já possui `eas.json` com perfis:
+
+- `development`
+- `preview`
+- `production`
+
+Para usar:
 
 ```bash
-npm run android:release:apk
+npx eas-cli login
+npx eas-cli build -p android --profile preview
 ```
 
-Esse build inclui `armeabi-v7a` + `arm64-v8a`, cobrindo a maioria dos aparelhos Android reais.
+## Cache e comportamento offline
 
-- Se quiser APK otimizado apenas para 64-bit (menor), use:
+Cache local (TTL diário / 24h, conforme módulo):
 
-```bash
-npm run android:release:arm64
-```
+- Branding + unidade organizacional
+- Liturgia diária
+- Sessão autenticada
+- Dashboard do membro
+- Mensagens do membro
 
-Esse artefato **nao** instala em aparelhos 32-bit.
+Ações de notificação são por usuário (conta atual):
 
-- Para publicacao em loja, prefira App Bundle:
+- marcar como lida
+- remover da lista
+- limpeza automática por preferência
 
-```bash
-npm run android:release:aab
-```
+## Troubleshooting
 
-## Login do fiel
+### `Invalid token type`
 
-A tela `Conta` usa `POST /auth/login` e o dashboard usa `/member/dashboard` com refresh automático de token em `/auth/refresh`.
+Esse erro normalmente era sessão antiga. Solução:
+
+1. Atualizar backend e app para versões atuais.
+2. Fazer logout/login para renovar tokens.
+
+### Push não registra dispositivo
+
+- Confirme permissões no dispositivo.
+- Não teste push remoto no Expo Go.
+- Confira `google-services.json` e credenciais FCM V1.
+
+### API inacessível no celular físico
+
+- `EXPO_PUBLIC_API_URL` deve apontar para URL pública HTTPS (não `localhost`).

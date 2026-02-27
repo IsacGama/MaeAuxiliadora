@@ -166,6 +166,7 @@ export default function RosaryScreen() {
   const { resolvedMode } = useThemePreference();
   const params = useLocalSearchParams<{ preset?: string }>();
   const forceTodayPreset = params.preset === 'today';
+  const forceRosarioPreset = params.preset === 'rosario';
   const theme = useMemo(
     () => createThemeWithMode(org.branding, resolvedMode),
     [org.branding, resolvedMode],
@@ -190,7 +191,7 @@ export default function RosaryScreen() {
     let active = true;
 
     const loadState = async () => {
-      if (forceTodayPreset) {
+      if (forceTodayPreset || forceRosarioPreset) {
         return;
       }
 
@@ -223,7 +224,7 @@ export default function RosaryScreen() {
     return () => {
       active = false;
     };
-  }, [forceTodayPreset]);
+  }, [forceTodayPreset, forceRosarioPreset]);
 
   useEffect(() => {
     if (!forceTodayPreset) {
@@ -234,6 +235,15 @@ export default function RosaryScreen() {
     setMysteryKey(getRosaryMysteryByDate(new Date()));
     setStepIndex(0);
   }, [forceTodayPreset]);
+
+  useEffect(() => {
+    if (!forceRosarioPreset) {
+      return;
+    }
+
+    setMode('rosario');
+    setStepIndex(0);
+  }, [forceRosarioPreset]);
 
   useEffect(() => {
     setStepIndex((current) => Math.max(0, Math.min(current, guidedSteps.length - 1)));
@@ -344,11 +354,19 @@ export default function RosaryScreen() {
             })}
 
             <Pressable
-              style={[styles.chip, { borderColor: theme.border, backgroundColor: theme.surface }]}
+              style={[
+                styles.chip,
+                {
+                  borderColor: theme.border,
+                  backgroundColor: theme.surface,
+                  opacity: mode === 'terco' ? 0.4 : 1,
+                },
+              ]}
               onPress={() => {
                 setMode('terco');
                 setStepIndex(0);
               }}
+              disabled={mode === 'terco'}
             >
               <Text style={[styles.chipText, { color: theme.primary }]}>Terço de hoje</Text>
             </Pressable>
@@ -403,8 +421,9 @@ export default function RosaryScreen() {
               </Pressable>
 
               <Pressable
-                style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
+                style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface, opacity: stepIndex === 0 ? 0.4 : 1 }]}
                 onPress={() => setStepIndex(0)}
+                disabled={stepIndex === 0}
               >
                 <MaterialCommunityIcons name="refresh" size={16} color={theme.primary} />
                 <Text style={[styles.actionButtonText, { color: theme.primary }]}>Recomeçar</Text>

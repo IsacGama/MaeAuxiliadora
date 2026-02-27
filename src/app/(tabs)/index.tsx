@@ -331,7 +331,7 @@ export default function HomeScreen() {
 
           <Pressable
             style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
-            onPress={() => router.push('/rosario' as never)}
+            onPress={() => router.push({ pathname: '/rosario', params: { preset: 'rosario' } } as never)}
           >
             <Text style={[styles.actionTitle, { color: theme.primary }]}>Rosário Guiado</Text>
             <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Passo a passo com progresso salvo</Text>

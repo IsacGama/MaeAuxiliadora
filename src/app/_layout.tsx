@@ -5,6 +5,7 @@ import { Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../mobile/auth-context';
 import { appConfig } from '../mobile/config';
+import { prefetchTodayData } from '../mobile/prefetch';
 import { ThemePreferenceProvider, useThemePreference } from '../mobile/theme-preference';
 import {
   addNotificationResponseListener,
@@ -56,6 +57,14 @@ const parsePushAction = (response: NotificationResponse): PushAction => {
     notificationId: asString(data.notificationId) ?? asString(data.id),
   };
 };
+
+function BackgroundPrefetch() {
+  useEffect(() => {
+    prefetchTodayData();
+  }, []);
+
+  return null;
+}
 
 function NotificationRegistrar() {
   const { isAuthenticated, session, requestWithAuth } = useAuth();
@@ -216,6 +225,7 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <ThemePreferenceProvider>
+          <BackgroundPrefetch />
           <NotificationRegistrar />
           <RootNavigator />
         </ThemePreferenceProvider>

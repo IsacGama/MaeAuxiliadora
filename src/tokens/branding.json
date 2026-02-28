@@ -1,0 +1,16 @@
+{
+  "fonts": {
+    "heading": "Cinzel",
+    "body": "Lora",
+    "sans": "Inter"
+  },
+  "defaults": {
+    "primary": "220 45% 25%",
+    "primaryForeground": "40 30% 97%",
+    "secondary": "35 60% 50%",
+    "secondaryForeground": "40 30% 97%",
+    "accent": "35 60% 50%",
+    "churchBurgundy": "345 60% 30%",
+    "churchNavy": "220 45% 25%"
+  }
+}

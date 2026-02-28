@@ -176,12 +176,13 @@ export default function PrayersScreen() {
 
   const filteredPrayers = useMemo(() => {
     const normalizedQuery = normalize(query);
-    if (!normalizedQuery) return prayers;
     return prayers.filter((prayer) => {
+      if (language === 'la' && !prayer.text.la?.trim()) return false;
+      if (!normalizedQuery) return true;
       const text = `${prayer.title} ${prayer.text.pt} ${prayer.text.la}`;
       return normalize(text).includes(normalizedQuery);
     });
-  }, [query]);
+  }, [query, language]);
 
   const togglePrayer = (prayerId: string) => {
     setExpandedById((current) => ({

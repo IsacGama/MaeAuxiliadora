@@ -19,12 +19,12 @@ const normalizePreference = (value: string | null): ThemePreference => {
   if (value === 'LIGHT' || value === 'DARK' || value === 'SYSTEM') {
     return value;
   }
-  return 'SYSTEM';
+  return 'LIGHT';
 };
 
 export const ThemePreferenceProvider = ({ children }: { children: React.ReactNode }) => {
   const systemScheme = useColorScheme();
-  const [preference, setPreferenceState] = useState<ThemePreference>('SYSTEM');
+  const [preference, setPreferenceState] = useState<ThemePreference>('LIGHT');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {

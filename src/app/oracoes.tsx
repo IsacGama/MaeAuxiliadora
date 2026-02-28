@@ -1,8 +1,10 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   FlatList,
+  Modal,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,7 +15,8 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useOrgContext } from '../mobile/hooks/use-org-context';
-import { useAppTheme } from '../mobile/theme';
+import { useSpeech, speechRateLabels, type SpeechRate } from '../mobile/hooks/use-speech';
+import { useAppTheme, withAlpha } from '../mobile/theme';
 import {
   devotionLanguageLabels,
   getPrayerTextByLanguage,
@@ -27,7 +30,7 @@ const styles = StyleSheet.create({
   listContent: {
     paddingHorizontal: 16,
     paddingTop: 14,
-    paddingBottom: 28,
+    paddingBottom: 32,
     gap: 12,
   },
   headerCard: {
@@ -97,10 +100,114 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
   },
+  buttonRow: {
+    flexDirection: 'row',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  guidedButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  guidedButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
   emptyText: {
     fontSize: 14,
     textAlign: 'center',
     paddingVertical: 22,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.48)',
+  },
+  modalSheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    paddingTop: 14,
+    paddingBottom: 32,
+    maxHeight: '88%',
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 99,
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    marginBottom: 12,
+  },
+  modalLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+  },
+  closeButton: {
+    borderRadius: 99,
+    borderWidth: 1,
+    padding: 6,
+    marginTop: 2,
+  },
+  modalBody: {
+    paddingHorizontal: 18,
+    gap: 16,
+  },
+  modalPrayerText: {
+    fontSize: 15,
+    lineHeight: 24,
+  },
+  divider: {
+    height: 1,
+    marginVertical: 4,
+  },
+  ttsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  ttsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  ttsButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  rateChip: {
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  rateChipText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 });
 
@@ -127,6 +234,10 @@ export default function PrayersScreen() {
   const [query, setQuery] = useState('');
   const [language, setLanguage] = useState<DevotionLanguage>('pt');
   const [expandedById, setExpandedById] = useState<Record<string, boolean>>({});
+  const [guidedPrayer, setGuidedPrayer] = useState<PrayerRecord | null>(null);
+
+  const languageCode = language === 'pt' ? 'pt-BR' : 'it-IT';
+  const { isSpeaking, speak, stop, rate, setRate } = useSpeech();
 
   const filteredPrayers = useMemo(() => {
     const normalizedQuery = normalize(query);
@@ -146,6 +257,26 @@ export default function PrayersScreen() {
       [prayerId]: !current[prayerId],
     }));
   };
+
+  const openGuided = useCallback((prayer: PrayerRecord) => {
+    stop();
+    setGuidedPrayer(prayer);
+  }, [stop]);
+
+  const closeGuided = useCallback(() => {
+    stop();
+    setGuidedPrayer(null);
+  }, [stop]);
+
+  const handleToggleSpeech = useCallback(() => {
+    if (!guidedPrayer) return;
+    const text = getPrayerTextByLanguage(guidedPrayer, language);
+    if (isSpeaking) {
+      stop();
+    } else {
+      speak(text, languageCode);
+    }
+  }, [guidedPrayer, isSpeaking, language, languageCode, speak, stop]);
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
@@ -190,7 +321,7 @@ export default function PrayersScreen() {
                       styles.languageButton,
                       {
                         borderColor: isSelected ? theme.secondary : theme.border,
-                        backgroundColor: isSelected ? 'rgba(218, 139, 60, 0.15)' : theme.surface,
+                        backgroundColor: isSelected ? withAlpha(theme.secondary, 0.15) : theme.surface,
                       },
                     ]}
                     onPress={() => setLanguage(nextLanguage)}
@@ -232,13 +363,122 @@ export default function PrayersScreen() {
                   color={theme.textSoft}
                 />
               </Pressable>
-              <Text style={[styles.prayerText, { color: theme.text }]}>
-                {isExpanded ? prayerText : compactText}
-              </Text>
+              {isExpanded && (
+                <>
+                  <Text style={[styles.prayerText, { color: theme.text }]}>{prayerText}</Text>
+                  <View style={styles.buttonRow}>
+                    <Pressable
+                      style={[
+                        styles.guidedButton,
+                        {
+                          borderColor: theme.secondary,
+                          backgroundColor: withAlpha(theme.secondary, 0.14),
+                        },
+                      ]}
+                      onPress={() => openGuided(item)}
+                    >
+                      <MaterialCommunityIcons name="play-circle-outline" size={16} color={theme.secondary} />
+                      <Text style={[styles.guidedButtonText, { color: theme.secondary }]}>Rezar comigo</Text>
+                    </Pressable>
+                  </View>
+                </>
+              )}
+              {!isExpanded && (
+                <Text style={[styles.prayerText, { color: theme.text }]}>{compactText}</Text>
+              )}
             </View>
           );
         }}
       />
+
+      {/* Guided Prayer Bottom Sheet Modal */}
+      <Modal
+        visible={!!guidedPrayer}
+        transparent
+        animationType="slide"
+        onRequestClose={closeGuided}
+      >
+        <Pressable style={styles.modalOverlay} onPress={closeGuided}>
+          <Pressable
+            style={[styles.modalSheet, { backgroundColor: theme.surface, borderColor: theme.border }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={[styles.modalHandle, { backgroundColor: theme.border }]} />
+
+            <View style={styles.modalHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.modalLabel, { color: theme.secondary }]}>Rezando comigo</Text>
+                <Text style={[styles.modalTitle, { color: theme.primary }]}>{guidedPrayer?.title}</Text>
+              </View>
+              <Pressable
+                style={[styles.closeButton, { borderColor: theme.border }]}
+                onPress={closeGuided}
+              >
+                <MaterialCommunityIcons name="close" size={20} color={theme.textSoft} />
+              </Pressable>
+            </View>
+
+            <ScrollView
+              style={{ flexGrow: 0 }}
+              contentContainerStyle={styles.modalBody}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Prayer text */}
+              <Text style={[styles.modalPrayerText, { color: theme.text }]}>
+                {guidedPrayer ? getPrayerTextByLanguage(guidedPrayer, language) : ''}
+              </Text>
+
+              {/* Divider */}
+              <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+              {/* TTS controls */}
+              <View style={styles.ttsRow}>
+                <Pressable
+                  style={[
+                    styles.ttsButton,
+                    {
+                      borderColor: isSpeaking ? theme.secondary : theme.border,
+                      backgroundColor: isSpeaking ? withAlpha(theme.secondary, 0.15) : withAlpha(theme.secondary, 0.06),
+                    },
+                  ]}
+                  onPress={handleToggleSpeech}
+                >
+                  <MaterialCommunityIcons
+                    name={isSpeaking ? 'pause-circle-outline' : 'play-circle-outline'}
+                    size={18}
+                    color={theme.secondary}
+                  />
+                  <Text style={[styles.ttsButtonText, { color: theme.secondary }]}>
+                    {isSpeaking ? 'Parar leitura' : 'Rezar em voz alta'}
+                  </Text>
+                </Pressable>
+
+                {(Object.keys(speechRateLabels) as string[]).map((key) => {
+                  const r = Number(key) as SpeechRate;
+                  const isSelected = rate === r;
+                  return (
+                    <Pressable
+                      key={key}
+                      style={[
+                        styles.rateChip,
+                        {
+                          borderColor: isSelected ? theme.secondary : theme.border,
+                          backgroundColor: isSelected ? withAlpha(theme.secondary, 0.15) : theme.surface,
+                        },
+                      ]}
+                      onPress={() => setRate(r)}
+                    >
+                      <Text style={[styles.rateChipText, { color: isSelected ? theme.secondary : theme.textSoft }]}>
+                        {speechRateLabels[r]}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }

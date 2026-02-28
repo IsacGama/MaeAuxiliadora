@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Linking } from 'react-native';
+import { Animated, Linking, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../mobile/auth-context';
 import { AppThemeProvider, useComputedTheme } from '../mobile/theme';
@@ -241,8 +241,41 @@ function ThemeWrapper({ children }: { children: React.ReactNode }) {
   const org = useOrgContext();
   const { resolvedMode } = useThemePreference();
   const theme = useComputedTheme(org.branding, resolvedMode);
-  return <AppThemeProvider value={theme}>{children}</AppThemeProvider>;
+
+  // Animate a brief overlay whenever the theme switches.
+  const flashOpacity = useRef(new Animated.Value(0)).current;
+  const prevMode = useRef(resolvedMode);
+
+  useEffect(() => {
+    if (prevMode.current === resolvedMode) return;
+    prevMode.current = resolvedMode;
+    // Brief flash: 0 → 0.18 → 0 over 350ms
+    Animated.sequence([
+      Animated.timing(flashOpacity, { toValue: 0.18, duration: 140, useNativeDriver: true }),
+      Animated.timing(flashOpacity, { toValue: 0, duration: 210, useNativeDriver: true }),
+    ]).start();
+  }, [resolvedMode, flashOpacity]);
+
+  return (
+    <AppThemeProvider value={theme}>
+      <View style={styles.fill}>
+        {children}
+        {/* Overlay that briefly flashes on theme change */}
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFillObject,
+            { backgroundColor: theme.bg, opacity: flashOpacity },
+          ]}
+        />
+      </View>
+    </AppThemeProvider>
+  );
 }
+
+const styles = StyleSheet.create({
+  fill: { flex: 1 },
+});
 
 export default function RootLayout() {
   return (

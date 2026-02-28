@@ -1,22 +1,27 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
   Linking,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { publicApi } from '../../mobile/api';
+import { getMediaUrl } from '../../mobile/media';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { createThemeWithMode } from '../../mobile/theme';
 import { useThemePreference } from '../../mobile/theme-preference';
 import { PublicContentBlock, PublicPostDetail } from '../../mobile/types';
+
+type Theme = ReturnType<typeof createThemeWithMode>;
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -76,17 +81,6 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 220,
     borderRadius: 12,
-    borderWidth: 1,
-  },
-  galleryRow: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  galleryImage: {
-    width: 220,
-    height: 140,
-    borderRadius: 12,
-    borderWidth: 1,
   },
   actionButton: {
     borderRadius: 10,
@@ -103,7 +97,34 @@ const styles = StyleSheet.create({
     opacity: 0.35,
     marginVertical: 4,
   },
+  // Lightbox
+  lightboxBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.92)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  lightboxClose: {
+    position: 'absolute',
+    top: 52,
+    right: 16,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 20,
+    padding: 8,
+  },
+  // Gallery dots
+  dotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 10,
+  },
 });
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
   typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
@@ -125,46 +146,187 @@ const stripHtml = (html?: string) => {
     .trim();
 };
 
-const normalizeUrl = (value?: string) => {
+const resolveUrl = (value?: string) => {
   if (!value) return undefined;
-  const trimmed = value.trim();
-  if (!trimmed) return undefined;
-  if (trimmed.startsWith('//')) return `https:${trimmed}`;
-  if (trimmed.startsWith('http://')) return `https://${trimmed.slice(7)}`;
-  return trimmed;
+  const t = value.trim();
+  if (!t) return undefined;
+  if (t.startsWith('//')) return `https:${t}`;
+  if (t.startsWith('http://')) return `https://${t.slice(7)}`;
+  return t;
+};
+
+const extractEmbedUrl = (value?: string) => {
+  if (!value?.trim()) return undefined;
+  const iframeSrc = value.match(/<iframe[^>]*src=["']([^"']+)["'][^>]*><\/iframe>/i)?.[1];
+  return resolveUrl(iframeSrc ?? value);
 };
 
 const formatDateTime = (value?: string | null) => {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString('pt-BR', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
-};
-
-const extractEmbedUrl = (value?: string) => {
-  if (!value?.trim()) return undefined;
-  const iframeSrc = value.match(/<iframe[^>]*src=["']([^"']+)["'][^>]*><\/iframe>/i)?.[1];
-  return normalizeUrl(iframeSrc ?? value);
+  return date.toLocaleString('pt-BR', { dateStyle: 'medium', timeStyle: 'short' });
 };
 
 const renderBlockText = (block: PublicContentBlock) => {
   const data = asRecord(block.data) ?? {};
-
-  if (block.type === 'HEADING') {
-    return stripHtml(asString(data.text));
-  }
-  if (block.type === 'RICH_TEXT') {
-    return stripHtml(asString(data.html));
-  }
-  if (block.type === 'QUOTE') {
-    return stripHtml(asString(data.text));
-  }
-
+  if (block.type === 'HEADING') return stripHtml(asString(data.text));
+  if (block.type === 'RICH_TEXT') return stripHtml(asString(data.html));
+  if (block.type === 'QUOTE') return stripHtml(asString(data.text));
   return '';
 };
+
+// ---------------------------------------------------------------------------
+// Lightbox modal (reused by IMAGE and GALLERY)
+// ---------------------------------------------------------------------------
+
+function ImageLightbox({
+  url,
+  onClose,
+}: {
+  url: string;
+  onClose: () => void;
+}) {
+  return (
+    <Modal visible transparent animationType="fade" statusBarTranslucent>
+      <Pressable style={styles.lightboxBackdrop} onPress={onClose}>
+        <Image
+          source={{ uri: url }}
+          style={{ width: '100%', height: '80%' }}
+          resizeMode="contain"
+        />
+        <Pressable style={styles.lightboxClose} onPress={onClose}>
+          <MaterialCommunityIcons name="close" size={22} color="#fff" />
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Single image block
+// ---------------------------------------------------------------------------
+
+function PostImageBlock({
+  url,
+  caption,
+  theme,
+}: {
+  url: string;
+  caption?: string;
+  theme: Theme;
+}) {
+  const [lightbox, setLightbox] = useState(false);
+
+  return (
+    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+      <Pressable onPress={() => setLightbox(true)}>
+        <Image
+          source={{ uri: url }}
+          style={[styles.blockImage, { backgroundColor: theme.bg }]}
+          resizeMode="cover"
+        />
+      </Pressable>
+      {!!caption && (
+        <Text style={[styles.meta, { color: theme.textSoft, textAlign: 'center' }]}>
+          {caption}
+        </Text>
+      )}
+      {lightbox && <ImageLightbox url={url} onClose={() => setLightbox(false)} />}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Gallery carousel
+// ---------------------------------------------------------------------------
+
+type GalleryEntry = { url: string; alt?: string; caption?: string };
+
+function GalleryCarousel({
+  images,
+  theme,
+}: {
+  images: GalleryEntry[];
+  theme: Theme;
+}) {
+  const { width: screenWidth } = useWindowDimensions();
+  // Available inner width = screen - 2×content padding (16) - 2×card padding (14)
+  const imageWidth = screenWidth - 60;
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const scrollRef = useRef<ScrollView>(null);
+
+  const handleMomentumEnd = (event: { nativeEvent: { contentOffset: { x: number } } }) => {
+    const newIndex = Math.round(event.nativeEvent.contentOffset.x / imageWidth);
+    setCurrentIndex(Math.max(0, Math.min(newIndex, images.length - 1)));
+  };
+
+  const current = images[currentIndex];
+
+  return (
+    <View>
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={handleMomentumEnd}
+        decelerationRate="fast"
+        snapToInterval={imageWidth}
+        snapToAlignment="start"
+        style={{ borderRadius: 12, overflow: 'hidden' }}
+      >
+        {images.map((img, i) => {
+          const url = getMediaUrl(asString(img.url as unknown));
+          if (!url) return null;
+          return (
+            <Pressable key={i} onPress={() => setLightboxUrl(url)}>
+              <Image
+                source={{ uri: url }}
+                style={{ width: imageWidth, height: 220, backgroundColor: theme.bg }}
+                resizeMode="cover"
+              />
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      {/* Caption for current image */}
+      {!!asString(current?.caption as unknown) && (
+        <Text style={[styles.meta, { color: theme.textSoft, textAlign: 'center', marginTop: 8 }]}>
+          {asString(current.caption as unknown)}
+        </Text>
+      )}
+
+      {/* Dot indicators */}
+      {images.length > 1 && (
+        <View style={styles.dotsRow}>
+          {images.map((_, i) => (
+            <View
+              key={i}
+              style={{
+                height: 6,
+                width: i === currentIndex ? 18 : 6,
+                borderRadius: 3,
+                backgroundColor: i === currentIndex ? theme.secondary : theme.border,
+              }}
+            />
+          ))}
+        </View>
+      )}
+
+      {lightboxUrl && (
+        <ImageLightbox url={lightboxUrl} onClose={() => setLightboxUrl(null)} />
+      )}
+    </View>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main screen
+// ---------------------------------------------------------------------------
 
 export default function PostDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug?: string }>();
@@ -194,7 +356,6 @@ export default function PostDetailScreen() {
     }
 
     let cancelled = false;
-
     const load = async () => {
       setIsLoading(true);
       setError(null);
@@ -204,22 +365,15 @@ export default function PostDetailScreen() {
         setPost(result);
       } catch (err) {
         if (cancelled) return;
-        const message =
-          err instanceof Error ? err.message : 'Não foi possível carregar o post.';
-        setError(message);
+        setError(err instanceof Error ? err.message : 'Não foi possível carregar o post.');
         setPost(null);
       } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+        if (!cancelled) setIsLoading(false);
       }
     };
 
     void load();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [parishId, slug]);
 
   const latestVersion = post?.versions?.[0];
@@ -228,21 +382,13 @@ export default function PostDetailScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: theme.surface, borderColor: theme.border },
-          ]}
-        >
+        {/* Header card */}
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Pressable
             style={[styles.backButton, { borderColor: theme.border }]}
             onPress={() => router.back()}
           >
-            <MaterialCommunityIcons
-              name="arrow-left"
-              size={16}
-              color={theme.secondary}
-            />
+            <MaterialCommunityIcons name="arrow-left" size={16} color={theme.secondary} />
             <Text style={{ color: theme.secondary, fontWeight: '700' }}>Voltar</Text>
           </Pressable>
 
@@ -257,170 +403,97 @@ export default function PostDetailScreen() {
           )}
         </View>
 
-        {isLoading ? (
+        {/* Loading */}
+        {isLoading && (
           <View
-            style={[
-              styles.card,
-              {
-                backgroundColor: theme.surface,
-                borderColor: theme.border,
-                alignItems: 'center',
-              },
-            ]}
+            style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, alignItems: 'center' }]}
           >
             <ActivityIndicator size="large" color={theme.secondary} />
             <Text style={{ color: theme.textSoft }}>Carregando conteúdo...</Text>
           </View>
-        ) : null}
+        )}
 
-        {!!error && !isLoading ? (
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-          >
+        {/* Error */}
+        {!!error && !isLoading && (
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={{ color: '#FCA5A5' }}>{error}</Text>
           </View>
-        ) : null}
+        )}
 
-        {!!latestVersion?.summary && !isLoading ? (
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-          >
+        {/* Summary */}
+        {!!latestVersion?.summary && !isLoading && (
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[styles.subtitle, { color: theme.textSoft }]}>
               {stripHtml(latestVersion.summary ?? '')}
             </Text>
           </View>
-        ) : null}
+        )}
 
-        {!isLoading && !!post && blocks.length === 0 ? (
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-          >
+        {/* Empty blocks */}
+        {!isLoading && !!post && blocks.length === 0 && (
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[styles.subtitle, { color: theme.textSoft }]}>
               Este post ainda não possui blocos de conteúdo no aplicativo.
             </Text>
           </View>
-        ) : null}
+        )}
 
+        {/* Blocks */}
         {!isLoading && !!post
           ? blocks.map((block, index) => {
               const data = asRecord(block.data) ?? {};
-              const imageUrl = normalizeUrl(asString(data.url));
-              const blockText = renderBlockText(block);
+              const key = block.id || `${block.type}-${index}`;
 
               if (block.type === 'DIVIDER') {
                 return (
-                  <View
-                    key={block.id || `${block.type}-${index}`}
-                    style={[
-                      styles.divider,
-                      { backgroundColor: theme.border },
-                    ]}
-                  />
+                  <View key={key} style={[styles.divider, { backgroundColor: theme.border }]} />
                 );
               }
 
-              if (block.type === 'IMAGE' && imageUrl) {
+              if (block.type === 'IMAGE') {
+                const url = getMediaUrl(asString(data.url));
+                if (!url) return null;
                 return (
-                  <View
-                    key={block.id || `${block.type}-${index}`}
-                    style={[
-                      styles.card,
-                      { backgroundColor: theme.surface, borderColor: theme.border },
-                    ]}
-                  >
-                    <Image
-                      source={{ uri: imageUrl }}
-                      style={[
-                        styles.blockImage,
-                        { borderColor: theme.border, backgroundColor: theme.bg },
-                      ]}
-                      resizeMode="contain"
-                    />
-                    {!!asString(data.caption) && (
-                      <Text style={[styles.meta, { color: theme.textSoft }]}>
-                        {asString(data.caption)}
-                      </Text>
-                    )}
-                  </View>
+                  <PostImageBlock
+                    key={key}
+                    url={url}
+                    caption={asString(data.caption)}
+                    theme={theme}
+                  />
                 );
               }
 
               if (block.type === 'GALLERY') {
                 const images = Array.isArray(data.images)
-                  ? (data.images as Array<Record<string, unknown>>)
+                  ? (data.images as Array<Record<string, unknown>>).map((img) => ({
+                      url: asString(img.url) ?? '',
+                      alt: asString(img.alt),
+                      caption: asString(img.caption),
+                    })).filter((img) => img.url)
                   : [];
-                if (!images.length) {
-                  return null;
-                }
+                if (!images.length) return null;
                 return (
                   <View
-                    key={block.id || `${block.type}-${index}`}
-                    style={[
-                      styles.card,
-                      { backgroundColor: theme.surface, borderColor: theme.border },
-                    ]}
+                    key={key}
+                    style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
                   >
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                      <View style={styles.galleryRow}>
-                        {images.map((entry, imageIndex) => {
-                          const url = normalizeUrl(asString(entry.url));
-                          if (!url) return null;
-                          return (
-                            <View key={`${block.id}-${imageIndex}`} style={{ gap: 6 }}>
-                              <Image
-                                source={{ uri: url }}
-                                style={[
-                                  styles.galleryImage,
-                                  {
-                                    borderColor: theme.border,
-                                    backgroundColor: theme.bg,
-                                  },
-                                ]}
-                                resizeMode="cover"
-                              />
-                              {!!asString(entry.caption) && (
-                                <Text style={[styles.meta, { color: theme.textSoft }]}>
-                                  {asString(entry.caption)}
-                                </Text>
-                              )}
-                            </View>
-                          );
-                        })}
-                      </View>
-                    </ScrollView>
+                    <GalleryCarousel images={images} theme={theme} />
                   </View>
                 );
               }
 
               if (block.type === 'BUTTON') {
-                const url = normalizeUrl(asString(data.url));
+                const url = resolveUrl(asString(data.url));
                 const label = asString(data.label) ?? 'Abrir link';
-                if (!url) {
-                  return null;
-                }
-
+                if (!url) return null;
                 return (
                   <View
-                    key={block.id || `${block.type}-${index}`}
-                    style={[
-                      styles.card,
-                      { backgroundColor: theme.surface, borderColor: theme.border },
-                    ]}
+                    key={key}
+                    style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
                   >
                     <Pressable
                       style={[styles.actionButton, { borderColor: theme.secondary }]}
-                      onPress={() => {
-                        void Linking.openURL(url).catch(() => undefined);
-                      }}
+                      onPress={() => { void Linking.openURL(url).catch(() => undefined); }}
                     >
                       <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
                         {label}
@@ -432,22 +505,15 @@ export default function PostDetailScreen() {
 
               if (block.type === 'EMBED') {
                 const embedUrl = extractEmbedUrl(asString(data.html) ?? asString(data.url));
-                if (!embedUrl) {
-                  return null;
-                }
+                if (!embedUrl) return null;
                 return (
                   <View
-                    key={block.id || `${block.type}-${index}`}
-                    style={[
-                      styles.card,
-                      { backgroundColor: theme.surface, borderColor: theme.border },
-                    ]}
+                    key={key}
+                    style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
                   >
                     <Pressable
                       style={[styles.actionButton, { borderColor: theme.secondary }]}
-                      onPress={() => {
-                        void Linking.openURL(embedUrl).catch(() => undefined);
-                      }}
+                      onPress={() => { void Linking.openURL(embedUrl).catch(() => undefined); }}
                     >
                       <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
                         Abrir vídeo
@@ -461,19 +527,14 @@ export default function PostDetailScreen() {
                 const columns = Array.isArray(data.columns)
                   ? (data.columns as Array<Record<string, unknown>>)
                   : [];
-                if (!columns.length) {
-                  return null;
-                }
+                if (!columns.length) return null;
                 return (
                   <View
-                    key={block.id || `${block.type}-${index}`}
-                    style={[
-                      styles.card,
-                      { backgroundColor: theme.surface, borderColor: theme.border },
-                    ]}
+                    key={key}
+                    style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
                   >
                     {columns.map((column, columnIndex) => (
-                      <View key={`${block.id}-column-${columnIndex}`} style={{ gap: 4 }}>
+                      <View key={`${key}-col-${columnIndex}`} style={{ gap: 4 }}>
                         {!!asString(column.title) && (
                           <Text style={[styles.headingBlock, { color: theme.text, fontSize: 17 }]}>
                             {asString(column.title)}
@@ -495,17 +556,13 @@ export default function PostDetailScreen() {
                 );
               }
 
-              if (!blockText) {
-                return null;
-              }
+              const blockText = renderBlockText(block);
+              if (!blockText) return null;
 
               return (
                 <View
-                  key={block.id || `${block.type}-${index}`}
-                  style={[
-                    styles.card,
-                    { backgroundColor: theme.surface, borderColor: theme.border },
-                  ]}
+                  key={key}
+                  style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
                 >
                   <Text
                     style={[
@@ -516,8 +573,7 @@ export default function PostDetailScreen() {
                           : styles.blockText,
                       {
                         color: theme.text,
-                        borderLeftColor:
-                          block.type === 'QUOTE' ? theme.secondary : undefined,
+                        borderLeftColor: block.type === 'QUOTE' ? theme.secondary : undefined,
                       },
                     ]}
                   >

@@ -158,21 +158,27 @@ const extractEmbedUrl = (value?: string): string | undefined => {
   const raw = iframeSrc ?? value;
   const resolved = resolveUrl(raw);
   if (!resolved) return undefined;
-  // Normalise YouTube short URLs
   try {
     const url = new URL(resolved);
     const host = url.hostname.toLowerCase();
+    // YouTube — use youtube-nocookie.com to avoid error 153 in WebView contexts
     if (host === 'youtu.be') {
       const id = url.pathname.replace('/', '').trim();
-      return id ? `https://www.youtube.com/embed/${id}` : undefined;
+      return id ? `https://www.youtube-nocookie.com/embed/${id}` : undefined;
     }
-    if (host.includes('youtube.com') && !url.pathname.startsWith('/embed/')) {
-      const id = url.searchParams.get('v')?.trim();
-      return id ? `https://www.youtube.com/embed/${id}` : undefined;
+    if (host.includes('youtube.com') || host.includes('youtube-nocookie.com')) {
+      const embedPath = url.pathname.startsWith('/embed/')
+        ? url.pathname.split('/embed/')[1]?.split('/')[0]
+        : url.searchParams.get('v')?.trim();
+      return embedPath ? `https://www.youtube-nocookie.com/embed/${embedPath}` : undefined;
     }
+    // Vimeo
     if (host.includes('vimeo.com') && !host.startsWith('player.')) {
       const id = url.pathname.split('/').filter(Boolean).at(-1);
       return id ? `https://player.vimeo.com/video/${id}` : undefined;
+    }
+    if (host.startsWith('player.vimeo.com')) {
+      return resolved;
     }
   } catch {
     // fall through
@@ -511,18 +517,34 @@ export default function PostDetailScreen() {
               if (block.type === 'EMBED') {
                 const embedUrl = extractEmbedUrl(asString(data.html) ?? asString(data.url));
                 if (!embedUrl) return null;
+                // Inject the iframe via HTML with a trusted baseUrl to avoid YouTube error 153.
+                // YouTube (and Vimeo) check the embed origin; setting baseUrl to the player
+                // domain satisfies the origin check inside the WebView.
+                const isVimeo = embedUrl.includes('vimeo.com');
+                const baseUrl = isVimeo
+                  ? 'https://player.vimeo.com'
+                  : 'https://www.youtube-nocookie.com';
+                const embedHtml = `<!DOCTYPE html><html><head>
+<meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=YES">
+<style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000;height:100%}iframe{width:100%;height:100%;border:none}</style>
+</head><body>
+<iframe src="${embedUrl}?playsinline=1&rel=0&modestbranding=1"
+  allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;fullscreen"
+  allowfullscreen></iframe>
+</body></html>`;
                 return (
                   <View
                     key={key}
-                    style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, padding: 0, overflow: 'hidden' }]}
+                    style={[styles.card, { backgroundColor: '#000', borderColor: theme.border, padding: 0, overflow: 'hidden' }]}
                   >
                     <WebView
-                      source={{ uri: embedUrl }}
-                      style={{ height: videoHeight, borderRadius: 14 }}
+                      source={{ html: embedHtml, baseUrl }}
+                      style={{ height: videoHeight, borderRadius: 14, backgroundColor: '#000' }}
                       javaScriptEnabled
                       allowsFullscreenVideo
                       allowsInlineMediaPlayback
                       mediaPlaybackRequiresUserAction={false}
+                      scrollEnabled={false}
                     />
                   </View>
                 );

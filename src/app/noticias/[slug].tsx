@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   ActivityIndicator,
   Image,
   Linking,
@@ -11,6 +12,7 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
+import { WebView } from 'react-native-webview';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -77,11 +79,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 23,
   },
-  blockImage: {
-    width: '100%',
-    height: 220,
-    borderRadius: 12,
-  },
   actionButton: {
     borderRadius: 10,
     borderWidth: 1,
@@ -112,7 +109,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 8,
   },
-  // Gallery dots
+  // Gallery
   dotsRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -155,10 +152,32 @@ const resolveUrl = (value?: string) => {
   return t;
 };
 
-const extractEmbedUrl = (value?: string) => {
+const extractEmbedUrl = (value?: string): string | undefined => {
   if (!value?.trim()) return undefined;
   const iframeSrc = value.match(/<iframe[^>]*src=["']([^"']+)["'][^>]*><\/iframe>/i)?.[1];
-  return resolveUrl(iframeSrc ?? value);
+  const raw = iframeSrc ?? value;
+  const resolved = resolveUrl(raw);
+  if (!resolved) return undefined;
+  // Normalise YouTube short URLs
+  try {
+    const url = new URL(resolved);
+    const host = url.hostname.toLowerCase();
+    if (host === 'youtu.be') {
+      const id = url.pathname.replace('/', '').trim();
+      return id ? `https://www.youtube.com/embed/${id}` : undefined;
+    }
+    if (host.includes('youtube.com') && !url.pathname.startsWith('/embed/')) {
+      const id = url.searchParams.get('v')?.trim();
+      return id ? `https://www.youtube.com/embed/${id}` : undefined;
+    }
+    if (host.includes('vimeo.com') && !host.startsWith('player.')) {
+      const id = url.pathname.split('/').filter(Boolean).at(-1);
+      return id ? `https://player.vimeo.com/video/${id}` : undefined;
+    }
+  } catch {
+    // fall through
+  }
+  return resolved;
 };
 
 const formatDateTime = (value?: string | null) => {
@@ -177,16 +196,10 @@ const renderBlockText = (block: PublicContentBlock) => {
 };
 
 // ---------------------------------------------------------------------------
-// Lightbox modal (reused by IMAGE and GALLERY)
+// Lightbox modal
 // ---------------------------------------------------------------------------
 
-function ImageLightbox({
-  url,
-  onClose,
-}: {
-  url: string;
-  onClose: () => void;
-}) {
+function ImageLightbox({ url, onClose }: { url: string; onClose: () => void }) {
   return (
     <Modal visible transparent animationType="fade" statusBarTranslucent>
       <Pressable style={styles.lightboxBackdrop} onPress={onClose}>
@@ -223,8 +236,8 @@ function PostImageBlock({
       <Pressable onPress={() => setLightbox(true)}>
         <Image
           source={{ uri: url }}
-          style={[styles.blockImage, { backgroundColor: theme.bg }]}
-          resizeMode="cover"
+          style={{ width: '100%', aspectRatio: 16 / 9, borderRadius: 10, backgroundColor: theme.bg }}
+          resizeMode="contain"
         />
       </Pressable>
       {!!caption && (
@@ -238,44 +251,46 @@ function PostImageBlock({
 }
 
 // ---------------------------------------------------------------------------
-// Gallery carousel
+// Gallery carousel with smooth animated dots
 // ---------------------------------------------------------------------------
 
 type GalleryEntry = { url: string; alt?: string; caption?: string };
 
-function GalleryCarousel({
-  images,
-  theme,
-}: {
-  images: GalleryEntry[];
-  theme: Theme;
-}) {
+function GalleryCarousel({ images, theme }: { images: GalleryEntry[]; theme: Theme }) {
   const { width: screenWidth } = useWindowDimensions();
   // Available inner width = screen - 2×content padding (16) - 2×card padding (14)
   const imageWidth = screenWidth - 60;
+  const imageHeight = Math.round(imageWidth * 9 / 16);
 
+  const scrollX = useRef(new Animated.Value(0)).current;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
-  const scrollRef = useRef<ScrollView>(null);
 
-  const handleMomentumEnd = (event: { nativeEvent: { contentOffset: { x: number } } }) => {
-    const newIndex = Math.round(event.nativeEvent.contentOffset.x / imageWidth);
-    setCurrentIndex(Math.max(0, Math.min(newIndex, images.length - 1)));
-  };
+  const onScroll = Animated.event(
+    [{ nativeEvent: { contentOffset: { x: scrollX } } }],
+    {
+      useNativeDriver: false,
+      listener: (event: { nativeEvent: { contentOffset: { x: number } } }) => {
+        const x = event.nativeEvent.contentOffset.x;
+        const idx = Math.round(x / imageWidth);
+        setCurrentIndex(Math.max(0, Math.min(idx, images.length - 1)));
+      },
+    },
+  );
 
   const current = images[currentIndex];
 
   return (
     <View>
       <ScrollView
-        ref={scrollRef}
         horizontal
-        pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onMomentumScrollEnd={handleMomentumEnd}
         decelerationRate="fast"
         snapToInterval={imageWidth}
-        snapToAlignment="start"
+        snapToAlignment="center"
+        disableIntervalMomentum
+        scrollEventThrottle={16}
+        onScroll={onScroll}
         style={{ borderRadius: 12, overflow: 'hidden' }}
       >
         {images.map((img, i) => {
@@ -285,35 +300,41 @@ function GalleryCarousel({
             <Pressable key={i} onPress={() => setLightboxUrl(url)}>
               <Image
                 source={{ uri: url }}
-                style={{ width: imageWidth, height: 220, backgroundColor: theme.bg }}
-                resizeMode="cover"
+                style={{ width: imageWidth, height: imageHeight, backgroundColor: theme.bg }}
+                resizeMode="contain"
               />
             </Pressable>
           );
         })}
       </ScrollView>
 
-      {/* Caption for current image */}
       {!!asString(current?.caption as unknown) && (
         <Text style={[styles.meta, { color: theme.textSoft, textAlign: 'center', marginTop: 8 }]}>
           {asString(current.caption as unknown)}
         </Text>
       )}
 
-      {/* Dot indicators */}
+      {/* Animated dot indicators */}
       {images.length > 1 && (
         <View style={styles.dotsRow}>
-          {images.map((_, i) => (
-            <View
-              key={i}
-              style={{
-                height: 6,
-                width: i === currentIndex ? 18 : 6,
-                borderRadius: 3,
-                backgroundColor: i === currentIndex ? theme.secondary : theme.border,
-              }}
-            />
-          ))}
+          {images.map((_, i) => {
+            const dotWidth = scrollX.interpolate({
+              inputRange: [(i - 1) * imageWidth, i * imageWidth, (i + 1) * imageWidth],
+              outputRange: [6, 18, 6],
+              extrapolate: 'clamp',
+            });
+            return (
+              <Animated.View
+                key={i}
+                style={{
+                  height: 6,
+                  width: dotWidth,
+                  borderRadius: 3,
+                  backgroundColor: i === currentIndex ? theme.secondary : theme.border,
+                }}
+              />
+            );
+          })}
         </View>
       )}
 
@@ -336,6 +357,7 @@ export default function PostDetailScreen() {
     () => createThemeWithMode(org.branding, resolvedMode),
     [org.branding, resolvedMode],
   );
+  const { width: screenWidth } = useWindowDimensions();
 
   const parishId =
     org.entity?.type === 'PARISH'
@@ -378,6 +400,10 @@ export default function PostDetailScreen() {
 
   const latestVersion = post?.versions?.[0];
   const blocks = (latestVersion?.blocks ?? []).slice().sort((a, b) => a.order - b.order);
+
+  // Inner content width (matches imageWidth in GalleryCarousel)
+  const contentWidth = screenWidth - 60;
+  const videoHeight = Math.round(contentWidth * 9 / 16);
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
@@ -482,9 +508,29 @@ export default function PostDetailScreen() {
                 );
               }
 
+              if (block.type === 'EMBED') {
+                const embedUrl = extractEmbedUrl(asString(data.html) ?? asString(data.url));
+                if (!embedUrl) return null;
+                return (
+                  <View
+                    key={key}
+                    style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, padding: 0, overflow: 'hidden' }]}
+                  >
+                    <WebView
+                      source={{ uri: embedUrl }}
+                      style={{ height: videoHeight, borderRadius: 14 }}
+                      javaScriptEnabled
+                      allowsFullscreenVideo
+                      allowsInlineMediaPlayback
+                      mediaPlaybackRequiresUserAction={false}
+                    />
+                  </View>
+                );
+              }
+
               if (block.type === 'BUTTON') {
                 const url = resolveUrl(asString(data.url));
-                const label = asString(data.label) ?? 'Abrir link';
+                const label = asString(data.label) ?? asString(data.text) ?? 'Abrir link';
                 if (!url) return null;
                 return (
                   <View
@@ -497,26 +543,6 @@ export default function PostDetailScreen() {
                     >
                       <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
                         {label}
-                      </Text>
-                    </Pressable>
-                  </View>
-                );
-              }
-
-              if (block.type === 'EMBED') {
-                const embedUrl = extractEmbedUrl(asString(data.html) ?? asString(data.url));
-                if (!embedUrl) return null;
-                return (
-                  <View
-                    key={key}
-                    style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                  >
-                    <Pressable
-                      style={[styles.actionButton, { borderColor: theme.secondary }]}
-                      onPress={() => { void Linking.openURL(embedUrl).catch(() => undefined); }}
-                    >
-                      <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
-                        Abrir vídeo
                       </Text>
                     </Pressable>
                   </View>

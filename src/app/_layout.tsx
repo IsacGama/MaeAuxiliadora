@@ -13,7 +13,10 @@ import {
   getLastNotificationResponse,
   registerForPushNotifications,
 } from '../mobile/notifications';
+import { getCacheValue, setCache } from '../mobile/storage';
 import type { NotificationResponse } from 'expo-notifications';
+
+const LAST_HANDLED_RESPONSE_KEY = 'spd-mobile:last-handled-notif-response';
 
 type PushAction =
   | { type: 'POST'; slug: string }
@@ -69,16 +72,9 @@ function BackgroundPrefetch() {
 function NotificationRegistrar() {
   const { isAuthenticated, session, requestWithAuth } = useAuth();
   const router = useRouter();
-  const handledResponseIdsRef = useRef<Set<string>>(new Set());
 
   const openPushAction = useCallback(
     (response: NotificationResponse) => {
-      const responseId = response.notification.request.identifier;
-      if (handledResponseIdsRef.current.has(responseId)) {
-        return;
-      }
-      handledResponseIdsRef.current.add(responseId);
-
       const action = parsePushAction(response);
 
       if (action.type === 'POST') {
@@ -125,6 +121,10 @@ function NotificationRegistrar() {
     [router],
   );
 
+  // Ref always points to the latest openPushAction without causing effects to re-run.
+  const openPushActionRef = useRef(openPushAction);
+  openPushActionRef.current = openPushAction;
+
   useEffect(() => {
     void configureNotificationHandling();
   }, []);
@@ -167,12 +167,14 @@ function NotificationRegistrar() {
     };
   }, [isAuthenticated, requestWithAuth, session?.accessToken]);
 
+  // Listener for taps while the app is running.
+  // Uses ref so the listener is set up once and never re-registered on navigation.
   useEffect(() => {
     let removeListener: (() => void) | null = null;
     let cancelled = false;
 
     void addNotificationResponseListener((response) => {
-      openPushAction(response);
+      openPushActionRef.current(response);
     }).then((unsubscribe) => {
       if (cancelled) {
         unsubscribe();
@@ -185,22 +187,34 @@ function NotificationRegistrar() {
       cancelled = true;
       removeListener?.();
     };
-  }, [openPushAction]);
+  }, []); // [] — set up once; ref keeps the callback fresh
 
+  // Cold-start: handle the notification that opened the app from a killed state.
+  // Persists the last handled response ID in AsyncStorage so restarts don't
+  // re-process the same old notification.
   useEffect(() => {
     let cancelled = false;
 
-    void getLastNotificationResponse().then((response) => {
-      if (cancelled || !response) {
-        return;
+    void getLastNotificationResponse().then(async (response) => {
+      if (cancelled || !response) return;
+
+      const responseId = response.notification.request.identifier;
+      const lastHandled = await getCacheValue<string>(LAST_HANDLED_RESPONSE_KEY);
+      if (cancelled || lastHandled === responseId) return;
+
+      await setCache(LAST_HANDLED_RESPONSE_KEY, responseId, {
+        ttlMs: 30 * 24 * 60 * 60 * 1000, // 30 days
+      });
+
+      if (!cancelled) {
+        openPushActionRef.current(response);
       }
-      openPushAction(response);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [openPushAction]);
+  }, []); // [] — run once on mount only
 
   return null;
 }

@@ -112,6 +112,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+  divider: {
+    height: 1,
+    marginVertical: 4,
+  },
 });
 
 type NotificationDestination =
@@ -274,9 +278,6 @@ export default function MessagesScreen() {
   }, [notificationsState.notifications]);
 
   const selectedRetention = preferences?.autoDeleteAfterDays ?? null;
-  const selectedDestination = selectedNotification
-    ? extractDestination(selectedNotification)
-    : null;
 
   const updateRetentionPreference = async (days: number | null) => {
     if (!isAuthenticated) {
@@ -355,6 +356,93 @@ export default function MessagesScreen() {
     } finally {
       setClearingReadHistory(false);
     }
+  };
+
+  // Renders the action buttons for a selected notification (destination + mark-read + remove)
+  const renderNotificationActions = (notification: MemberNotificationItem) => {
+    const destination = extractDestination(notification);
+    return (
+      <>
+        <View style={[styles.divider, { backgroundColor: theme.border }]} />
+
+        {destination?.type === 'POST' ? (
+          <Pressable
+            style={[styles.actionButton, { borderColor: theme.secondary }]}
+            onPress={() =>
+              router.push({
+                pathname: '/noticias/[slug]' as never,
+                params: { slug: destination.slug },
+              } as never)
+            }
+          >
+            <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+              Abrir post relacionado
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {destination?.type === 'EXTERNAL_URL' ? (
+          <Pressable
+            style={[styles.actionButton, { borderColor: theme.secondary }]}
+            onPress={() => {
+              void Linking.openURL(destination.url).catch(() => undefined);
+            }}
+          >
+            <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+              Abrir link externo
+            </Text>
+          </Pressable>
+        ) : null}
+
+        {destination?.type === 'EVENT' ? (
+          <Pressable
+            style={[styles.actionButton, { borderColor: theme.secondary }]}
+            onPress={() => {
+              if (destination.checkInToken) {
+                router.push({
+                  pathname: '/eventos/checkin/[token]' as never,
+                  params: { token: destination.checkInToken },
+                } as never);
+                return;
+              }
+              router.push('/eventos' as never);
+            }}
+          >
+            <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+              Abrir evento relacionado
+            </Text>
+          </Pressable>
+        ) : null}
+
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+          {!notification.isRead ? (
+            <Pressable
+              style={[styles.actionButton, { borderColor: theme.secondary, flex: 1 }]}
+              disabled={markingRead}
+              onPress={() => {
+                void markSelectedAsRead();
+              }}
+            >
+              <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+                {markingRead ? 'Marcando...' : 'Marcar como lida'}
+              </Text>
+            </Pressable>
+          ) : null}
+
+          <Pressable
+            style={[styles.actionButton, { borderColor: theme.secondary, flex: 1 }]}
+            disabled={hidingNotification}
+            onPress={() => {
+              void hideSelectedNotification();
+            }}
+          >
+            <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+              {hidingNotification ? 'Removendo...' : 'Remover da minha lista'}
+            </Text>
+          </Pressable>
+        </View>
+      </>
+    );
   };
 
   if (!isAuthenticated) {
@@ -441,6 +529,56 @@ export default function MessagesScreen() {
           </View>
         ) : null}
 
+        {/* Notification fetched via deep-link that's not in the visible list */}
+        {selectedFromFetch ? (
+          <View
+            style={[
+              styles.card,
+              { backgroundColor: theme.surface, borderColor: theme.secondary },
+            ]}
+          >
+            <View style={styles.rowBetween}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View
+                  style={[
+                    styles.badge,
+                    { borderColor: theme.border, backgroundColor: 'transparent' },
+                  ]}
+                >
+                  <Text style={[styles.badgeText, { color: theme.secondary }]}>
+                    {channelLabel(selectedFromFetch.channel)}
+                  </Text>
+                </View>
+                {!selectedFromFetch.isRead ? (
+                  <View
+                    style={[
+                      styles.badge,
+                      {
+                        borderColor: theme.secondary,
+                        backgroundColor: `${theme.secondary}22`,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.badgeText, { color: theme.secondary }]}>
+                      Nova
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+              <Text style={[styles.metaText, { color: theme.textSoft }]}>
+                {formatDateTime(selectedFromFetch.deliveredAt)}
+              </Text>
+            </View>
+            <Text style={[styles.itemTitle, { color: theme.text }]}>
+              {selectedFromFetch.title}
+            </Text>
+            <Text style={[styles.itemBody, { color: theme.textSoft }]}>
+              {selectedFromFetch.body}
+            </Text>
+            {renderNotificationActions(selectedFromFetch)}
+          </View>
+        ) : null}
+
         <View
           style={[
             styles.card,
@@ -499,138 +637,6 @@ export default function MessagesScreen() {
           </Pressable>
         </View>
 
-        {selectedNotification ? (
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-          >
-            <Text style={[styles.sectionTitle, { color: theme.text }]}>
-              Mensagem selecionada
-            </Text>
-            <View style={styles.rowBetween}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View
-                  style={[
-                    styles.badge,
-                    { borderColor: theme.border, backgroundColor: 'transparent' },
-                  ]}
-                >
-                  <Text style={[styles.badgeText, { color: theme.secondary }]}>
-                    {channelLabel(selectedNotification.channel)}
-                  </Text>
-                </View>
-                {!selectedNotification.isRead ? (
-                  <View
-                    style={[
-                      styles.badge,
-                      {
-                        borderColor: theme.secondary,
-                        backgroundColor: `${theme.secondary}22`,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.badgeText, { color: theme.secondary }]}>
-                      Nova
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-              <Text style={[styles.metaText, { color: theme.textSoft }]}>
-                {formatDateTime(selectedNotification.deliveredAt)}
-              </Text>
-            </View>
-            <Text style={[styles.itemTitle, { color: theme.text }]}>
-              {selectedNotification.title}
-            </Text>
-            <Text style={[styles.itemBody, { color: theme.textSoft }]}>
-              {selectedNotification.body}
-            </Text>
-
-            {selectedDestination?.type === 'POST' ? (
-              <Pressable
-                style={[styles.actionButton, { borderColor: theme.secondary }]}
-                onPress={() =>
-                  router.push({
-                    pathname: '/noticias/[slug]' as never,
-                    params: {
-                      slug: selectedDestination.slug,
-                    },
-                  } as never)
-                }
-              >
-                <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
-                  Abrir post relacionado
-                </Text>
-              </Pressable>
-            ) : null}
-
-            {selectedDestination?.type === 'EXTERNAL_URL' ? (
-              <Pressable
-                style={[styles.actionButton, { borderColor: theme.secondary }]}
-                onPress={() => {
-                  void Linking.openURL(selectedDestination.url).catch(() => undefined);
-                }}
-              >
-                <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
-                  Abrir link externo
-                </Text>
-              </Pressable>
-            ) : null}
-
-            {selectedDestination?.type === 'EVENT' ? (
-              <Pressable
-                style={[styles.actionButton, { borderColor: theme.secondary }]}
-                onPress={() => {
-                  if (selectedDestination.checkInToken) {
-                    router.push(
-                      {
-                        pathname: '/eventos/checkin/[token]' as never,
-                        params: { token: selectedDestination.checkInToken },
-                      } as never,
-                    );
-                    return;
-                  }
-                  router.push('/eventos' as never);
-                }}
-              >
-                <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
-                  Abrir evento relacionado
-                </Text>
-              </Pressable>
-            ) : null}
-
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {!selectedNotification.isRead ? (
-                <Pressable
-                  style={[styles.actionButton, { borderColor: theme.secondary }]}
-                  disabled={markingRead}
-                  onPress={() => {
-                    void markSelectedAsRead();
-                  }}
-                >
-                  <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
-                    {markingRead ? 'Marcando...' : 'Marcar como lida'}
-                  </Text>
-                </Pressable>
-              ) : null}
-
-              <Pressable
-                style={[styles.actionButton, { borderColor: theme.secondary }]}
-                disabled={hidingNotification}
-                onPress={() => {
-                  void hideSelectedNotification();
-                }}
-              >
-                <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
-                  {hidingNotification ? 'Removendo...' : 'Remover da minha lista'}
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-        ) : null}
-
         {!orderedNotifications.length && !notificationsState.isLoading ? (
           <View
             style={[
@@ -646,67 +652,71 @@ export default function MessagesScreen() {
             </Text>
           </View>
         ) : (
-          orderedNotifications.map((notification) => (
-            <Pressable
-              key={notification.id}
-              style={[
-                styles.card,
-                {
-                  backgroundColor: theme.surface,
-                  borderColor:
-                    selectedId === notification.id ? theme.secondary : theme.border,
-                },
-              ]}
-              onPress={() => setSelectedId(notification.id)}
-            >
-              <View style={styles.rowBetween}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View
-                    style={[
-                      styles.badge,
-                      { borderColor: theme.border, backgroundColor: 'transparent' },
-                    ]}
-                  >
-                    <Text style={[styles.badgeText, { color: theme.secondary }]}>
-                      {channelLabel(notification.channel)}
-                    </Text>
-                  </View>
-                  {!notification.isRead ? (
+          orderedNotifications.map((notification) => {
+            const isSelected = selectedId === notification.id;
+            return (
+              <Pressable
+                key={notification.id}
+                style={[
+                  styles.card,
+                  {
+                    backgroundColor: theme.surface,
+                    borderColor: isSelected ? theme.secondary : theme.border,
+                  },
+                ]}
+                onPress={() => setSelectedId(isSelected ? null : notification.id)}
+              >
+                <View style={styles.rowBetween}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     <View
                       style={[
                         styles.badge,
-                        {
-                          borderColor: theme.secondary,
-                          backgroundColor: `${theme.secondary}22`,
-                        },
+                        { borderColor: theme.border, backgroundColor: 'transparent' },
                       ]}
                     >
                       <Text style={[styles.badgeText, { color: theme.secondary }]}>
-                        Nova
+                        {channelLabel(notification.channel)}
                       </Text>
                     </View>
-                  ) : null}
+                    {!notification.isRead ? (
+                      <View
+                        style={[
+                          styles.badge,
+                          {
+                            borderColor: theme.secondary,
+                            backgroundColor: `${theme.secondary}22`,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.badgeText, { color: theme.secondary }]}>
+                          Nova
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={[styles.metaText, { color: theme.textSoft }]}>
+                    {formatDateTime(notification.deliveredAt)}
+                  </Text>
                 </View>
-                <Text style={[styles.metaText, { color: theme.textSoft }]}>
-                  {formatDateTime(notification.deliveredAt)}
+                <Text
+                  style={[
+                    styles.itemTitle,
+                    { color: theme.text, fontWeight: notification.isRead ? '700' : '800' },
+                  ]}
+                >
+                  {notification.title}
                 </Text>
-              </View>
-              <Text
-                style={[
-                  styles.itemTitle,
-                  { color: theme.text, fontWeight: notification.isRead ? '700' : '800' },
-                ]}
-              >
-                {notification.title}
-              </Text>
-              <Text
-                style={[styles.itemBody, { color: theme.textSoft }]}
-                numberOfLines={2}
-              >
-                {notification.body}
-              </Text>
-            </Pressable>
-          ))
+                <Text
+                  style={[styles.itemBody, { color: theme.textSoft }]}
+                  numberOfLines={isSelected ? undefined : 2}
+                >
+                  {notification.body}
+                </Text>
+
+                {isSelected ? renderNotificationActions(notification) : null}
+              </Pressable>
+            );
+          })
         )}
 
         {!!notificationsState.error && (

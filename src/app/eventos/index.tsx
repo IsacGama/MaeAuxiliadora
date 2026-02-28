@@ -15,8 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../mobile/auth-context';
 import { useCommunityEvents } from '../../mobile/hooks/use-community-events';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
-import { createThemeWithMode } from '../../mobile/theme';
-import { useThemePreference } from '../../mobile/theme-preference';
+import { useAppTheme } from '../../mobile/theme';
 import { CommunityEvent, EventRsvpStatus } from '../../mobile/types';
 
 const styles = StyleSheet.create({
@@ -136,11 +135,7 @@ const rsvpChoices: Array<{ status: EventRsvpStatus; label: string }> = [
 export default function EventsScreen() {
   const { isAuthenticated } = useAuth();
   const org = useOrgContext();
-  const { resolvedMode } = useThemePreference();
-  const theme = useMemo(
-    () => createThemeWithMode(org.branding, resolvedMode),
-    [org.branding, resolvedMode],
-  );
+  const theme = useAppTheme();
 
   const parishId =
     org.entity?.type === 'PARISH'
@@ -247,9 +242,8 @@ export default function EventsScreen() {
         renderItem={({ item: event }) => {
           const myRsvp = eventsState.myRsvpByEventId[event.id];
           const label = rsvpLabel(myRsvp?.status);
-          const attendeeLabel = `${event.metrics?.goingCount ?? 0}${
-            event.maxAttendees ? ` / ${event.maxAttendees}` : ''
-          } confirmado(s)`;
+          const attendeeLabel = `${event.metrics?.goingCount ?? 0}${event.maxAttendees ? ` / ${event.maxAttendees}` : ''
+            } confirmado(s)`;
 
           return (
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>

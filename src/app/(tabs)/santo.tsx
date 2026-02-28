@@ -13,8 +13,7 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { DayKeyPicker } from '../../mobile/components/day-key-picker';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useSaintOfDay } from '../../mobile/hooks/use-saint-of-day';
-import { createThemeWithMode } from '../../mobile/theme';
-import { useThemePreference } from '../../mobile/theme-preference';
+import { useAppTheme } from '../../mobile/theme';
 
 const stripHtml = (html?: string) => {
   if (!html) return '';
@@ -76,12 +75,8 @@ const styles = StyleSheet.create({
 export default function SaintOfDayScreen() {
   const org = useOrgContext();
   const saint = useSaintOfDay();
-  const { resolvedMode } = useThemePreference();
   const tabBarHeight = useBottomTabBarHeight();
-  const theme = useMemo(
-    () => createThemeWithMode(org.branding, resolvedMode),
-    [org.branding, resolvedMode],
-  );
+  const theme = useAppTheme();
 
   const saintData = saint.saint;
   const saintName = stripHtml(saintData?.title?.rendered) || 'Santo do Dia';
@@ -172,7 +167,7 @@ export default function SaintOfDayScreen() {
           </View>
         )}
 
-        <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+        <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.title, { color: theme.primary }]}>
             {saintName}
           </Text>
@@ -184,7 +179,7 @@ export default function SaintOfDayScreen() {
         </View>
 
         {!!saintImage && !imageLoadFailed && (
-          <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+          <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={[styles.imageFrame, { aspectRatio: imageRatio }]}>
               <Image
                 source={{ uri: saintImage }}
@@ -196,7 +191,7 @@ export default function SaintOfDayScreen() {
           </View>
         )}
 
-        <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+        <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.text, { color: theme.secondary }]}>Reflexão do dia</Text>
           {paragraphs.length > 0 ? (
             paragraphs.map((paragraph, index) => (

@@ -19,8 +19,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useAuth } from '../../mobile/auth-context';
 import { buildPixPayload, buildPixQrImageUrl } from '../../mobile/pix';
-import { createThemeWithMode } from '../../mobile/theme';
-import { useThemePreference } from '../../mobile/theme-preference';
+import { useAppTheme } from '../../mobile/theme';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -160,12 +159,8 @@ const normalizeWhatsappUrl = (value?: string | null) => {
 export default function DonationsScreen() {
   const { isAuthenticated } = useAuth();
   const org = useOrgContext();
-  const { resolvedMode } = useThemePreference();
   const tabBarHeight = useBottomTabBarHeight();
-  const theme = useMemo(
-    () => createThemeWithMode(org.branding, resolvedMode),
-    [org.branding, resolvedMode],
-  );
+  const theme = useAppTheme();
 
   const socialRaw = org.branding?.socialLinks ?? {};
   const socialLinks = [
@@ -184,9 +179,9 @@ export default function DonationsScreen() {
   const address = hasAddressData(about.address)
     ? about.address
     : (rawEntity?.address ?? {
-        city: rawEntity?.city,
-        state: rawEntity?.state,
-      });
+      city: rawEntity?.city,
+      state: rawEntity?.state,
+    });
   const mapsUrl = buildMapsUrl(address);
   const addressText = formatAddress(address);
 
@@ -195,12 +190,12 @@ export default function DonationsScreen() {
   const merchantCity = rawEntity?.address?.city ?? rawEntity?.city ?? 'BRASILIA';
   const pixPayload = pixKey
     ? buildPixPayload({
-        key: pixKey,
-        keyType: pixKeyType,
-        merchantName: org.displayName,
-        merchantCity,
-        description: `Doacao ${org.displayName}`,
-      })
+      key: pixKey,
+      keyType: pixKeyType,
+      merchantName: org.displayName,
+      merchantCity,
+      description: `Doacao ${org.displayName}`,
+    })
     : null;
   const pixQrUrl = pixPayload ? buildPixQrImageUrl(pixPayload, 420) : null;
   const pixCopyCode = pixPayload || pixKey;

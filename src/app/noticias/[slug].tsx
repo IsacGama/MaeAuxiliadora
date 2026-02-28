@@ -19,11 +19,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { publicApi } from '../../mobile/api';
 import { getMediaUrl } from '../../mobile/media';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
-import { createThemeWithMode } from '../../mobile/theme';
-import { useThemePreference } from '../../mobile/theme-preference';
+import { useAppTheme, type AppTheme } from '../../mobile/theme';
 import { PublicContentBlock, PublicPostDetail } from '../../mobile/types';
 
-type Theme = ReturnType<typeof createThemeWithMode>;
+type Theme = AppTheme;
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -358,11 +357,7 @@ function GalleryCarousel({ images, theme }: { images: GalleryEntry[]; theme: The
 export default function PostDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug?: string }>();
   const org = useOrgContext();
-  const { resolvedMode } = useThemePreference();
-  const theme = useMemo(
-    () => createThemeWithMode(org.branding, resolvedMode),
-    [org.branding, resolvedMode],
-  );
+  const theme = useAppTheme();
   const { width: screenWidth } = useWindowDimensions();
 
   const parishId =
@@ -473,58 +468,58 @@ export default function PostDetailScreen() {
         {/* Blocks */}
         {!isLoading && !!post
           ? blocks.map((block, index) => {
-              const data = asRecord(block.data) ?? {};
-              const key = block.id || `${block.type}-${index}`;
+            const data = asRecord(block.data) ?? {};
+            const key = block.id || `${block.type}-${index}`;
 
-              if (block.type === 'DIVIDER') {
-                return (
-                  <View key={key} style={[styles.divider, { backgroundColor: theme.border }]} />
-                );
-              }
+            if (block.type === 'DIVIDER') {
+              return (
+                <View key={key} style={[styles.divider, { backgroundColor: theme.border }]} />
+              );
+            }
 
-              if (block.type === 'IMAGE') {
-                const url = getMediaUrl(asString(data.url));
-                if (!url) return null;
-                return (
-                  <PostImageBlock
-                    key={key}
-                    url={url}
-                    caption={asString(data.caption)}
-                    theme={theme}
-                  />
-                );
-              }
+            if (block.type === 'IMAGE') {
+              const url = getMediaUrl(asString(data.url));
+              if (!url) return null;
+              return (
+                <PostImageBlock
+                  key={key}
+                  url={url}
+                  caption={asString(data.caption)}
+                  theme={theme}
+                />
+              );
+            }
 
-              if (block.type === 'GALLERY') {
-                const images = Array.isArray(data.images)
-                  ? (data.images as Array<Record<string, unknown>>).map((img) => ({
-                      url: asString(img.url) ?? '',
-                      alt: asString(img.alt),
-                      caption: asString(img.caption),
-                    })).filter((img) => img.url)
-                  : [];
-                if (!images.length) return null;
-                return (
-                  <View
-                    key={key}
-                    style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                  >
-                    <GalleryCarousel images={images} theme={theme} />
-                  </View>
-                );
-              }
+            if (block.type === 'GALLERY') {
+              const images = Array.isArray(data.images)
+                ? (data.images as Array<Record<string, unknown>>).map((img) => ({
+                  url: asString(img.url) ?? '',
+                  alt: asString(img.alt),
+                  caption: asString(img.caption),
+                })).filter((img) => img.url)
+                : [];
+              if (!images.length) return null;
+              return (
+                <View
+                  key={key}
+                  style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                >
+                  <GalleryCarousel images={images} theme={theme} />
+                </View>
+              );
+            }
 
-              if (block.type === 'EMBED') {
-                const embedUrl = extractEmbedUrl(asString(data.html) ?? asString(data.url));
-                if (!embedUrl) return null;
-                // Inject the iframe via HTML with a trusted baseUrl to avoid YouTube error 153.
-                // YouTube (and Vimeo) check the embed origin; setting baseUrl to the player
-                // domain satisfies the origin check inside the WebView.
-                const isVimeo = embedUrl.includes('vimeo.com');
-                const baseUrl = isVimeo
-                  ? 'https://player.vimeo.com'
-                  : 'https://www.youtube-nocookie.com';
-                const embedHtml = `<!DOCTYPE html><html><head>
+            if (block.type === 'EMBED') {
+              const embedUrl = extractEmbedUrl(asString(data.html) ?? asString(data.url));
+              if (!embedUrl) return null;
+              // Inject the iframe via HTML with a trusted baseUrl to avoid YouTube error 153.
+              // YouTube (and Vimeo) check the embed origin; setting baseUrl to the player
+              // domain satisfies the origin check inside the WebView.
+              const isVimeo = embedUrl.includes('vimeo.com');
+              const baseUrl = isVimeo
+                ? 'https://player.vimeo.com'
+                : 'https://www.youtube-nocookie.com';
+              const embedHtml = `<!DOCTYPE html><html><head>
 <meta name="viewport" content="width=device-width,initial-scale=1,shrink-to-fit=YES">
 <style>*{margin:0;padding:0;box-sizing:border-box}html,body{background:#000;height:100%}iframe{width:100%;height:100%;border:none}</style>
 </head><body>
@@ -532,104 +527,104 @@ export default function PostDetailScreen() {
   allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture;fullscreen"
   allowfullscreen></iframe>
 </body></html>`;
-                return (
-                  <View
-                    key={key}
-                    style={[styles.card, { backgroundColor: '#000', borderColor: theme.border, padding: 0, overflow: 'hidden' }]}
-                  >
-                    <WebView
-                      source={{ html: embedHtml, baseUrl }}
-                      style={{ height: videoHeight, borderRadius: 14, backgroundColor: '#000' }}
-                      javaScriptEnabled
-                      allowsFullscreenVideo
-                      allowsInlineMediaPlayback
-                      mediaPlaybackRequiresUserAction={false}
-                      scrollEnabled={false}
-                    />
-                  </View>
-                );
-              }
+              return (
+                <View
+                  key={key}
+                  style={[styles.card, { backgroundColor: '#000', borderColor: theme.border, padding: 0, overflow: 'hidden' }]}
+                >
+                  <WebView
+                    source={{ html: embedHtml, baseUrl }}
+                    style={{ height: videoHeight, borderRadius: 14, backgroundColor: '#000' }}
+                    javaScriptEnabled
+                    allowsFullscreenVideo
+                    allowsInlineMediaPlayback
+                    mediaPlaybackRequiresUserAction={false}
+                    scrollEnabled={false}
+                  />
+                </View>
+              );
+            }
 
-              if (block.type === 'BUTTON') {
-                const url = resolveUrl(asString(data.url));
-                const label = asString(data.label) ?? asString(data.text) ?? 'Abrir link';
-                if (!url) return null;
-                return (
-                  <View
-                    key={key}
-                    style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                  >
-                    <Pressable
-                      style={[styles.actionButton, { borderColor: theme.secondary }]}
-                      onPress={() => { void Linking.openURL(url).catch(() => undefined); }}
-                    >
-                      <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
-                        {label}
-                      </Text>
-                    </Pressable>
-                  </View>
-                );
-              }
-
-              if (block.type === 'COLUMNS') {
-                const columns = Array.isArray(data.columns)
-                  ? (data.columns as Array<Record<string, unknown>>)
-                  : [];
-                if (!columns.length) return null;
-                return (
-                  <View
-                    key={key}
-                    style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                  >
-                    {columns.map((column, columnIndex) => (
-                      <View key={`${key}-col-${columnIndex}`} style={{ gap: 4 }}>
-                        {!!asString(column.title) && (
-                          <Text style={[styles.headingBlock, { color: theme.text, fontSize: 17 }]}>
-                            {asString(column.title)}
-                          </Text>
-                        )}
-                        {!!asString(column.text) && (
-                          <Text style={[styles.blockText, { color: theme.text }]}>
-                            {asString(column.text)}
-                          </Text>
-                        )}
-                        {!!asString(column.html) && (
-                          <Text style={[styles.blockText, { color: theme.text }]}>
-                            {stripHtml(asString(column.html))}
-                          </Text>
-                        )}
-                      </View>
-                    ))}
-                  </View>
-                );
-              }
-
-              const blockText = renderBlockText(block);
-              if (!blockText) return null;
-
+            if (block.type === 'BUTTON') {
+              const url = resolveUrl(asString(data.url));
+              const label = asString(data.label) ?? asString(data.text) ?? 'Abrir link';
+              if (!url) return null;
               return (
                 <View
                   key={key}
                   style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
                 >
-                  <Text
-                    style={[
-                      block.type === 'HEADING'
-                        ? styles.headingBlock
-                        : block.type === 'QUOTE'
-                          ? styles.quoteBlock
-                          : styles.blockText,
-                      {
-                        color: theme.text,
-                        borderLeftColor: block.type === 'QUOTE' ? theme.secondary : undefined,
-                      },
-                    ]}
+                  <Pressable
+                    style={[styles.actionButton, { borderColor: theme.secondary }]}
+                    onPress={() => { void Linking.openURL(url).catch(() => undefined); }}
                   >
-                    {blockText}
-                  </Text>
+                    <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+                      {label}
+                    </Text>
+                  </Pressable>
                 </View>
               );
-            })
+            }
+
+            if (block.type === 'COLUMNS') {
+              const columns = Array.isArray(data.columns)
+                ? (data.columns as Array<Record<string, unknown>>)
+                : [];
+              if (!columns.length) return null;
+              return (
+                <View
+                  key={key}
+                  style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+                >
+                  {columns.map((column, columnIndex) => (
+                    <View key={`${key}-col-${columnIndex}`} style={{ gap: 4 }}>
+                      {!!asString(column.title) && (
+                        <Text style={[styles.headingBlock, { color: theme.text, fontSize: 17 }]}>
+                          {asString(column.title)}
+                        </Text>
+                      )}
+                      {!!asString(column.text) && (
+                        <Text style={[styles.blockText, { color: theme.text }]}>
+                          {asString(column.text)}
+                        </Text>
+                      )}
+                      {!!asString(column.html) && (
+                        <Text style={[styles.blockText, { color: theme.text }]}>
+                          {stripHtml(asString(column.html))}
+                        </Text>
+                      )}
+                    </View>
+                  ))}
+                </View>
+              );
+            }
+
+            const blockText = renderBlockText(block);
+            if (!blockText) return null;
+
+            return (
+              <View
+                key={key}
+                style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+              >
+                <Text
+                  style={[
+                    block.type === 'HEADING'
+                      ? styles.headingBlock
+                      : block.type === 'QUOTE'
+                        ? styles.quoteBlock
+                        : styles.blockText,
+                    {
+                      color: theme.text,
+                      borderLeftColor: block.type === 'QUOTE' ? theme.secondary : undefined,
+                    },
+                  ]}
+                >
+                  {blockText}
+                </Text>
+              </View>
+            );
+          })
           : null}
       </ScrollView>
     </SafeAreaView>

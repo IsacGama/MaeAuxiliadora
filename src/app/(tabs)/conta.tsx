@@ -18,7 +18,7 @@ import { router } from 'expo-router';
 import { useAuth } from '../../mobile/auth-context';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useMemberDashboard } from '../../mobile/hooks/use-member-dashboard';
-import { createThemeWithMode } from '../../mobile/theme';
+import { useAppTheme, withAlpha } from '../../mobile/theme';
 import { authApi, publicApi } from '../../mobile/api';
 import { ChapelPublic, ParishPublic } from '../../mobile/types';
 import { ThemePreference, useThemePreference } from '../../mobile/theme-preference';
@@ -282,10 +282,7 @@ export default function AccountScreen() {
   const org = useOrgContext();
   const { preference, resolvedMode, setPreference } = useThemePreference();
   const tabBarHeight = useBottomTabBarHeight();
-  const theme = useMemo(
-    () => createThemeWithMode(org.branding, resolvedMode),
-    [org.branding, resolvedMode],
-  );
+  const theme = useAppTheme();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
 
@@ -732,8 +729,7 @@ export default function AccountScreen() {
                       </Text>
                       <Text style={[styles.selectTriggerHint, { color: theme.textSoft }]} numberOfLines={1}>
                         {selectedParish?.diocese?.name ??
-                          `${parishes.length} ${
-                            parishes.length === 1 ? 'paróquia disponível' : 'paróquias disponíveis'
+                          `${parishes.length} ${parishes.length === 1 ? 'paróquia disponível' : 'paróquias disponíveis'
                           }`}
                       </Text>
                     </View>
@@ -993,10 +989,10 @@ export default function AccountScreen() {
               </Pressable>
 
               <Pressable
-                style={[styles.button, { borderColor: '#F87171', backgroundColor: 'rgba(248, 113, 113, 0.14)' }]}
+                style={[styles.button, { borderColor: theme.destructive, backgroundColor: withAlpha(theme.destructive, 0.14) }]}
                 onPress={onLogout}
               >
-                <Text style={[styles.buttonText, { color: '#FCA5A5' }]}>Sair</Text>
+                <Text style={[styles.buttonText, { color: theme.destructive }]}>Sair</Text>
               </Pressable>
             </View>
 
@@ -1061,8 +1057,8 @@ export default function AccountScreen() {
                     style={[
                       styles.button,
                       {
-                        borderColor: activeTither ? '#F87171' : theme.secondary,
-                        backgroundColor: activeTither ? 'rgba(248, 113, 113, 0.14)' : 'rgba(218, 139, 60, 0.16)',
+                        borderColor: activeTither ? theme.destructive : theme.secondary,
+                        backgroundColor: activeTither ? withAlpha(theme.destructive, 0.14) : withAlpha(theme.secondary, 0.16),
                       },
                     ]}
                     onPress={() => void onToggleTither(Boolean(activeTither))}
@@ -1071,7 +1067,7 @@ export default function AccountScreen() {
                     <Text
                       style={[
                         styles.buttonText,
-                        { color: activeTither ? '#FCA5A5' : theme.secondary },
+                        { color: activeTither ? theme.destructive : theme.secondary },
                       ]}
                     >
                       {titherSubmitting
@@ -1120,6 +1116,6 @@ export default function AccountScreen() {
           </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </SafeAreaView >
   );
 }

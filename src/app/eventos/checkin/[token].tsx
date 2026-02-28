@@ -14,8 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../../mobile/auth-context';
 import { authApi } from '../../../mobile/api';
 import { useOrgContext } from '../../../mobile/hooks/use-org-context';
-import { createThemeWithMode } from '../../../mobile/theme';
-import { useThemePreference } from '../../../mobile/theme-preference';
+import { useAppTheme } from '../../../mobile/theme';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -66,11 +65,7 @@ export default function EventCheckInScreen() {
   const { token } = useLocalSearchParams<{ token?: string }>();
   const { isAuthenticated, requestWithAuth } = useAuth();
   const org = useOrgContext();
-  const { resolvedMode } = useThemePreference();
-  const theme = useMemo(
-    () => createThemeWithMode(org.branding, resolvedMode),
-    [org.branding, resolvedMode],
-  );
+  const theme = useAppTheme();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusLabel, setStatusLabel] = useState<string | null>(null);
 

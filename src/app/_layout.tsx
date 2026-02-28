@@ -4,6 +4,8 @@ import { StatusBar } from 'expo-status-bar';
 import { Linking } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from '../mobile/auth-context';
+import { AppThemeProvider, useComputedTheme } from '../mobile/theme';
+import { useOrgContext } from '../mobile/hooks/use-org-context';
 import { appConfig } from '../mobile/config';
 import { prefetchTodayData } from '../mobile/prefetch';
 import { ThemePreferenceProvider, useThemePreference } from '../mobile/theme-preference';
@@ -234,14 +236,24 @@ function RootNavigator() {
   );
 }
 
+/** Sits inside AuthProvider + ThemePreferenceProvider so it can access both. */
+function ThemeWrapper({ children }: { children: React.ReactNode }) {
+  const org = useOrgContext();
+  const { resolvedMode } = useThemePreference();
+  const theme = useComputedTheme(org.branding, resolvedMode);
+  return <AppThemeProvider value={theme}>{children}</AppThemeProvider>;
+}
+
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
         <ThemePreferenceProvider>
-          <BackgroundPrefetch />
-          <NotificationRegistrar />
-          <RootNavigator />
+          <ThemeWrapper>
+            <BackgroundPrefetch />
+            <NotificationRegistrar />
+            <RootNavigator />
+          </ThemeWrapper>
         </ThemePreferenceProvider>
       </AuthProvider>
     </SafeAreaProvider>

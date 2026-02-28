@@ -16,12 +16,11 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
-import { createThemeWithMode, getTextColorForBackground } from '../../mobile/theme';
+import { useAppTheme, getTextColorForBackground, withAlpha } from '../../mobile/theme';
 import { getMediaUrl } from '../../mobile/media';
 import { useDailyLiturgy } from '../../mobile/hooks/use-daily-liturgy';
 import { useAuth } from '../../mobile/auth-context';
 import { buildPixPayload, buildPixQrImageUrl } from '../../mobile/pix';
-import { useThemePreference } from '../../mobile/theme-preference';
 import { getRosaryMysteryByDate, rosaryMysteryLabels } from '../../mobile/devotions';
 
 const styles = StyleSheet.create({
@@ -149,18 +148,14 @@ export default function HomeScreen() {
   const org = useOrgContext();
   const liturgy = useDailyLiturgy();
   const { isAuthenticated } = useAuth();
-  const { resolvedMode } = useThemePreference();
   const tabBarHeight = useBottomTabBarHeight();
+  const theme = useAppTheme();
 
   const isRefreshing = org.isRefreshing || liturgy.isRefreshing;
-  const theme = useMemo(
-    () => createThemeWithMode(org.branding, resolvedMode),
-    [org.branding, resolvedMode],
-  );
 
   const logoUrl = getMediaUrl(org.branding?.logoAsset?.url ?? org.branding?.coatOfArmsAsset?.url);
   const coverUrl = getMediaUrl(org.branding?.coverAsset?.url);
-  const heroTitleColor = getTextColorForBackground(theme.primary);
+  const heroTitleColor = theme.navForeground;
   const todayRosaryMysteryLabel = useMemo(
     () => rosaryMysteryLabels[getRosaryMysteryByDate(new Date())],
     [],
@@ -207,12 +202,12 @@ export default function HomeScreen() {
   const pixKeyType = org.branding?.pixKeyType?.trim() || 'PIX';
   const pixPayload = pixKey
     ? buildPixPayload({
-        key: pixKey,
-        keyType: pixKeyType,
-        merchantName: org.displayName,
-        merchantCity: rawEntity?.address?.city ?? rawEntity?.city ?? 'BRASILIA',
-        description: `Doacao ${org.displayName}`,
-      })
+      key: pixKey,
+      keyType: pixKeyType,
+      merchantName: org.displayName,
+      merchantCity: rawEntity?.address?.city ?? rawEntity?.city ?? 'BRASILIA',
+      description: `Doacao ${org.displayName}`,
+    })
     : null;
   const pixQrFromExtra =
     typeof org.branding?.extra?.pixQrCodeUrl === 'string' && org.branding.extra.pixQrCodeUrl.trim().length > 0
@@ -253,12 +248,12 @@ export default function HomeScreen() {
           <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
             {coverUrl ? (
               <ImageBackground source={{ uri: coverUrl }} style={{ minHeight: 210 }}>
-                <View style={[styles.heroOverlay, { backgroundColor: 'rgba(6, 11, 18, 0.58)' }]}>
+                <View style={[styles.heroOverlay, { backgroundColor: withAlpha(theme.navBg, 0.7) }]}>
                   <View style={styles.heroHeader}>
                     {logoUrl ? (
-                      <Image source={{ uri: logoUrl }} style={styles.logo} />
+                      <Image source={{ uri: logoUrl }} style={[styles.logo, { borderColor: withAlpha(theme.text, 0.4) }]} />
                     ) : (
-                      <View style={[styles.logo, { backgroundColor: 'rgba(255,255,255,0.2)' }]} />
+                      <View style={[styles.logo, { backgroundColor: withAlpha(theme.text, 0.2), borderColor: withAlpha(theme.text, 0.4) }]} />
                     )}
                     <View style={{ flex: 1 }}>
                       <Text style={[styles.title, { color: heroTitleColor }]}>{org.displayName}</Text>
@@ -271,12 +266,12 @@ export default function HomeScreen() {
                 </View>
               </ImageBackground>
             ) : (
-              <View style={[styles.heroOverlay, { minHeight: 210, backgroundColor: theme.primary }]}>
+              <View style={[styles.heroOverlay, { minHeight: 210, backgroundColor: theme.navBg }]}>
                 <View style={styles.heroHeader}>
                   {logoUrl ? (
-                    <Image source={{ uri: logoUrl }} style={styles.logo} />
+                    <Image source={{ uri: logoUrl }} style={[styles.logo, { borderColor: withAlpha(theme.text, 0.4) }]} />
                   ) : (
-                    <View style={[styles.logo, { backgroundColor: 'rgba(255,255,255,0.2)' }]} />
+                    <View style={[styles.logo, { backgroundColor: withAlpha(theme.text, 0.2), borderColor: withAlpha(theme.text, 0.4) }]} />
                   )}
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.title, { color: heroTitleColor }]}>{org.displayName}</Text>
@@ -324,7 +319,7 @@ export default function HomeScreen() {
           >
             <Text style={[styles.actionTitle, { color: theme.primary }]}>Terço de hoje</Text>
             <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Abre direto nos mistérios do dia</Text>
-            <Text style={[styles.actionBadge, { color: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.16)' }]}>
+            <Text style={[styles.actionBadge, { color: theme.secondary, backgroundColor: withAlpha(theme.secondary, 0.16) }]}>
               Hoje: {todayRosaryMysteryLabel}
             </Text>
           </Pressable>
@@ -366,10 +361,10 @@ export default function HomeScreen() {
           )}
         </View>
 
-        <View style={[styles.sectionCard, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+        <View style={[styles.sectionCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
           <Text style={[styles.sectionTitle, { color: theme.primary }]}>Liturgia em destaque</Text>
           <Text style={[styles.paragraph, { color: theme.text }]}>{liturgyExcerpt}</Text>
-          {!!liturgy.error && <Text style={{ color: '#FCA5A5' }}>{liturgy.error}</Text>}
+          {!!liturgy.error && <Text style={{ color: theme.accent }}>{liturgy.error}</Text>}
         </View>
 
         {!isAuthenticated && (
@@ -379,7 +374,7 @@ export default function HomeScreen() {
               Faça login ou cadastre-se para ver notícias, informações da sua paróquia/capela e seu painel de dízimo.
             </Text>
             <Pressable
-              style={[styles.ctaButton, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.16)' }]}
+              style={[styles.ctaButton, { borderColor: theme.secondary, backgroundColor: withAlpha(theme.secondary, 0.16) }]}
               onPress={() => router.push('/conta')}
             >
               <Text style={[styles.actionTitle, { color: theme.secondary }]}>Ir para login/cadastro</Text>
@@ -418,10 +413,10 @@ export default function HomeScreen() {
                       social.key === 'whatsapp'
                         ? 'whatsapp'
                         : social.key === 'facebook'
-                        ? 'facebook'
-                        : social.key === 'instagram'
-                          ? 'instagram'
-                          : 'youtube'
+                          ? 'facebook'
+                          : social.key === 'instagram'
+                            ? 'instagram'
+                            : 'youtube'
                     }
                     size={14}
                     color={theme.secondary}

@@ -15,8 +15,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
-import { createThemeWithMode } from '../../mobile/theme';
-import { useThemePreference } from '../../mobile/theme-preference';
+import { useAppTheme } from '../../mobile/theme';
 
 type Verse = { versiculo: number; texto: string };
 type Chapter = { capitulo: number; versiculos: Verse[] };
@@ -245,12 +244,8 @@ const styles = StyleSheet.create({
 
 export default function BibleScreen() {
   const org = useOrgContext();
-  const { resolvedMode } = useThemePreference();
   const tabBarHeight = useBottomTabBarHeight();
-  const theme = useMemo(
-    () => createThemeWithMode(org.branding, resolvedMode),
-    [org.branding, resolvedMode],
-  );
+  const theme = useAppTheme();
 
   const [query, setQuery] = useState('');
   const [selectedBookIndex, setSelectedBookIndex] = useState(0);
@@ -370,7 +365,7 @@ export default function BibleScreen() {
         onScroll={onScrollContent}
         scrollEventThrottle={16}
       >
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.title, { color: theme.primary }]}>Bíblia Sagrada</Text>
           <Text style={[styles.subtitle, { color: theme.textSoft }]}>Busca local e leitura offline completa</Text>
 
@@ -384,13 +379,13 @@ export default function BibleScreen() {
         </View>
 
         {isSearchMode ? (
-          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[styles.subtitle, { color: theme.textSoft }]}>
               {searchResults.length}
               {searchHasMore ? '+' : ''} resultado(s) para "{query.trim()}"
             </Text>
             {searchResults.map((result, index) => (
-              <View key={`${result.referencia}-${index}`} style={[styles.verseCard, { borderColor: theme.border }]}> 
+              <View key={`${result.referencia}-${index}`} style={[styles.verseCard, { borderColor: theme.border }]}>
                 <Text style={[styles.verseRef, { color: theme.secondary }]}>{result.referencia}</Text>
                 <Text style={[styles.verseText, { color: theme.text }]}>{result.texto}</Text>
               </View>
@@ -413,7 +408,7 @@ export default function BibleScreen() {
           </View>
         ) : (
           <>
-            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <Text style={[styles.subtitle, { color: theme.secondary }]}>Livro</Text>
               <Pressable
                 style={[styles.selectTrigger, { borderColor: theme.border }]}
@@ -434,7 +429,7 @@ export default function BibleScreen() {
               </Pressable>
             </View>
 
-            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <Text style={[styles.subtitle, { color: theme.secondary }]}>Capítulo</Text>
               <Pressable
                 style={[styles.selectTrigger, { borderColor: theme.border }]}
@@ -455,10 +450,10 @@ export default function BibleScreen() {
               </Pressable>
             </View>
 
-            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+            <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <Text style={[styles.title, { color: theme.primary }]}>{selectedBook?.nome} {selectedChapter}</Text>
               {chapterData?.versiculos.map((verse) => (
-                <View key={`${selectedBook?.nome}-${selectedChapter}-${verse.versiculo}`} style={[styles.verseCard, { borderColor: theme.border }]}> 
+                <View key={`${selectedBook?.nome}-${selectedChapter}-${verse.versiculo}`} style={[styles.verseCard, { borderColor: theme.border }]}>
                   <Text style={[styles.verseRef, { color: theme.secondary }]}>v.{verse.versiculo}</Text>
                   <Text style={[styles.verseText, { color: theme.text }]}>{verse.texto}</Text>
                 </View>

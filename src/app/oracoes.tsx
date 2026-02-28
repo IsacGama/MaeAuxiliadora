@@ -13,8 +13,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useOrgContext } from '../mobile/hooks/use-org-context';
-import { createThemeWithMode } from '../mobile/theme';
-import { useThemePreference } from '../mobile/theme-preference';
+import { useAppTheme } from '../mobile/theme';
 import {
   devotionLanguageLabels,
   getPrayerTextByLanguage,
@@ -123,11 +122,7 @@ const iconByPrayer = (prayer: PrayerRecord): keyof typeof MaterialCommunityIcons
 
 export default function PrayersScreen() {
   const org = useOrgContext();
-  const { resolvedMode } = useThemePreference();
-  const theme = useMemo(
-    () => createThemeWithMode(org.branding, resolvedMode),
-    [org.branding, resolvedMode],
-  );
+  const theme = useAppTheme();
 
   const [query, setQuery] = useState('');
   const [language, setLanguage] = useState<DevotionLanguage>('pt');
@@ -153,7 +148,7 @@ export default function PrayersScreen() {
   };
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}> 
+    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
       <FlatList
         data={filteredPrayers}
         extraData={expandedById}
@@ -168,7 +163,7 @@ export default function PrayersScreen() {
           />
         }
         ListHeaderComponent={
-          <View style={[styles.headerCard, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+          <View style={[styles.headerCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
             <Pressable style={[styles.backButton, { borderColor: theme.border }]} onPress={() => router.back()}>
               <MaterialCommunityIcons name="arrow-left" size={16} color={theme.secondary} />
               <Text style={{ color: theme.secondary, fontWeight: '700' }}>Voltar</Text>
@@ -182,7 +177,7 @@ export default function PrayersScreen() {
               onChangeText={setQuery}
               placeholder="Buscar oração"
               placeholderTextColor={theme.textSoft}
-              style={[styles.searchInput, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]} 
+              style={[styles.searchInput, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
             />
 
             <View style={styles.languageRow}>
@@ -225,7 +220,7 @@ export default function PrayersScreen() {
             (prayerText.length > 120 ? '...' : '');
 
           return (
-            <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+            <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
               <Pressable style={[styles.cardTitleRow, { justifyContent: 'space-between' }]} onPress={() => togglePrayer(item.id)}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                   <MaterialCommunityIcons name={iconByPrayer(item)} size={18} color={theme.secondary} />

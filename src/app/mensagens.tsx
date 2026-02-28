@@ -17,8 +17,7 @@ import { useAuth } from '../mobile/auth-context';
 import { authApi } from '../mobile/api';
 import { useMemberNotifications } from '../mobile/hooks/use-member-notifications';
 import { useOrgContext } from '../mobile/hooks/use-org-context';
-import { createThemeWithMode } from '../mobile/theme';
-import { useThemePreference } from '../mobile/theme-preference';
+import { useAppTheme } from '../mobile/theme';
 import { MemberNotificationItem, MemberNotificationPreferences } from '../mobile/types';
 
 const styles = StyleSheet.create({
@@ -179,23 +178,19 @@ const RETENTION_OPTIONS: Array<{
   value: number | null;
   label: string;
 }> = [
-  { value: null, label: 'Sem limpeza automática' },
-  { value: 7, label: '7 dias' },
-  { value: 30, label: '30 dias' },
-  { value: 60, label: '60 dias' },
-  { value: 90, label: '90 dias' },
-];
+    { value: null, label: 'Sem limpeza automática' },
+    { value: 7, label: '7 dias' },
+    { value: 30, label: '30 dias' },
+    { value: 60, label: '60 dias' },
+    { value: 90, label: '90 dias' },
+  ];
 
 export default function MessagesScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { isAuthenticated, requestWithAuth } = useAuth();
   const org = useOrgContext();
-  const { resolvedMode } = useThemePreference();
   const notificationsState = useMemberNotifications();
-  const theme = useMemo(
-    () => createThemeWithMode(org.branding, resolvedMode),
-    [org.branding, resolvedMode],
-  );
+  const theme = useAppTheme();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedFromFetch, setSelectedFromFetch] =

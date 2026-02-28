@@ -13,8 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useOrgContext } from '../mobile/hooks/use-org-context';
 import { useSpeech, speechRateLabels, type SpeechRate } from '../mobile/hooks/use-speech';
-import { createThemeWithMode } from '../mobile/theme';
-import { useThemePreference } from '../mobile/theme-preference';
+import { useAppTheme } from '../mobile/theme';
 import {
   buildGuidedRosarySteps,
   devotionLanguageLabels,
@@ -164,14 +163,10 @@ const styles = StyleSheet.create({
 
 export default function RosaryScreen() {
   const org = useOrgContext();
-  const { resolvedMode } = useThemePreference();
   const params = useLocalSearchParams<{ preset?: string }>();
   const forceTodayPreset = params.preset === 'today';
   const forceRosarioPreset = params.preset === 'rosario';
-  const theme = useMemo(
-    () => createThemeWithMode(org.branding, resolvedMode),
-    [org.branding, resolvedMode],
-  );
+  const theme = useAppTheme();
 
   const [mode, setMode] = useState<RosaryMode>('terco');
   const [mysteryKey, setMysteryKey] = useState<RosaryMysteryKey>(() => getRosaryMysteryByDate(new Date()));
@@ -338,9 +333,9 @@ export default function RosaryScreen() {
   }, [isAutoPlaying, stop]);
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}> 
+    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
           <Pressable style={[styles.backButton, { borderColor: theme.border }]} onPress={() => router.back()}>
             <MaterialCommunityIcons name="arrow-left" size={16} color={theme.secondary} />
             <Text style={{ color: theme.secondary, fontWeight: '700' }}>Voltar</Text>
@@ -350,7 +345,7 @@ export default function RosaryScreen() {
           <Text style={[styles.subtitle, { color: theme.textSoft }]}>Escolha o modo de oração: terço de hoje ou rosário completo.</Text>
         </View>
 
-        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
           <Text style={[styles.subtitle, { color: theme.textSoft }]}>Modo</Text>
           <View style={styles.buttonRow}>
             {(['terco', 'rosario'] as RosaryMode[]).map((nextMode) => {
@@ -399,7 +394,7 @@ export default function RosaryScreen() {
                   ]}
                   onPress={() => setLanguage(nextLanguage)}
                 >
-                  <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft }]}> 
+                  <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft }]}>
                     {devotionLanguageLabels[nextLanguage]}
                   </Text>
                 </Pressable>
@@ -427,18 +422,18 @@ export default function RosaryScreen() {
           <Text style={[styles.subtitle, { color: theme.secondary }]}>{renderModeSummary()}</Text>
         </View>
 
-        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
           <Text style={[styles.subtitle, { color: theme.textSoft }]}>Etapa {stepIndex + 1} de {guidedSteps.length}</Text>
-          <View style={[styles.progressTrack, { borderColor: theme.border, backgroundColor: theme.bg }]}> 
+          <View style={[styles.progressTrack, { borderColor: theme.border, backgroundColor: theme.bg }]}>
             <View style={[styles.progressFill, { backgroundColor: theme.secondary, width: `${progress}%` }]} />
           </View>
           <Text style={[styles.subtitle, { color: theme.textSoft }]}>{Math.round(progress)}% concluído</Text>
         </View>
 
         {currentStep && (
-          <View style={[styles.card, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.08)' }]}> 
+          <View style={[styles.card, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.08)' }]}>
             <Text style={[styles.stepTitle, { color: theme.primary }]}>{currentStep.label}</Text>
-            <Text style={[styles.mysteryText, { color: theme.secondary }]}> 
+            <Text style={[styles.mysteryText, { color: theme.secondary }]}>
               {getRosarySegmentLabel(
                 mode,
                 currentStep.mysteryKey,
@@ -447,7 +442,7 @@ export default function RosaryScreen() {
               )}
             </Text>
             {!!currentStep.mysteryTitle && (
-              <Text style={[styles.mysteryText, { color: theme.secondary }]}> 
+              <Text style={[styles.mysteryText, { color: theme.secondary }]}>
                 {currentStep.decade}º mistério: {currentStep.mysteryTitle}
               </Text>
             )}
@@ -530,7 +525,7 @@ export default function RosaryScreen() {
         )}
 
         {mode === 'terco' ? (
-          <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+          <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
             <Text style={[styles.subtitle, { color: theme.primary }]}>Mistérios selecionados</Text>
             {getRosaryMysteriesByKey(effectiveMysteryKey).map((mystery, index) => {
               const decade = index + 1;
@@ -549,7 +544,7 @@ export default function RosaryScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.mysteryItemText, { color: isCurrent ? theme.text : theme.textSoft }]}> 
+                  <Text style={[styles.mysteryItemText, { color: isCurrent ? theme.text : theme.textSoft }]}>
                     <Text style={{ fontWeight: '800' }}>{decade}. </Text>
                     {mystery}
                   </Text>
@@ -558,7 +553,7 @@ export default function RosaryScreen() {
             })}
           </View>
         ) : (
-          <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+          <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
             <Text style={[styles.subtitle, { color: theme.primary }]}>Ordem dos mistérios no Rosário completo</Text>
             {getRosaryMysteryOrder().map((segmentKey, segmentIndex) => {
               const isActiveSegment = currentStep?.mysteryKey === segmentKey;
@@ -573,11 +568,11 @@ export default function RosaryScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.weekdayLabel, { color: isActiveSegment ? theme.secondary : theme.textSoft }]}> 
+                  <Text style={[styles.weekdayLabel, { color: isActiveSegment ? theme.secondary : theme.textSoft }]}>
                     {segmentIndex + 1}. {rosaryMysteryLabels[segmentKey]}
                   </Text>
                   {getRosaryMysteriesByKey(segmentKey).map((title, idx) => (
-                    <Text key={`${segmentKey}-${idx + 1}`} style={[styles.mysteryItemText, { color: theme.textSoft }]}> 
+                    <Text key={`${segmentKey}-${idx + 1}`} style={[styles.mysteryItemText, { color: theme.textSoft }]}>
                       <Text style={{ fontWeight: '800' }}>{idx + 1}. </Text>
                       {title}
                     </Text>
@@ -588,7 +583,7 @@ export default function RosaryScreen() {
           </View>
         )}
 
-        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
           <Text style={[styles.subtitle, { color: theme.primary }]}>Mistérios por dia da semana</Text>
           {weeklySchedule.map((entry) => {
             const isToday = entry.weekdayKey === todayWeekdayKey;
@@ -604,7 +599,7 @@ export default function RosaryScreen() {
                   },
                 ]}
               >
-                <Text style={[styles.weekdayLabel, { color: isToday ? theme.secondary : theme.textSoft }]}> 
+                <Text style={[styles.weekdayLabel, { color: isToday ? theme.secondary : theme.textSoft }]}>
                   {entry.weekdayLabel}
                 </Text>
                 <Text style={[styles.weekdayMystery, { color: theme.text }]}>{entry.mysteryLabel}</Text>

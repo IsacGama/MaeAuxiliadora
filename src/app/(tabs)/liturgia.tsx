@@ -15,8 +15,7 @@ import { DayKeyPicker } from '../../mobile/components/day-key-picker';
 import { formatDateLabel } from '../../mobile/date';
 import { useDailyLiturgy } from '../../mobile/hooks/use-daily-liturgy';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
-import { createThemeWithMode } from '../../mobile/theme';
-import { useThemePreference } from '../../mobile/theme-preference';
+import { useAppTheme } from '../../mobile/theme';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -72,22 +71,18 @@ const readingSections: Array<{
   key: 'primeiraLeitura' | 'salmo' | 'segundaLeitura' | 'evangelho' | 'extras';
   title: string;
 }> = [
-  { key: 'primeiraLeitura', title: 'Primeira Leitura' },
-  { key: 'salmo', title: 'Salmo' },
-  { key: 'segundaLeitura', title: 'Segunda Leitura' },
-  { key: 'evangelho', title: 'Evangelho' },
-  { key: 'extras', title: 'Leituras Extras' },
-];
+    { key: 'primeiraLeitura', title: 'Primeira Leitura' },
+    { key: 'salmo', title: 'Salmo' },
+    { key: 'segundaLeitura', title: 'Segunda Leitura' },
+    { key: 'evangelho', title: 'Evangelho' },
+    { key: 'extras', title: 'Leituras Extras' },
+  ];
 
 export default function LiturgyScreen() {
   const liturgy = useDailyLiturgy();
   const org = useOrgContext();
-  const { resolvedMode } = useThemePreference();
   const tabBarHeight = useBottomTabBarHeight();
-  const theme = useMemo(
-    () => createThemeWithMode(org.branding, resolvedMode),
-    [org.branding, resolvedMode],
-  );
+  const theme = useAppTheme();
 
   useEffect(() => {
     if (!liturgy.dateMismatch) {
@@ -148,7 +143,7 @@ export default function LiturgyScreen() {
           </View>
         )}
 
-        <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+        <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.title, { color: theme.primary }]}>{liturgy.liturgy?.liturgia ?? 'Liturgia diária'}</Text>
           <Text style={[styles.subtitle, { color: theme.textSoft }]}>
             {liturgy.liturgy?.data ?? 'Sem data'} • {liturgy.liturgy?.cor ?? 'Cor não informada'}
@@ -163,7 +158,7 @@ export default function LiturgyScreen() {
         </View>
 
         {!!liturgy.liturgy?.oracoes?.coleta && (
-          <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+          <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[styles.sectionTitle, { color: theme.primary }]}>Orações</Text>
             {!!liturgy.liturgy.oracoes?.coleta && (
               <Text style={[styles.text, { color: theme.text }]}>Coleta: {liturgy.liturgy.oracoes.coleta}</Text>
@@ -184,7 +179,7 @@ export default function LiturgyScreen() {
           }
 
           return (
-            <View key={section.key} style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+            <View key={section.key} style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
               <Text style={[styles.sectionTitle, { color: theme.primary }]}>{section.title}</Text>
               {items.map((item, index) => (
                 <View key={`${section.key}-${index}`} style={{ gap: 6 }}>

@@ -6,6 +6,7 @@ import {
   TouchableOpacityProps,
   View,
 } from 'react-native';
+import { useAppTheme, getTextColorForBackground } from '../../mobile/theme';
 
 export interface BotaoFlutuanteProps extends TouchableOpacityProps {
   titulo: string;
@@ -15,15 +16,19 @@ export interface BotaoFlutuanteProps extends TouchableOpacityProps {
 type TouchableOpacityRef = ElementRef<typeof TouchableOpacity>;
 
 const BotaoFlutuante = forwardRef<TouchableOpacityRef, BotaoFlutuanteProps>(
-  ({ titulo, cor = '#2563EB', style, ...rest }, ref) => {
+  ({ titulo, cor, style, ...rest }, ref) => {
+    const theme = useAppTheme();
+    const colorToUse = cor ?? theme.primary;
+    const textColor = getTextColorForBackground(colorToUse);
+
     return (
       <TouchableOpacity
         ref={ref}
         activeOpacity={0.8}
-        style={[styles.botao, { backgroundColor: cor }, style]}
+        style={[styles.botao, { backgroundColor: colorToUse }, style]}
         {...rest}
       >
-        <Text style={styles.texto}>{titulo}</Text>
+        <Text style={[styles.texto, { color: textColor }]}>{titulo}</Text>
       </TouchableOpacity>
     );
   }

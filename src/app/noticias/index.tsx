@@ -14,9 +14,8 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { usePublicPosts } from '../../mobile/hooks/use-public-posts';
-import { createThemeWithMode } from '../../mobile/theme';
+import { useAppTheme } from '../../mobile/theme';
 import { useAuth } from '../../mobile/auth-context';
-import { useThemePreference } from '../../mobile/theme-preference';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -99,11 +98,7 @@ const formatDate = (value?: string | null) => {
 export default function NewsScreen() {
   const { isAuthenticated } = useAuth();
   const org = useOrgContext();
-  const { resolvedMode } = useThemePreference();
-  const theme = useMemo(
-    () => createThemeWithMode(org.branding, resolvedMode),
-    [org.branding, resolvedMode],
-  );
+  const theme = useAppTheme();
 
   const parishId =
     org.entity?.type === 'PARISH'

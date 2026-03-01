@@ -36,6 +36,9 @@ export type DiocesePublic = {
   name: string;
   city?: string | null;
   state?: string | null;
+  cnpj?: string | null;
+  phone?: string | null;
+  email?: string | null;
   customDomain?: string | null;
   orgUnit?: { id: string } | null;
 };
@@ -60,6 +63,9 @@ export type ParishPublic = {
 export type ChapelPublic = {
   id: string;
   name: string;
+  cnpj?: string | null;
+  phone?: string | null;
+  email?: string | null;
   customDomain?: string | null;
   parishId: string;
   parish?: { id: string; name: string; customDomain?: string | null } | null;

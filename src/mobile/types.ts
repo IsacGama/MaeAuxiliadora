@@ -67,7 +67,6 @@ export type ChapelPublic = {
   phone?: string | null;
   email?: string | null;
   customDomain?: string | null;
-  parishId: string;
   parish?: { id: string; name: string; customDomain?: string | null } | null;
   orgUnit?: { id: string } | null;
 };
@@ -77,7 +76,6 @@ export type ResolvedOrgEntity = {
   id: string;
   name: string;
   customDomain?: string | null;
-  parishId?: string | null;
   orgUnitId: string;
   raw: DiocesePublic | ParishPublic | ChapelPublic;
 };
@@ -177,7 +175,6 @@ export type PostVersion = {
 export type PublicPost = {
   id: string;
   orgId: string;
-  parishId?: string;
   title: string;
   slug: string;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
@@ -215,13 +212,11 @@ export type PublicContentBlock = {
 export type PublicPostDetail = {
   id: string;
   orgId: string;
-  parishId?: string;
   title: string;
   slug: string;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   publishedAt?: string | null;
   createdAt: string;
-  parish?: { id: string; name: string } | null;
   versions?: Array<{
     id: string;
     version: number;
@@ -235,7 +230,6 @@ export type PublicPostDetail = {
 export type MemberNotificationItem = {
   id: string;
   orgId: string;
-  parishId?: string;
   title: string;
   body: string;
   channel: 'PUSH' | 'EMAIL';
@@ -244,10 +238,6 @@ export type MemberNotificationItem = {
   deliveredAt: string;
   isRead: boolean;
   readAt?: string | null;
-  parish?: {
-    id: string;
-    name: string;
-  } | null;
 };
 
 export type MemberNotificationPreferences = {
@@ -260,8 +250,6 @@ export type EventRsvpStatus = 'GOING' | 'MAYBE' | 'DECLINED';
 export type CommunityEvent = {
   id: string;
   orgId: string;
-  parishId?: string;
-  chapelId?: string | null;
   title: string;
   description?: string | null;
   startsAt: string;

@@ -186,7 +186,6 @@ const resolveEntityFromDomain = async (domain: string): Promise<ResolvedOrgEntit
       id: chapel.id,
       name: chapel.name,
       customDomain: chapel.customDomain,
-      parishId: chapel.parishId,
       orgUnitId: chapel.orgUnit.id,
       raw: chapel,
     };
@@ -248,10 +247,6 @@ export const publicApi = {
     fetchJson<ChapelPublic[]>(
       api(`/public/chapels?orgId=${encodeURIComponent(orgId)}`),
     ),
-  fetchParishById: (parishId: string) =>
-    fetchJson<ParishPublic | null>(api(`/public/parish/${encodeURIComponent(parishId)}`)),
-  fetchChapelById: (chapelId: string) =>
-    fetchJson<ChapelPublic | null>(api(`/public/chapel/${encodeURIComponent(chapelId)}`)),
   fetchBranding: (orgUnitId: string) =>
     fetchJson<OrgBranding | null>(api(`/public/branding/${encodeURIComponent(orgUnitId)}`)),
   fetchPublicPosts: (orgId?: string) =>

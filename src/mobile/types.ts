@@ -128,7 +128,7 @@ export type AuthUser = {
   email: string;
   personId?: string | null;
   roles?: string[];
-  personParishLinks?: Array<{
+  personOrgLinks?: Array<{
     orgId: string;
     orgUnitType?: OrgEntityType | string | null;
     orgName?: string | null;

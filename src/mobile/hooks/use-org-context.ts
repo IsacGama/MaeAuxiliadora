@@ -39,9 +39,9 @@ export const useOrgContext = () => {
   const { session, isAuthenticated } = useAuth();
 
   const selectedLink = useMemo(() => {
-    const links = session?.user?.personParishLinks ?? [];
+    const links = session?.user?.personOrgLinks ?? [];
     return links.length ? links[0] : null;
-  }, [session?.user?.personParishLinks]);
+  }, [session?.user?.personOrgLinks]);
 
   const targetKey = useMemo(() => {
     if (isAuthenticated && session?.user?.id && selectedLink?.orgId) {

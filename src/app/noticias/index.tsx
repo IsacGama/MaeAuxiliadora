@@ -100,14 +100,8 @@ export default function NewsScreen() {
   const org = useOrgContext();
   const theme = useAppTheme();
 
-  const parishId =
-    org.entity?.type === 'PARISH'
-      ? org.entity.id
-      : org.entity?.type === 'CHAPEL'
-        ? org.entity.parishId ?? null
-        : null;
-
-  const posts = usePublicPosts(parishId);
+  const orgId = org.entity?.orgUnitId ?? null;
+  const posts = usePublicPosts(orgId);
 
   if (!isAuthenticated) {
     return (

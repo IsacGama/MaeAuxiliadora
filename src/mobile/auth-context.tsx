@@ -29,8 +29,7 @@ type AuthContextValue = {
     name: string;
     email: string;
     password: string;
-    parishId: string;
-    chapelId?: string;
+    orgId: string;
     primaryPhone?: string;
     cpf?: string;
     gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
@@ -77,8 +76,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       name: string;
       email: string;
       password: string;
-      parishId: string;
-      chapelId?: string;
+      orgId: string;
       primaryPhone?: string;
       cpf?: string;
       gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';

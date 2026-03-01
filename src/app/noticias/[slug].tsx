@@ -360,12 +360,7 @@ export default function PostDetailScreen() {
   const theme = useAppTheme();
   const { width: screenWidth } = useWindowDimensions();
 
-  const parishId =
-    org.entity?.type === 'PARISH'
-      ? org.entity.id
-      : org.entity?.type === 'CHAPEL'
-        ? org.entity.parishId ?? undefined
-        : undefined;
+  const orgId = org.entity?.orgUnitId ?? undefined;
 
   const [post, setPost] = useState<PublicPostDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -383,7 +378,7 @@ export default function PostDetailScreen() {
       setIsLoading(true);
       setError(null);
       try {
-        const result = await publicApi.fetchPublicPostBySlug(slug, parishId);
+        const result = await publicApi.fetchPublicPostBySlug(slug, orgId);
         if (cancelled) return;
         setPost(result);
       } catch (err) {
@@ -397,7 +392,7 @@ export default function PostDetailScreen() {
 
     void load();
     return () => { cancelled = true; };
-  }, [parishId, slug]);
+  }, [orgId, slug]);
 
   const latestVersion = post?.versions?.[0];
   const blocks = (latestVersion?.blocks ?? []).slice().sort((a, b) => a.order - b.order);

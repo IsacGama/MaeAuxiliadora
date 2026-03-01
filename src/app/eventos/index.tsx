@@ -137,14 +137,8 @@ export default function EventsScreen() {
   const org = useOrgContext();
   const theme = useAppTheme();
 
-  const parishId =
-    org.entity?.type === 'PARISH'
-      ? org.entity.id
-      : org.entity?.type === 'CHAPEL'
-        ? org.entity.parishId ?? null
-        : null;
-
-  const eventsState = useCommunityEvents(parishId);
+  const orgId = org.entity?.orgUnitId ?? null;
+  const eventsState = useCommunityEvents(orgId);
 
   const handleRsvp = async (event: CommunityEvent, status: EventRsvpStatus) => {
     try {
@@ -322,4 +316,3 @@ export default function EventsScreen() {
     </SafeAreaView>
   );
 }
-

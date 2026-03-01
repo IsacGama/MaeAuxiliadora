@@ -351,9 +351,15 @@ export default function AccountScreen() {
     }
 
     const loadChapels = async () => {
+      const selectedParish = parishes.find((parish) => parish.id === selectedParishId);
+      const parishOrgId = selectedParish?.orgUnit?.id;
+      if (!parishOrgId) {
+        setChapelsIfNeeded([]);
+        return;
+      }
       setLoadingChapels(true);
       try {
-        const result = await publicApi.fetchPublicChapels(selectedParishId);
+        const result = await publicApi.fetchPublicChapels(parishOrgId);
         setChapelsIfNeeded(result);
       } catch (error) {
         setSubmitError(error instanceof Error ? error.message : 'Não foi possível carregar as capelas.');
@@ -363,7 +369,7 @@ export default function AccountScreen() {
     };
 
     void loadChapels();
-  }, [isAuthenticated, selectedParishId]);
+  }, [isAuthenticated, parishes, selectedParishId]);
 
   useEffect(() => {
     setChapelPickerOpen(false);
@@ -440,6 +446,14 @@ export default function AccountScreen() {
       return;
     }
 
+    const selectedParish = parishes.find((parish) => parish.id === selectedParishId);
+    const selectedChapel = chapels.find((chapel) => chapel.id === selectedChapelId);
+    const targetOrgId = selectedChapel?.orgUnit?.id ?? selectedParish?.orgUnit?.id;
+    if (!targetOrgId) {
+      setSubmitError('Não foi possível identificar a organização para cadastro.');
+      return;
+    }
+
     setSubmitting(true);
     setSubmitError(null);
 
@@ -448,8 +462,7 @@ export default function AccountScreen() {
         name: registerName.trim(),
         email: registerEmail.trim().toLowerCase(),
         password: registerPassword,
-        parishId: selectedParishId,
-        chapelId: selectedChapelId || undefined,
+        orgId: targetOrgId,
         primaryPhone: onlyDigits(registerPhone),
         cpf: onlyDigits(registerCpf),
         gender: registerGender,

@@ -129,12 +129,9 @@ export type AuthUser = {
   personId?: string | null;
   roles?: string[];
   personParishLinks?: Array<{
-    parishId: string;
-    chapelId?: string | null;
-    parishName?: string | null;
-    chapelName?: string | null;
-    parishOrgUnitId?: string | null;
-    chapelOrgUnitId?: string | null;
+    orgId: string;
+    orgUnitType?: OrgEntityType | string | null;
+    orgName?: string | null;
   }>;
 };
 
@@ -179,7 +176,8 @@ export type PostVersion = {
 
 export type PublicPost = {
   id: string;
-  parishId: string;
+  orgId: string;
+  parishId?: string;
   title: string;
   slug: string;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
@@ -216,7 +214,8 @@ export type PublicContentBlock = {
 
 export type PublicPostDetail = {
   id: string;
-  parishId: string;
+  orgId: string;
+  parishId?: string;
   title: string;
   slug: string;
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
@@ -235,7 +234,8 @@ export type PublicPostDetail = {
 
 export type MemberNotificationItem = {
   id: string;
-  parishId: string;
+  orgId: string;
+  parishId?: string;
   title: string;
   body: string;
   channel: 'PUSH' | 'EMAIL';
@@ -259,7 +259,8 @@ export type EventRsvpStatus = 'GOING' | 'MAYBE' | 'DECLINED';
 
 export type CommunityEvent = {
   id: string;
-  parishId: string;
+  orgId: string;
+  parishId?: string;
   chapelId?: string | null;
   title: string;
   description?: string | null;

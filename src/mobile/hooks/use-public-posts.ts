@@ -26,7 +26,7 @@ type CachedPostsPayload = {
   totalPages: number;
 };
 
-const cacheKeyForParish = (parishId: string) => `spd-mobile:public-posts:${parishId}`;
+const cacheKeyForOrg = (orgId: string) => `spd-mobile:public-posts:${orgId}`;
 
 const getMessage = (error: unknown, fallback: string) => {
   if (error instanceof HttpError) {
@@ -73,7 +73,7 @@ const normalizeCachedPayload = (
   };
 };
 
-export const usePublicPosts = (parishId?: string | null) => {
+export const usePublicPosts = (orgId?: string | null) => {
   const [state, setState] = useState<PostsState>({
     posts: [],
     isLoading: true,
@@ -89,15 +89,15 @@ export const usePublicPosts = (parishId?: string | null) => {
 
   const persistCache = useCallback(
     async (value: CachedPostsPayload) => {
-      if (!parishId) return;
-      await setCache(cacheKeyForParish(parishId), value, { dayKey: getDayKey() });
+      if (!orgId) return;
+      await setCache(cacheKeyForOrg(orgId), value, { dayKey: getDayKey() });
     },
-    [parishId],
+    [orgId],
   );
 
   const load = useCallback(
     async (forceNetwork = false) => {
-      if (!parishId) {
+      if (!orgId) {
         setState({
           posts: [],
           isLoading: false,
@@ -113,7 +113,7 @@ export const usePublicPosts = (parishId?: string | null) => {
       }
 
       const dayKey = getDayKey();
-      const cacheKey = cacheKeyForParish(parishId);
+      const cacheKey = cacheKeyForOrg(orgId);
 
       if (forceNetwork) {
         setState((prev) => ({ ...prev, isRefreshing: true, error: null }));
@@ -164,7 +164,7 @@ export const usePublicPosts = (parishId?: string | null) => {
 
       try {
         const response = await publicApi.fetchPublicPostsPaginated({
-          parishId,
+          orgId,
           page: 1,
           pageSize: PUBLIC_POSTS_PAGE_SIZE,
         });
@@ -196,11 +196,11 @@ export const usePublicPosts = (parishId?: string | null) => {
         }));
       }
     },
-    [parishId, persistCache],
+    [orgId, persistCache],
   );
 
   const loadMore = useCallback(async () => {
-    if (!parishId) return;
+    if (!orgId) return;
 
     const snapshot = stateRef.current;
     if (
@@ -217,7 +217,7 @@ export const usePublicPosts = (parishId?: string | null) => {
     try {
       const nextPage = snapshot.page + 1;
       const response = await publicApi.fetchPublicPostsPaginated({
-        parishId,
+        orgId,
         page: nextPage,
         pageSize: PUBLIC_POSTS_PAGE_SIZE,
       });
@@ -250,7 +250,7 @@ export const usePublicPosts = (parishId?: string | null) => {
         error: getMessage(error, 'Não foi possível carregar mais notícias.'),
       }));
     }
-  }, [parishId, persistCache]);
+  }, [orgId, persistCache]);
 
   useEffect(() => {
     void load();

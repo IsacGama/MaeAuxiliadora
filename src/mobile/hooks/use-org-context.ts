@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getDayKey } from '../date';
 import { HttpError } from '../http';
 import { getCacheEnvelope, getDailyCacheValue, setCache } from '../storage';
-import { OrgBranding, ResolvedOrgEntity } from '../types';
+import { OrgBranding, OrgEntityType, ResolvedOrgEntity } from '../types';
 import { publicApi } from '../api';
 import { useAuth } from '../auth-context';
 
@@ -40,16 +40,15 @@ export const useOrgContext = () => {
 
   const selectedLink = useMemo(() => {
     const links = session?.user?.personParishLinks ?? [];
-    if (!links.length) return null;
-    return links.find((link) => Boolean(link.chapelId)) ?? links[0];
+    return links.length ? links[0] : null;
   }, [session?.user?.personParishLinks]);
 
   const targetKey = useMemo(() => {
-    if (isAuthenticated && session?.user?.id && selectedLink?.parishId) {
-      return `user:${session.user.id}:parish:${selectedLink.parishId}:chapel:${selectedLink.chapelId ?? 'none'}`;
+    if (isAuthenticated && session?.user?.id && selectedLink?.orgId) {
+      return `user:${session.user.id}:org:${selectedLink.orgId}`;
     }
     return null;
-  }, [isAuthenticated, selectedLink?.chapelId, selectedLink?.parishId, session?.user?.id]);
+  }, [isAuthenticated, selectedLink?.orgId, session?.user?.id]);
 
   const [state, setState] = useState<OrgContextState>({
     entity: null,
@@ -61,34 +60,22 @@ export const useOrgContext = () => {
   });
 
   const resolveEntity = useCallback(async () => {
-    if (isAuthenticated && selectedLink?.parishId) {
-      if (selectedLink.chapelId) {
-        const chapel = await publicApi.fetchChapelById(selectedLink.chapelId);
-        if (!chapel?.orgUnit?.id) {
-          throw new HttpError(404, 'Capela vinculada não encontrada.', null);
-        }
-        return {
-          type: 'CHAPEL' as const,
-          id: chapel.id,
-          name: chapel.name,
-          customDomain: chapel.customDomain,
-          parishId: chapel.parishId,
-          orgUnitId: chapel.orgUnit.id,
-          raw: chapel,
-        };
-      }
-
-      const parish = await publicApi.fetchParishById(selectedLink.parishId);
-      if (!parish?.orgUnit?.id) {
-        throw new HttpError(404, 'Paróquia vinculada não encontrada.', null);
-      }
+    if (isAuthenticated && selectedLink?.orgId) {
+      const orgUnitType = selectedLink.orgUnitType;
+      const entityType: OrgEntityType =
+        orgUnitType === 'CHAPEL' || orgUnitType === 'DIOCESE' || orgUnitType === 'PARISH'
+          ? orgUnitType
+          : 'PARISH';
       return {
-        type: 'PARISH' as const,
-        id: parish.id,
-        name: parish.name,
-        customDomain: parish.customDomain,
-        orgUnitId: parish.orgUnit.id,
-        raw: parish,
+        type: entityType,
+        id: selectedLink.orgId,
+        name: selectedLink.orgName ?? 'Comunidade',
+        orgUnitId: selectedLink.orgId,
+        raw: {
+          id: selectedLink.orgId,
+          name: selectedLink.orgName ?? 'Comunidade',
+          orgUnit: { id: selectedLink.orgId },
+        },
       };
     }
 
@@ -101,7 +88,7 @@ export const useOrgContext = () => {
     }
 
     return null;
-  }, [isAuthenticated, selectedLink?.chapelId, selectedLink?.parishId]);
+  }, [isAuthenticated, selectedLink?.orgId, selectedLink?.orgName, selectedLink?.orgUnitType]);
 
   const load = useCallback(
     async (forceNetwork = false) => {

@@ -22,8 +22,8 @@ type CachedEventsPayload = {
   myRsvpByEventId: Record<string, MemberEventRsvp>;
 };
 
-const cacheKeyForParish = (parishId: string) =>
-  `spd-mobile:community-events:${parishId}`;
+const cacheKeyForOrg = (orgId: string) =>
+  `spd-mobile:community-events:${orgId}`;
 
 const getMessage = (error: unknown, fallback: string) => {
   if (error instanceof HttpError) {
@@ -59,7 +59,7 @@ const normalizeCache = (
   };
 };
 
-export const useCommunityEvents = (parishId?: string | null) => {
+export const useCommunityEvents = (orgId?: string | null) => {
   const { isAuthenticated, requestWithAuth } = useAuth();
   const [state, setState] = useState<EventsState>({
     events: [],
@@ -74,7 +74,7 @@ export const useCommunityEvents = (parishId?: string | null) => {
 
   const load = useCallback(
     async (forceNetwork = false) => {
-      if (!parishId) {
+      if (!orgId) {
         setState((prev) => ({
           ...prev,
           events: [],
@@ -87,7 +87,7 @@ export const useCommunityEvents = (parishId?: string | null) => {
         return;
       }
 
-      const cacheKey = cacheKeyForParish(parishId);
+      const cacheKey = cacheKeyForOrg(orgId);
       const dayKey = getDayKey();
 
       if (forceNetwork) {
@@ -139,14 +139,14 @@ export const useCommunityEvents = (parishId?: string | null) => {
 
       try {
         const events = await publicApi.fetchPublicEvents({
-          parishId,
+          orgId,
           take: 80,
         });
 
         let myRsvpByEventId: Record<string, MemberEventRsvp> = {};
         if (isAuthenticated) {
           const myRsvps = await requestWithAuth((token) =>
-            authApi.memberEventRsvps(token, parishId),
+            authApi.memberEventRsvps(token, orgId),
           );
           myRsvpByEventId = myRsvps.reduce<Record<string, MemberEventRsvp>>(
             (acc, item) => {
@@ -183,7 +183,7 @@ export const useCommunityEvents = (parishId?: string | null) => {
         }));
       }
     },
-    [isAuthenticated, parishId, requestWithAuth],
+    [isAuthenticated, orgId, requestWithAuth],
   );
 
   const submitRsvp = useCallback(
@@ -191,7 +191,7 @@ export const useCommunityEvents = (parishId?: string | null) => {
       eventId: string,
       payload: { status: EventRsvpStatus; guests?: number; notes?: string },
     ) => {
-      if (!parishId || !isAuthenticated) {
+      if (!orgId || !isAuthenticated) {
         throw new HttpError(401, 'Faça login para confirmar presença.', null);
       }
 
@@ -212,7 +212,7 @@ export const useCommunityEvents = (parishId?: string | null) => {
         }));
       }
     },
-    [isAuthenticated, load, parishId, requestWithAuth],
+    [isAuthenticated, load, orgId, requestWithAuth],
   );
 
   useEffect(() => {

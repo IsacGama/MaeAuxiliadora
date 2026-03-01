@@ -244,9 +244,9 @@ export const publicApi = {
     fetchJson<ParishPublic[]>(
       api(`/public/parishes${dioceseId ? `?dioceseId=${encodeURIComponent(dioceseId)}` : ''}`),
     ),
-  fetchPublicChapels: (parishId: string) =>
+  fetchPublicChapels: (orgId: string) =>
     fetchJson<ChapelPublic[]>(
-      api(`/public/chapels?parishId=${encodeURIComponent(parishId)}`),
+      api(`/public/chapels?orgId=${encodeURIComponent(orgId)}`),
     ),
   fetchParishById: (parishId: string) =>
     fetchJson<ParishPublic | null>(api(`/public/parish/${encodeURIComponent(parishId)}`)),
@@ -254,17 +254,17 @@ export const publicApi = {
     fetchJson<ChapelPublic | null>(api(`/public/chapel/${encodeURIComponent(chapelId)}`)),
   fetchBranding: (orgUnitId: string) =>
     fetchJson<OrgBranding | null>(api(`/public/branding/${encodeURIComponent(orgUnitId)}`)),
-  fetchPublicPosts: (parishId?: string) =>
+  fetchPublicPosts: (orgId?: string) =>
     fetchJson<PublicPost[]>(
-      api(`/public/posts${parishId ? `?parishId=${encodeURIComponent(parishId)}` : ''}`),
+      api(`/public/posts${orgId ? `?orgId=${encodeURIComponent(orgId)}` : ''}`),
     ),
   fetchPublicPostsPaginated: (options: {
-    parishId?: string;
+    orgId?: string;
     page?: number;
     pageSize?: number;
   }) => {
     const query = new URLSearchParams();
-    if (options.parishId) query.set('parishId', options.parishId);
+    if (options.orgId) query.set('orgId', options.orgId);
     if (options.page) query.set('page', String(options.page));
     if (options.pageSize) query.set('pageSize', String(options.pageSize));
 
@@ -274,13 +274,13 @@ export const publicApi = {
     );
   },
   fetchPublicEvents: (options: {
-    parishId: string;
+    orgId: string;
     from?: string;
     to?: string;
     take?: number;
   }) => {
     const query = new URLSearchParams();
-    query.set('parishId', options.parishId);
+    query.set('orgId', options.orgId);
     if (options.from) query.set('from', options.from);
     if (options.to) query.set('to', options.to);
     if (typeof options.take === 'number') query.set('take', String(options.take));
@@ -288,10 +288,10 @@ export const publicApi = {
     const suffix = query.toString();
     return fetchJson<CommunityEvent[]>(api(`/public/events?${suffix}`));
   },
-  fetchPublicPostBySlug: (slug: string, parishId?: string) =>
+  fetchPublicPostBySlug: (slug: string, orgId?: string) =>
     fetchJson<PublicPostDetail>(
       api(
-        `/public/posts/${encodeURIComponent(slug)}${parishId ? `?parishId=${encodeURIComponent(parishId)}` : ''}`,
+        `/public/posts/${encodeURIComponent(slug)}${orgId ? `?orgId=${encodeURIComponent(orgId)}` : ''}`,
       ),
     ),
   fetchDailyLiturgy: (date: string) =>
@@ -329,8 +329,7 @@ export const authApi = {
     name: string;
     email: string;
     password: string;
-    parishId: string;
-    chapelId?: string;
+    orgId: string;
     primaryPhone?: string;
     cpf?: string;
     gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
@@ -429,10 +428,10 @@ export const authApi = {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
     }),
-  memberEventRsvps: (accessToken: string, parishId?: string) =>
+  memberEventRsvps: (accessToken: string, orgId?: string) =>
     fetchJson<MemberEventRsvp[]>(
       api(
-        `/member/events/rsvps${parishId ? `?parishId=${encodeURIComponent(parishId)}` : ''}`,
+        `/member/events/rsvps${orgId ? `?orgId=${encodeURIComponent(orgId)}` : ''}`,
       ),
       {
         headers: { Authorization: `Bearer ${accessToken}` },

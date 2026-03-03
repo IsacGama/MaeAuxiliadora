@@ -1,5 +1,7 @@
 export type OrgEntityType = 'DIOCESE' | 'PARISH' | 'CHAPEL';
 export type DevicePlatform = 'ANDROID' | 'IOS';
+export type GatewayDonationIntent = 'TITHE' | 'DONATION' | 'OFFERING' | 'EVENT' | 'OTHER';
+export type GatewayPaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELED' | 'REFUNDED';
 
 export type MediaAsset = {
   id: string;
@@ -296,4 +298,57 @@ export type MemberEventCheckInResponse = {
   checkedInAt?: string;
   eventId?: string;
   eventTitle?: string;
+};
+
+export type GatewayPublicProviderStatusResponse = {
+  orgUnitId: string;
+  provider: 'MERCADO_PAGO';
+  status: 'CONNECTED' | 'DISCONNECTED';
+  available: boolean;
+  updatedAt: string | null;
+};
+
+export type GatewayPixPaymentResponse = {
+  id: string;
+  orgUnitId: string;
+  amount: number;
+  status: GatewayPaymentStatus;
+  externalReference: string;
+  providerPaymentId: string | null;
+  providerStatus: string | null;
+  pixCopyPaste: string | null;
+  pixQrBase64: string | null;
+  pixExpiresAt: string | null;
+  createdAt: string;
+};
+
+export type GatewayCardCheckoutResponse = {
+  id: string;
+  orgUnitId: string;
+  amount: number;
+  status: GatewayPaymentStatus;
+  externalReference: string;
+  preferenceId: string | null;
+  checkoutUrl: string | null;
+  sandboxCheckoutUrl: string | null;
+  createdAt: string;
+};
+
+export type GatewayPaymentStatusResponse = {
+  id: string;
+  orgUnitId: string;
+  kind: 'PIX' | 'CARD';
+  intent: GatewayDonationIntent;
+  amount: number;
+  currency: string;
+  status: GatewayPaymentStatus;
+  providerPaymentId: string | null;
+  providerStatus: string | null;
+  pixCopyPaste: string | null;
+  pixQrBase64: string | null;
+  pixExpiresAt: string | null;
+  paidAt: string | null;
+  accountingPaymentId: string | null;
+  createdAt: string;
+  updatedAt: string;
 };

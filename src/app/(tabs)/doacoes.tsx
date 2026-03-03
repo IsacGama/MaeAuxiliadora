@@ -1,5 +1,6 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Clipboard,
   Image,
@@ -9,16 +10,18 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useFocusEffect } from '@react-navigation/native';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useAuth } from '../../mobile/auth-context';
-import { buildPixPayload, buildPixQrImageUrl } from '../../mobile/pix';
+import { publicApi } from '../../mobile/api';
+import { HttpError } from '../../mobile/http';
+import { GatewayDonationIntent, GatewayPixPaymentResponse } from '../../mobile/types';
 import { useAppTheme } from '../../mobile/theme';
 
 const styles = StyleSheet.create({
@@ -51,9 +54,68 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 21,
   },
-  pixKeyText: {
-    fontSize: 16,
-    fontWeight: '700',
+  row: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  methodButton: {
+    flex: 1,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  chipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  input: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 15,
+  },
+  textArea: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    minHeight: 90,
+    textAlignVertical: 'top',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  button: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  qrImage: {
+    width: 210,
+    height: 210,
+    alignSelf: 'center',
+    borderRadius: 10,
+    backgroundColor: '#FFFFFF',
   },
   pixCopyCodeBox: {
     borderRadius: 12,
@@ -68,20 +130,6 @@ const styles = StyleSheet.create({
   pixCopyCodeValue: {
     fontSize: 13,
     lineHeight: 18,
-  },
-  qrImage: {
-    width: 210,
-    height: 210,
-    alignSelf: 'center',
-    borderRadius: 10,
-    backgroundColor: '#FFFFFF',
-  },
-  button: {
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    alignItems: 'center',
   },
   socialRow: {
     flexDirection: 'row',
@@ -107,6 +155,16 @@ type AddressInput = {
   state?: string | null;
   zipCode?: string | null;
 };
+
+type DonationMethod = 'PIX' | 'CARD';
+
+const INTENT_OPTIONS: Array<{ value: GatewayDonationIntent; label: string }> = [
+  { value: 'TITHE', label: 'Dízimo' },
+  { value: 'OFFERING', label: 'Oferta' },
+  { value: 'DONATION', label: 'Doação' },
+  { value: 'EVENT', label: 'Evento' },
+  { value: 'OTHER', label: 'Outra' },
+];
 
 const hasAddressData = (address?: AddressInput | null) =>
   Boolean(address && Object.values(address).some((item) => Boolean(item)));
@@ -156,11 +214,56 @@ const normalizeWhatsappUrl = (value?: string | null) => {
   return `https://wa.me/${internationalDigits}`;
 };
 
+const toMoneyInput = (raw: string) => {
+  const digits = raw.replace(/\D/g, '');
+  if (!digits) return '';
+  const integer = digits.slice(0, -2) || '0';
+  const decimal = digits.slice(-2).padStart(2, '0');
+  const normalizedInteger = String(Number(integer));
+  return `${normalizedInteger},${decimal}`;
+};
+
+const parseMoneyInput = (value: string) => {
+  if (!value.trim()) return 0;
+  const normalized = value.replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, '');
+  const amount = Number(normalized);
+  if (!Number.isFinite(amount)) return 0;
+  return Number(amount.toFixed(2));
+};
+
+const isValidEmail = (value: string) => /\S+@\S+\.\S+/.test(value.trim());
+
+const messageFromError = (error: unknown, fallback: string) => {
+  if (error instanceof HttpError) {
+    return error.message || fallback;
+  }
+  if (error instanceof Error) {
+    return error.message || fallback;
+  }
+  return fallback;
+};
+
 export default function DonationsScreen() {
-  const { isAuthenticated } = useAuth();
+  const { session, isAuthenticated } = useAuth();
   const org = useOrgContext();
   const tabBarHeight = useBottomTabBarHeight();
   const theme = useAppTheme();
+
+  const [providerAvailable, setProviderAvailable] = useState(false);
+  const [providerLoading, setProviderLoading] = useState(false);
+  const [providerError, setProviderError] = useState<string | null>(null);
+
+  const [method, setMethod] = useState<DonationMethod>('PIX');
+  const [intent, setIntent] = useState<GatewayDonationIntent>('DONATION');
+  const [amountInput, setAmountInput] = useState('20,00');
+  const [description, setDescription] = useState('');
+  const [anonymous, setAnonymous] = useState(true);
+  const [donorName, setDonorName] = useState('');
+  const [donorEmail, setDonorEmail] = useState('');
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pixResult, setPixResult] = useState<GatewayPixPaymentResponse | null>(null);
+  const [gatewayPaymentId, setGatewayPaymentId] = useState<string | null>(null);
 
   const socialRaw = org.branding?.socialLinks ?? {};
   const socialLinks = [
@@ -175,6 +278,7 @@ export default function DonationsScreen() {
     state?: string;
     address?: AddressInput | null;
   } | undefined;
+
   const about = (org.branding?.extra?.about as { address?: AddressInput | null } | undefined) ?? {};
   const address = hasAddressData(about.address)
     ? about.address
@@ -185,144 +289,414 @@ export default function DonationsScreen() {
   const mapsUrl = buildMapsUrl(address);
   const addressText = formatAddress(address);
 
-  const pixKey = (org.branding?.pixKey ?? '').trim();
-  const pixKeyType = org.branding?.pixKeyType?.trim() || 'PIX';
-  const merchantCity = rawEntity?.address?.city ?? rawEntity?.city ?? 'BRASILIA';
-  const pixPayload = pixKey
-    ? buildPixPayload({
-      key: pixKey,
-      keyType: pixKeyType,
-      merchantName: org.displayName,
-      merchantCity,
-      description: `Doacao ${org.displayName}`,
-    })
-    : null;
-  const pixQrUrl = pixPayload ? buildPixQrImageUrl(pixPayload, 420) : null;
-  const pixCopyCode = pixPayload || pixKey;
+  const amount = useMemo(() => parseMoneyInput(amountInput), [amountInput]);
+  const pixQrSrc = useMemo(() => {
+    if (!pixResult?.pixQrBase64) return null;
+    return pixResult.pixQrBase64.startsWith('data:')
+      ? pixResult.pixQrBase64
+      : `data:image/png;base64,${pixResult.pixQrBase64}`;
+  }, [pixResult?.pixQrBase64]);
 
-  const onRefresh = useCallback(async () => {
-    await org.refresh();
-  }, [org.refresh]);
+  const loadProviderStatus = useCallback(async () => {
+    const orgUnitId = org.entity?.orgUnitId;
+    if (!orgUnitId) {
+      setProviderAvailable(false);
+      setProviderError('Organização não identificada para doação.');
+      return;
+    }
+
+    setProviderLoading(true);
+    try {
+      const status = await publicApi.fetchGatewayProviderStatus(orgUnitId);
+      setProviderAvailable(status.available === true);
+      setProviderError(null);
+    } catch (error) {
+      setProviderAvailable(false);
+      setProviderError(messageFromError(error, 'Não foi possível verificar pagamentos online.'));
+    } finally {
+      setProviderLoading(false);
+    }
+  }, [org.entity?.orgUnitId]);
+
+  const pollGatewayStatus = useCallback(async () => {
+    const orgUnitId = org.entity?.orgUnitId;
+    if (!orgUnitId || !gatewayPaymentId) return;
+
+    try {
+      const status = await publicApi.fetchGatewayPaymentStatus(orgUnitId, gatewayPaymentId);
+      if (status.status !== 'PENDING') {
+        if (status.status === 'PAID') {
+          Alert.alert('Pagamento confirmado', 'Recebemos sua contribuição com sucesso.');
+        } else if (status.status === 'FAILED' || status.status === 'CANCELED') {
+          Alert.alert('Pagamento não concluído', 'Confira os dados e tente novamente.');
+        }
+        setGatewayPaymentId(null);
+      }
+    } catch {
+      // não bloqueia fluxo principal
+    }
+  }, [gatewayPaymentId, org.entity?.orgUnitId]);
+
+  useEffect(() => {
+    void loadProviderStatus();
+  }, [loadProviderStatus]);
 
   useFocusEffect(
     useCallback(() => {
       void org.refresh();
-    }, [org.refresh]),
+      void loadProviderStatus();
+    }, [loadProviderStatus, org.refresh]),
   );
 
+  useEffect(() => {
+    if (!gatewayPaymentId) return;
+
+    const timer = setInterval(() => {
+      void pollGatewayStatus();
+    }, 5000);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, [gatewayPaymentId, pollGatewayStatus]);
+
+  useEffect(() => {
+    if (method === 'CARD' && anonymous) {
+      setAnonymous(false);
+    }
+  }, [anonymous, method]);
+
+  useEffect(() => {
+    if (!isAuthenticated || anonymous) return;
+
+    if (!donorName.trim() && session?.user?.name?.trim()) {
+      setDonorName(session.user.name.trim());
+    }
+    if (!donorEmail.trim() && session?.user?.email?.trim()) {
+      setDonorEmail(session.user.email.trim().toLowerCase());
+    }
+  }, [anonymous, donorEmail, donorName, isAuthenticated, session?.user?.email, session?.user?.name]);
+
+  const onRefresh = useCallback(async () => {
+    await Promise.all([org.refresh(), loadProviderStatus()]);
+  }, [loadProviderStatus, org.refresh]);
+
   const copyPixCode = useCallback(() => {
-    if (!pixCopyCode) {
-      Alert.alert('PIX indisponível', 'Nenhum código PIX configurado no momento.');
+    const code = pixResult?.pixCopyPaste?.trim();
+    if (!code) {
+      Alert.alert('PIX indisponível', 'Nenhum código PIX disponível para copiar.');
       return;
     }
-    Clipboard.setString(pixCopyCode);
+    Clipboard.setString(code);
     Alert.alert('Copiado', 'Código PIX copiado para a área de transferência.');
-  }, [pixCopyCode]);
+  }, [pixResult?.pixCopyPaste]);
 
-  if (!isAuthenticated) {
-    return (
-      <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
-        <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: 28 + tabBarHeight }]}
-          refreshControl={
-            <RefreshControl
-              refreshing={org.isRefreshing}
-              onRefresh={onRefresh}
-              tintColor={theme.secondary}
-              colors={[theme.secondary, theme.primary]}
-            />
-          }
-        >
-          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.title, { color: theme.primary }]}>Doações</Text>
-            <Text style={[styles.subtitle, { color: theme.textSoft }]}>
-              Faça login para ver os dados de doação da sua paróquia/capela e abrir a localização no Google Maps.
-            </Text>
-            <Pressable
-              style={[styles.button, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.16)' }]}
-              onPress={() => router.push('/conta')}
-            >
-              <Text style={{ color: theme.secondary, fontWeight: '700' }}>Ir para login/cadastro</Text>
-            </Pressable>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    );
-  }
+  const validateForm = () => {
+    if (amount <= 0) {
+      Alert.alert('Valor inválido', 'Informe um valor maior que zero.');
+      return false;
+    }
+
+    if (!anonymous) {
+      if (donorName.trim().length < 3) {
+        Alert.alert('Nome inválido', 'Informe o nome completo do doador.');
+        return false;
+      }
+      if (!isValidEmail(donorEmail)) {
+        Alert.alert('E-mail inválido', 'Informe um e-mail válido para o doador.');
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const submitDonation = useCallback(async () => {
+    const orgUnitId = org.entity?.orgUnitId;
+    if (!orgUnitId) {
+      Alert.alert('Organização indisponível', 'Não foi possível identificar a organização da doação.');
+      return;
+    }
+
+    if (!providerAvailable) {
+      Alert.alert(
+        'Pagamento indisponível',
+        'A organização ainda não conectou o Mercado Pago.',
+      );
+      return;
+    }
+
+    if (!validateForm()) {
+      return;
+    }
+
+    const payloadBase = {
+      amount,
+      intent,
+      description: description.trim() || undefined,
+      anonymous,
+      donorName: anonymous ? undefined : donorName.trim(),
+      donorEmail: anonymous ? undefined : donorEmail.trim().toLowerCase(),
+      personId: anonymous ? undefined : (session?.user?.personId ?? undefined),
+    };
+
+    setIsSubmitting(true);
+    try {
+      if (method === 'PIX') {
+        const result = await publicApi.createGatewayPixDonation(orgUnitId, {
+          ...payloadBase,
+          expiresInMinutes: 30,
+        });
+        setPixResult(result);
+        setGatewayPaymentId(result.id);
+        Alert.alert('PIX gerado', 'Use o QR Code ou PIX copia e cola para concluir a doação.');
+        return;
+      }
+
+      const result = await publicApi.createGatewayCardCheckout(orgUnitId, payloadBase);
+      setGatewayPaymentId(result.id);
+      const checkoutUrl = (result.checkoutUrl || result.sandboxCheckoutUrl || '').trim();
+      if (!checkoutUrl) {
+        Alert.alert('Checkout indisponível', 'Não foi possível iniciar o pagamento com cartão.');
+        return;
+      }
+
+      const supported = await Linking.canOpenURL(checkoutUrl);
+      if (!supported) {
+        Alert.alert('Link inválido', 'Não foi possível abrir o checkout do Mercado Pago.');
+        return;
+      }
+
+      await Linking.openURL(checkoutUrl);
+    } catch (error) {
+      Alert.alert('Falha ao processar doação', messageFromError(error, 'Tente novamente em instantes.'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    amount,
+    anonymous,
+    description,
+    donorEmail,
+    donorName,
+    intent,
+    method,
+    org.entity?.orgUnitId,
+    providerAvailable,
+    session?.user?.personId,
+  ]);
+
+  const methodSelectedStyle = {
+    borderColor: theme.secondary,
+    backgroundColor: 'rgba(218, 139, 60, 0.16)',
+  };
 
   return (
-    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
+    <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}> 
       <ScrollView
         contentContainerStyle={[styles.content, { paddingBottom: 28 + tabBarHeight }]}
         refreshControl={
           <RefreshControl
-            refreshing={org.isRefreshing}
+            refreshing={org.isRefreshing || providerLoading}
             onRefresh={onRefresh}
             tintColor={theme.secondary}
             colors={[theme.secondary, theme.primary]}
           />
         }
       >
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.title, { color: theme.primary }]}>Doações da comunidade</Text>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>
-            Contribua com segurança via PIX e acompanhe os dados oficiais da sua comunidade.
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+          <Text style={[styles.title, { color: theme.primary }]}>Doações</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft }]}> 
+            Contribua com {org.displayName}. Pagamentos via Mercado Pago com PIX dinâmico e cartão.
           </Text>
-        </View>
-
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.title, { color: theme.primary }]}>PIX</Text>
-          <Text style={[styles.infoLabel, { color: theme.secondary }]}>
-            Chave {pixKeyType.toUpperCase()}
-          </Text>
-          <Text style={[styles.pixKeyText, { color: theme.secondary }]}>
-            {pixKey || 'Chave PIX não configurada'}
-          </Text>
-          {!!pixQrUrl && <Image source={{ uri: pixQrUrl }} style={styles.qrImage} resizeMode="contain" />}
-          {!pixQrUrl && (
-            <Text style={[styles.infoText, { color: theme.textSoft }]}>
-              O QR Code aparecerá quando a chave PIX estiver disponível.
+          {!isAuthenticated && (
+            <Text style={[styles.infoText, { color: theme.textSoft }]}> 
+              Você pode doar de forma anônima ou preencher seu nome e e-mail para identificação.
             </Text>
           )}
-          {!!pixCopyCode && (
+        </View>
+
+        {!providerLoading && !providerAvailable && (
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+            <Text style={[styles.title, { color: theme.primary }]}>Pagamento online indisponível</Text>
+            <Text style={[styles.infoText, { color: theme.textSoft }]}> 
+              {providerError || 'A organização ainda não conectou o Mercado Pago para receber doações online.'}
+            </Text>
+          </View>
+        )}
+
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+          <Text style={[styles.infoLabel, { color: theme.secondary }]}>Forma de pagamento</Text>
+          <View style={styles.row}>
+            <Pressable
+              style={[
+                styles.methodButton,
+                { borderColor: theme.border, backgroundColor: theme.bg },
+                method === 'PIX' ? methodSelectedStyle : null,
+              ]}
+              onPress={() => setMethod('PIX')}
+            >
+              <MaterialCommunityIcons name="qrcode-scan" size={16} color={theme.secondary} />
+              <Text style={{ color: theme.secondary, fontWeight: '700' }}>PIX</Text>
+            </Pressable>
+            <Pressable
+              style={[
+                styles.methodButton,
+                { borderColor: theme.border, backgroundColor: theme.bg },
+                method === 'CARD' ? methodSelectedStyle : null,
+              ]}
+              onPress={() => setMethod('CARD')}
+            >
+              <MaterialCommunityIcons name="credit-card-outline" size={16} color={theme.secondary} />
+              <Text style={{ color: theme.secondary, fontWeight: '700' }}>Cartão</Text>
+            </Pressable>
+          </View>
+
+          <Text style={[styles.infoLabel, { color: theme.secondary }]}>Motivo</Text>
+          <View style={styles.chipWrap}>
+            {INTENT_OPTIONS.map((option) => {
+              const selected = intent === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  style={[
+                    styles.chip,
+                    { borderColor: theme.border, backgroundColor: theme.bg },
+                    selected ? methodSelectedStyle : null,
+                  ]}
+                  onPress={() => setIntent(option.value)}
+                >
+                  <Text style={{ color: selected ? theme.secondary : theme.textSoft, fontWeight: selected ? '700' : '500' }}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.infoLabel, { color: theme.secondary }]}>Valor (R$)</Text>
+          <TextInput
+            value={amountInput}
+            onChangeText={(text) => setAmountInput(toMoneyInput(text))}
+            placeholder="50,00"
+            keyboardType="numeric"
+            style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+            placeholderTextColor={theme.textSoft}
+          />
+
+          <Text style={[styles.infoLabel, { color: theme.secondary }]}>Mensagem (opcional)</Text>
+          <TextInput
+            value={description}
+            onChangeText={setDescription}
+            style={[styles.textArea, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+            placeholder="Ex.: contribuição para ação social"
+            placeholderTextColor={theme.textSoft}
+            multiline
+            numberOfLines={4}
+            maxLength={280}
+          />
+
+          <Pressable
+            style={styles.toggleRow}
+            disabled={method === 'CARD'}
+            onPress={() => {
+              if (method === 'CARD') return;
+              setAnonymous((prev) => !prev);
+            }}
+          >
+            <MaterialCommunityIcons
+              name={anonymous ? 'checkbox-marked' : 'checkbox-blank-outline'}
+              size={20}
+              color={theme.secondary}
+            />
+            <Text style={{ color: theme.text }}>
+              Contribuição anônima
+            </Text>
+          </Pressable>
+
+          {method === 'CARD' && (
+            <Text style={[styles.infoText, { color: theme.textSoft }]}> 
+              No checkout do Mercado Pago, Google Pay/Apple Pay podem aparecer automaticamente quando suportados.
+            </Text>
+          )}
+
+          {!anonymous && (
             <>
-              <View style={[styles.pixCopyCodeBox, { borderColor: theme.border, backgroundColor: theme.bg }]}>
-                <Text style={[styles.pixCopyCodeLabel, { color: theme.secondary }]}>PIX copia e cola</Text>
-                <Text selectable style={[styles.pixCopyCodeValue, { color: theme.text }]}>
-                  {pixCopyCode}
-                </Text>
-              </View>
-              <Pressable
-                style={[styles.button, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.16)' }]}
-                onPress={copyPixCode}
-              >
-                <Text style={{ color: theme.secondary, fontWeight: '700' }}>
-                  {pixPayload ? 'Copiar PIX copia e cola' : 'Copiar chave PIX'}
-                </Text>
-              </Pressable>
+              <Text style={[styles.infoLabel, { color: theme.secondary }]}>Nome do doador</Text>
+              <TextInput
+                value={donorName}
+                onChangeText={setDonorName}
+                style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+                placeholder="Seu nome"
+                placeholderTextColor={theme.textSoft}
+                maxLength={120}
+              />
+
+              <Text style={[styles.infoLabel, { color: theme.secondary }]}>E-mail do doador</Text>
+              <TextInput
+                value={donorEmail}
+                onChangeText={(text) => setDonorEmail(text.trim().toLowerCase())}
+                style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+                placeholder="voce@email.com"
+                placeholderTextColor={theme.textSoft}
+                autoCapitalize="none"
+                keyboardType="email-address"
+                maxLength={160}
+              />
             </>
           )}
+
+          <Pressable
+            style={[styles.button, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.16)' }]}
+            onPress={() => {
+              void submitDonation();
+            }}
+            disabled={isSubmitting || providerLoading || !providerAvailable}
+          >
+            {isSubmitting ? <ActivityIndicator size="small" color={theme.secondary} /> : null}
+            <Text style={{ color: theme.secondary, fontWeight: '700' }}>
+              {isSubmitting
+                ? 'Processando...'
+                : method === 'PIX'
+                  ? 'Gerar PIX dinâmico'
+                  : 'Continuar no checkout do cartão'}
+            </Text>
+          </Pressable>
         </View>
 
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.title, { color: theme.primary }]}>Dados bancários</Text>
-          <Text style={[styles.infoText, { color: theme.secondary }]}>
-            Banco: {org.branding?.bankName || 'Não informado'}
-          </Text>
-          <Text style={[styles.infoText, { color: theme.secondary }]}>
-            Agência: {org.branding?.bankAgency || 'Não informado'}
-          </Text>
-          <Text style={[styles.infoText, { color: theme.secondary }]}>
-            Conta: {org.branding?.bankAccount || 'Não informado'}
-          </Text>
-          <Text style={[styles.infoText, { color: theme.secondary }]}>
-            Titular: {org.branding?.bankHolder || 'Não informado'}
-          </Text>
-        </View>
+        {pixResult && (
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+            <Text style={[styles.title, { color: theme.primary }]}>PIX dinâmico</Text>
+            <Text style={[styles.infoText, { color: theme.secondary }]}> 
+              Valor: R$ {pixResult.amount.toFixed(2)}
+            </Text>
+            {!!pixResult.pixExpiresAt && (
+              <Text style={[styles.infoText, { color: theme.textSoft }]}> 
+                Expira em: {new Date(pixResult.pixExpiresAt).toLocaleString('pt-BR')}
+              </Text>
+            )}
+            {!!pixQrSrc && <Image source={{ uri: pixQrSrc }} style={styles.qrImage} resizeMode="contain" />}
 
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <View style={[styles.pixCopyCodeBox, { borderColor: theme.border, backgroundColor: theme.bg }]}> 
+              <Text style={[styles.pixCopyCodeLabel, { color: theme.secondary }]}>PIX copia e cola</Text>
+              <Text selectable style={[styles.pixCopyCodeValue, { color: theme.text }]}> 
+                {pixResult.pixCopyPaste || 'Código não disponível'}
+              </Text>
+            </View>
+
+            <Pressable
+              style={[styles.button, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.16)' }]}
+              onPress={copyPixCode}
+              disabled={!pixResult.pixCopyPaste}
+            >
+              <Text style={{ color: theme.secondary, fontWeight: '700' }}>Copiar PIX copia e cola</Text>
+            </Pressable>
+          </View>
+        )}
+
+        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
           <Text style={[styles.title, { color: theme.primary }]}>Localização</Text>
-          <Text style={[styles.infoText, { color: theme.textSoft }]}>
+          <Text style={[styles.infoText, { color: theme.textSoft }]}> 
             {addressText || 'Endereço ainda não configurado.'}
           </Text>
           {!!mapsUrl && (
@@ -338,7 +712,7 @@ export default function DonationsScreen() {
         </View>
 
         {socialLinks.length > 0 && (
-          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
             <Text style={[styles.title, { color: theme.primary }]}>Redes sociais</Text>
             <View style={styles.socialRow}>
               {socialLinks.map((social) => (

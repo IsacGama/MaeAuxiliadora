@@ -93,6 +93,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const currentAccessToken = session?.accessToken;
 
     try {
+      if (currentAccessToken) {
+        try {
+          await authApi.logout(currentAccessToken);
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : 'erro desconhecido';
+          console.warn(`[auth] falha ao invalidar sessão no backend: ${message}`);
+        }
+      }
+
       const registeredPushToken = await getRegisteredPushToken();
 
       if (registeredPushToken) {

@@ -13,6 +13,11 @@ import {
   MemberNotificationPreferences,
   MemberNotificationItem,
   MemberDashboard,
+  GatewayCardCheckoutResponse,
+  GatewayDonationIntent,
+  GatewayPaymentStatusResponse,
+  GatewayPixPaymentResponse,
+  GatewayPublicProviderStatusResponse,
   OrgBranding,
   ParishPublic,
   PublicPost,
@@ -249,6 +254,59 @@ export const publicApi = {
     ),
   fetchBranding: (orgUnitId: string) =>
     fetchJson<OrgBranding | null>(api(`/public/branding/${encodeURIComponent(orgUnitId)}`)),
+  fetchGatewayProviderStatus: (orgUnitId: string) =>
+    fetchJson<GatewayPublicProviderStatusResponse>(
+      api(`/public/org-units/${encodeURIComponent(orgUnitId)}/gateway-payments/provider-status`),
+    ),
+  createGatewayPixDonation: (
+    orgUnitId: string,
+    payload: {
+      amount: number;
+      intent?: GatewayDonationIntent;
+      description?: string;
+      anonymous?: boolean;
+      donorName?: string;
+      donorEmail?: string;
+      personId?: string;
+      idempotencyKey?: string;
+      expiresInMinutes?: number;
+    },
+  ) =>
+    fetchJson<GatewayPixPaymentResponse>(
+      api(`/public/org-units/${encodeURIComponent(orgUnitId)}/gateway-payments/pix`),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+    ),
+  createGatewayCardCheckout: (
+    orgUnitId: string,
+    payload: {
+      amount: number;
+      intent?: GatewayDonationIntent;
+      description?: string;
+      anonymous?: boolean;
+      donorName?: string;
+      donorEmail?: string;
+      personId?: string;
+      idempotencyKey?: string;
+    },
+  ) =>
+    fetchJson<GatewayCardCheckoutResponse>(
+      api(`/public/org-units/${encodeURIComponent(orgUnitId)}/gateway-payments/card-checkout`),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+    ),
+  fetchGatewayPaymentStatus: (orgUnitId: string, gatewayPaymentId: string) =>
+    fetchJson<GatewayPaymentStatusResponse>(
+      api(
+        `/public/org-units/${encodeURIComponent(orgUnitId)}/gateway-payments/${encodeURIComponent(gatewayPaymentId)}`,
+      ),
+    ),
   fetchPublicPosts: (orgId?: string) =>
     fetchJson<PublicPost[]>(
       api(`/public/posts${orgId ? `?orgId=${encodeURIComponent(orgId)}` : ''}`),
@@ -345,6 +403,11 @@ export const authApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
+    }),
+  logout: (accessToken: string) =>
+    fetchJson(api('/auth/logout'), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}` },
     }),
   dashboard: (accessToken: string) =>
     fetchJson<MemberDashboard>(api('/member/dashboard'), {

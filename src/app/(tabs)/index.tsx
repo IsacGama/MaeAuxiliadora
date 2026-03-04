@@ -156,6 +156,19 @@ export default function HomeScreen() {
   const logoUrl = getMediaUrl(org.branding?.logoAsset?.url ?? org.branding?.coatOfArmsAsset?.url);
   const coverUrl = getMediaUrl(org.branding?.coverAsset?.url);
   const heroTitleColor = theme.navForeground;
+  const siteTexts = (org.branding?.extra?.siteTexts as { heroWelcomeText?: string } | undefined) ?? {};
+  const orgDefaultWelcomeText =
+    org.entity?.type === 'DIOCESE'
+      ? 'Bem-vindo à nossa Igreja Particular. Caminhemos juntos em comunhão, missão e esperança.'
+      : org.entity?.type === 'CHAPEL'
+        ? 'Bem-vindo à nossa comunidade de fé. Aqui celebramos a vida cristã em unidade com a paróquia.'
+        : 'Bem-vindo à nossa comunidade de fé. Venha celebrar conosco a alegria do Evangelho.';
+  const heroTitle = isAuthenticated ? org.displayName : 'Sua Paróquia Digital';
+  const heroWelcomeText = isAuthenticated
+    ? (siteTexts.heroWelcomeText?.trim() || orgDefaultWelcomeText)
+    : 'Bem-vindo ao app da Sua Paróquia Digital. Faça login para acessar a sua comunidade.';
+  const heroSlogan = isAuthenticated ? (org.branding?.slogan?.trim() || '') : '';
+  const shouldShowHeroSlogan = heroSlogan && heroSlogan.toLowerCase() !== heroWelcomeText.toLowerCase();
   const todayRosaryMysteryLabel = useMemo(
     () => rosaryMysteryLabels[getRosaryMysteryByDate(new Date())],
     [],
@@ -244,29 +257,10 @@ export default function HomeScreen() {
           />
         }
       >
-        {isAuthenticated && (
-          <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-            {coverUrl ? (
-              <ImageBackground source={{ uri: coverUrl }} style={{ minHeight: 210 }}>
-                <View style={[styles.heroOverlay, { backgroundColor: withAlpha(theme.navBg, 0.7) }]}>
-                  <View style={styles.heroHeader}>
-                    {logoUrl ? (
-                      <Image source={{ uri: logoUrl }} style={[styles.logo, { borderColor: withAlpha(theme.text, 0.4) }]} />
-                    ) : (
-                      <View style={[styles.logo, { backgroundColor: withAlpha(theme.text, 0.2), borderColor: withAlpha(theme.text, 0.4) }]} />
-                    )}
-                    <View style={{ flex: 1 }}>
-                      <Text style={[styles.title, { color: heroTitleColor }]}>{org.displayName}</Text>
-                    </View>
-                  </View>
-
-                  <Text style={[styles.subtitle, { color: heroTitleColor }]}>
-                    {org.branding?.slogan || 'Evangelização, comunidade e gestão pastoral em um só app.'}
-                  </Text>
-                </View>
-              </ImageBackground>
-            ) : (
-              <View style={[styles.heroOverlay, { minHeight: 210, backgroundColor: theme.navBg }]}>
+        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
+          {coverUrl ? (
+            <ImageBackground source={{ uri: coverUrl }} style={{ minHeight: 210 }}>
+              <View style={[styles.heroOverlay, { backgroundColor: withAlpha(theme.navBg, 0.7) }]}>
                 <View style={styles.heroHeader}>
                   {logoUrl ? (
                     <Image source={{ uri: logoUrl }} style={[styles.logo, { borderColor: withAlpha(theme.text, 0.4) }]} />
@@ -274,17 +268,44 @@ export default function HomeScreen() {
                     <View style={[styles.logo, { backgroundColor: withAlpha(theme.text, 0.2), borderColor: withAlpha(theme.text, 0.4) }]} />
                   )}
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.title, { color: heroTitleColor }]}>{org.displayName}</Text>
+                    <Text style={[styles.title, { color: heroTitleColor }]}>{heroTitle}</Text>
                   </View>
                 </View>
 
                 <Text style={[styles.subtitle, { color: heroTitleColor }]}>
-                  {org.branding?.slogan || 'Evangelização, comunidade e gestão pastoral em um só app.'}
+                  {heroWelcomeText}
                 </Text>
+                {shouldShowHeroSlogan && (
+                  <Text style={[styles.subtitle, { color: heroTitleColor, fontSize: 13, opacity: 0.84 }]}>
+                    {heroSlogan}
+                  </Text>
+                )}
               </View>
-            )}
-          </View>
-        )}
+            </ImageBackground>
+          ) : (
+            <View style={[styles.heroOverlay, { minHeight: 210, backgroundColor: theme.navBg }]}>
+              <View style={styles.heroHeader}>
+                {logoUrl ? (
+                  <Image source={{ uri: logoUrl }} style={[styles.logo, { borderColor: withAlpha(theme.text, 0.4) }]} />
+                ) : (
+                  <View style={[styles.logo, { backgroundColor: withAlpha(theme.text, 0.2), borderColor: withAlpha(theme.text, 0.4) }]} />
+                )}
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.title, { color: heroTitleColor }]}>{heroTitle}</Text>
+                </View>
+              </View>
+
+              <Text style={[styles.subtitle, { color: heroTitleColor }]}>
+                {heroWelcomeText}
+              </Text>
+              {shouldShowHeroSlogan && (
+                <Text style={[styles.subtitle, { color: heroTitleColor, fontSize: 13, opacity: 0.84 }]}>
+                  {heroSlogan}
+                </Text>
+              )}
+            </View>
+          )}
+        </View>
 
         <View style={styles.actionsGrid}>
           <Pressable

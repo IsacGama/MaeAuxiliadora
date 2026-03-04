@@ -32,13 +32,21 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   card: {
+    alignSelf: 'stretch',
     borderRadius: 18,
     borderWidth: 1,
     overflow: 'hidden',
   },
+  heroBackground: {
+    minHeight: 210,
+  },
+  heroImage: {
+    resizeMode: 'cover',
+  },
   heroOverlay: {
     paddingHorizontal: 18,
     paddingVertical: 20,
+    minHeight: 210,
     backgroundColor: 'rgba(0, 0, 0, 0.46)',
   },
   heroHeader: {
@@ -63,6 +71,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   actionsGrid: {
+    alignSelf: 'stretch',
     flexDirection: 'row',
     gap: 10,
     flexWrap: 'wrap',
@@ -70,6 +79,7 @@ const styles = StyleSheet.create({
   actionButton: {
     flexGrow: 1,
     flexBasis: '48%',
+    minWidth: 0,
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 12,
@@ -259,7 +269,7 @@ export default function HomeScreen() {
       >
         <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
           {coverUrl ? (
-            <ImageBackground source={{ uri: coverUrl }} style={{ minHeight: 210 }}>
+            <ImageBackground source={{ uri: coverUrl }} style={styles.heroBackground} imageStyle={styles.heroImage}>
               <View style={[styles.heroOverlay, { backgroundColor: withAlpha(theme.navBg, 0.7) }]}>
                 <View style={styles.heroHeader}>
                   {logoUrl ? (
@@ -283,7 +293,7 @@ export default function HomeScreen() {
               </View>
             </ImageBackground>
           ) : (
-            <View style={[styles.heroOverlay, { minHeight: 210, backgroundColor: theme.navBg }]}>
+            <View style={[styles.heroOverlay, { backgroundColor: theme.navBg }]}>
               <View style={styles.heroHeader}>
                 {logoUrl ? (
                   <Image source={{ uri: logoUrl }} style={[styles.logo, { borderColor: withAlpha(theme.text, 0.4) }]} />
@@ -340,7 +350,15 @@ export default function HomeScreen() {
           >
             <Text style={[styles.actionTitle, { color: theme.primary }]}>Terço de hoje</Text>
             <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Abre direto nos mistérios do dia</Text>
-            <Text style={[styles.actionBadge, { color: theme.secondary, backgroundColor: withAlpha(theme.secondary, 0.16) }]}>
+            <Text
+              style={[
+                styles.actionBadge,
+                {
+                  color: getTextColorForBackground(theme.secondary),
+                  backgroundColor: theme.secondary,
+                },
+              ]}
+            >
               Hoje: {todayRosaryMysteryLabel}
             </Text>
           </Pressable>

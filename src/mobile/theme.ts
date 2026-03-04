@@ -230,10 +230,20 @@ export const createThemeWithMode = (
   const secondary = hslToHex(secondaryHsl.h, secondaryHsl.s, secondaryHsl.l);
   const accent = hslToHex(accentHsl.h, accentHsl.s, accentHsl.l);
 
-  // Foreground computed from the ORIGINAL hex so button text stays correct
-  const primaryForeground = pickForeground(rawPrimaryHex);
-  const secondaryForeground = pickForeground(rawSecondaryHex);
-  const accentForeground = pickForeground(rawAccentHex);
+  // In light mode, very bright secondary colours (e.g. yellow) become
+  // unreadable when reused as text on light surfaces. Derive an "ink"
+  // variant for general UI text while preserving the raw brand colour
+  // for nav active tint on dark tab bar.
+  const secondaryIsLight = getTextColorForBackground(rawSecondaryHex) === '#1b2a41';
+  const secondaryForUi =
+    !isDark && secondaryIsLight
+      ? hslToHex(secondaryHsl.h, secondaryHsl.s, Math.max(24, Math.min(38, secondaryHsl.l - 18)))
+      : secondary;
+
+  // Foreground computed from effective UI colours.
+  const primaryForeground = pickForeground(primary);
+  const secondaryForeground = pickForeground(secondaryForUi);
+  const accentForeground = pickForeground(accent);
 
   // ---------------------------------------------------------------------------
   // navBg — derived from ORIGINAL (un-adapted) primary HSL, matching frontend
@@ -248,7 +258,7 @@ export const createThemeWithMode = (
   const navBg = hslToHex(rawPrimaryHsl.h, rawPrimaryHsl.s, navBgL);
   // navForeground is always near-white because navBg is always a dark colour.
   const navForeground = '#f1f5f9';
-  const navActiveTint = secondary;
+  const navActiveTint = !isDark ? rawSecondaryHex : secondary;
 
   // ---------------------------------------------------------------------------
   // Destructive — accessible red in both modes.
@@ -268,7 +278,7 @@ export const createThemeWithMode = (
       textSoft: withAlpha('#EAF2FF', 0.74),
       primary,
       primaryForeground,
-      secondary,
+      secondary: secondaryForUi,
       secondaryForeground,
       accent,
       accentForeground,
@@ -289,7 +299,7 @@ export const createThemeWithMode = (
     textSoft: '#4C6486',
     primary,
     primaryForeground,
-    secondary,
+    secondary: secondaryForUi,
     secondaryForeground,
     accent,
     accentForeground,

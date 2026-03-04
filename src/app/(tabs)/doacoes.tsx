@@ -19,6 +19,7 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useFocusEffect } from '@react-navigation/native';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useAuth } from '../../mobile/auth-context';
+import { useMemberDashboard } from '../../mobile/hooks/use-member-dashboard';
 import { publicApi } from '../../mobile/api';
 import { HttpError } from '../../mobile/http';
 import { GatewayDonationIntent, GatewayPixPaymentResponse } from '../../mobile/types';
@@ -245,6 +246,7 @@ const messageFromError = (error: unknown, fallback: string) => {
 
 export default function DonationsScreen() {
   const { session, isAuthenticated } = useAuth();
+  const memberDashboard = useMemberDashboard();
   const org = useOrgContext();
   const tabBarHeight = useBottomTabBarHeight();
   const theme = useAppTheme();
@@ -264,6 +266,7 @@ export default function DonationsScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pixResult, setPixResult] = useState<GatewayPixPaymentResponse | null>(null);
   const [gatewayPaymentId, setGatewayPaymentId] = useState<string | null>(null);
+  const isTitheIntent = intent === 'TITHE';
 
   const socialRaw = org.branding?.socialLinks ?? {};
   const socialLinks = [
@@ -290,6 +293,15 @@ export default function DonationsScreen() {
   const addressText = formatAddress(address);
 
   const amount = useMemo(() => parseMoneyInput(amountInput), [amountInput]);
+  const isActiveTitherInOrg = useMemo(() => {
+    const orgUnitId = org.entity?.orgUnitId;
+    if (!orgUnitId) return false;
+    return (
+      memberDashboard.dashboard?.titherProfiles?.some(
+        (profile) => profile.orgId === orgUnitId && profile.status === 'ACTIVE',
+      ) ?? false
+    );
+  }, [memberDashboard.dashboard?.titherProfiles, org.entity?.orgUnitId]);
   const pixQrSrc = useMemo(() => {
     if (!pixResult?.pixQrBase64) return null;
     return pixResult.pixQrBase64.startsWith('data:')
@@ -361,10 +373,10 @@ export default function DonationsScreen() {
   }, [gatewayPaymentId, pollGatewayStatus]);
 
   useEffect(() => {
-    if (method === 'CARD' && anonymous) {
+    if ((method === 'CARD' || isTitheIntent) && anonymous) {
       setAnonymous(false);
     }
-  }, [anonymous, method]);
+  }, [anonymous, isTitheIntent, method]);
 
   useEffect(() => {
     if (!isAuthenticated || anonymous) return;
@@ -397,7 +409,26 @@ export default function DonationsScreen() {
       return false;
     }
 
-    if (!anonymous) {
+    const effectiveAnonymous = isTitheIntent ? false : anonymous;
+
+    if (isTitheIntent) {
+      if (!isAuthenticated || !session?.user?.personId) {
+        Alert.alert(
+          'Login obrigatório',
+          'Para doar dízimo, entre com sua conta de fiel.',
+        );
+        return false;
+      }
+      if (!isActiveTitherInOrg) {
+        Alert.alert(
+          'Dizimista obrigatório',
+          'Para doar dízimo, você precisa estar cadastrado como dizimista ativo nesta organização.',
+        );
+        return false;
+      }
+    }
+
+    if (!effectiveAnonymous) {
       if (donorName.trim().length < 3) {
         Alert.alert('Nome inválido', 'Informe o nome completo do doador.');
         return false;
@@ -434,10 +465,14 @@ export default function DonationsScreen() {
       amount,
       intent,
       description: description.trim() || undefined,
-      anonymous,
-      donorName: anonymous ? undefined : donorName.trim(),
-      donorEmail: anonymous ? undefined : donorEmail.trim().toLowerCase(),
-      personId: anonymous ? undefined : (session?.user?.personId ?? undefined),
+      anonymous: isTitheIntent ? false : anonymous,
+      donorName: isTitheIntent || !anonymous ? donorName.trim() : undefined,
+      donorEmail:
+        isTitheIntent || !anonymous
+          ? donorEmail.trim().toLowerCase()
+          : undefined,
+      personId:
+        isTitheIntent || !anonymous ? (session?.user?.personId ?? undefined) : undefined,
     };
 
     setIsSubmitting(true);
@@ -480,6 +515,9 @@ export default function DonationsScreen() {
     donorEmail,
     donorName,
     intent,
+    isActiveTitherInOrg,
+    isAuthenticated,
+    isTitheIntent,
     method,
     org.entity?.orgUnitId,
     providerAvailable,
@@ -598,9 +636,9 @@ export default function DonationsScreen() {
 
           <Pressable
             style={styles.toggleRow}
-            disabled={method === 'CARD'}
+            disabled={method === 'CARD' || isTitheIntent}
             onPress={() => {
-              if (method === 'CARD') return;
+              if (method === 'CARD' || isTitheIntent) return;
               setAnonymous((prev) => !prev);
             }}
           >
@@ -610,9 +648,17 @@ export default function DonationsScreen() {
               color={theme.secondary}
             />
             <Text style={{ color: theme.text }}>
-              Contribuição anônima
+              {isTitheIntent
+                ? 'Dízimo exige identificação do fiel'
+                : 'Contribuição anônima'}
             </Text>
           </Pressable>
+
+          {isTitheIntent && (
+            <Text style={[styles.infoText, { color: theme.textSoft }]}> 
+              Para doar dízimo, é obrigatório estar autenticado e cadastrado como dizimista ativo nesta organização.
+            </Text>
+          )}
 
           {method === 'CARD' && (
             <Text style={[styles.infoText, { color: theme.textSoft }]}> 

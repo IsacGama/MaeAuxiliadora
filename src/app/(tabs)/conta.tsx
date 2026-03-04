@@ -1034,6 +1034,13 @@ export default function AccountScreen() {
                   </View>
 
                   <View style={[styles.statItem, { borderColor: theme.border }]}>
+                    <Text style={[styles.statLabel, { color: theme.textSoft }]}>Total em contribuições</Text>
+                    <Text style={[styles.statValue, { color: theme.text }]}>
+                      {money(dashboard.dashboard?.contributionSummary?.totalContributed ?? 0)}
+                    </Text>
+                  </View>
+
+                  <View style={[styles.statItem, { borderColor: theme.border }]}>
                     <Text style={[styles.statLabel, { color: theme.textSoft }]}>Sequência no dízimo</Text>
                     <View style={styles.streakRow}>
                       {fireCount ? (

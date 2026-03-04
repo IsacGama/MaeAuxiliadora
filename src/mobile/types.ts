@@ -153,8 +153,13 @@ export type MemberDashboard = {
     titheCount: number;
     currentStreakMonths: number;
   };
+  contributionSummary: {
+    totalContributed: number;
+    contributionCount: number;
+  };
   titherProfiles: Array<{
     id: string;
+    orgId: string;
     status: 'ACTIVE' | 'INACTIVE';
     envelopeCode?: string | null;
     startedAt?: string | Date | null;

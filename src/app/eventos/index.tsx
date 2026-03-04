@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -17,6 +16,7 @@ import { useCommunityEvents } from '../../mobile/hooks/use-community-events';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useAppTheme } from '../../mobile/theme';
 import { CommunityEvent, EventRsvpStatus } from '../../mobile/types';
+import { notifyAppAlert } from '../../mobile/app-alert';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -148,7 +148,7 @@ export default function EventsScreen() {
         error instanceof Error
           ? error.message
           : 'Não foi possível registrar sua confirmação.';
-      Alert.alert('RSVP', message);
+      void notifyAppAlert('RSVP', message, 'danger');
     }
   };
 

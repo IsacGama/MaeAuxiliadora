@@ -1,7 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,8 +12,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../../mobile/auth-context';
 import { authApi } from '../../../mobile/api';
-import { useOrgContext } from '../../../mobile/hooks/use-org-context';
 import { useAppTheme } from '../../../mobile/theme';
+import { notifyAppAlert } from '../../../mobile/app-alert';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -64,14 +63,13 @@ const styles = StyleSheet.create({
 export default function EventCheckInScreen() {
   const { token } = useLocalSearchParams<{ token?: string }>();
   const { isAuthenticated, requestWithAuth } = useAuth();
-  const org = useOrgContext();
   const theme = useAppTheme();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusLabel, setStatusLabel] = useState<string | null>(null);
 
   const handleCheckIn = async () => {
     if (typeof token !== 'string' || !token.trim()) {
-      Alert.alert('Check-in', 'Token inválido.');
+      void notifyAppAlert('Check-in', 'Token inválido.', 'danger');
       return;
     }
 
@@ -89,7 +87,7 @@ export default function EventCheckInScreen() {
     } catch (error) {
       const message =
         error instanceof Error ? error.message : 'Não foi possível registrar presença.';
-      Alert.alert('Check-in', message);
+      void notifyAppAlert('Check-in', message, 'danger');
     } finally {
       setIsSubmitting(false);
     }
@@ -158,4 +156,3 @@ export default function EventCheckInScreen() {
     </SafeAreaView>
   );
 }
-

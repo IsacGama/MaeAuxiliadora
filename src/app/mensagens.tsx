@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Linking,
   Pressable,
   RefreshControl,
@@ -19,6 +18,7 @@ import { useMemberNotifications } from '../mobile/hooks/use-member-notifications
 import { useOrgContext } from '../mobile/hooks/use-org-context';
 import { useAppTheme } from '../mobile/theme';
 import { MemberNotificationItem, MemberNotificationPreferences } from '../mobile/types';
+import { notifyAppAlert } from '../mobile/app-alert';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -288,7 +288,11 @@ export default function MessagesScreen() {
       );
       setPreferences(updated);
     } catch {
-      Alert.alert('Falha', 'Não foi possível salvar a preferência.');
+      void notifyAppAlert(
+        'Falha',
+        'Não foi possível salvar a preferência.',
+        'danger',
+      );
     } finally {
       setSavingPreferences(false);
     }
@@ -306,7 +310,11 @@ export default function MessagesScreen() {
       await notificationsState.refresh();
       setSelectedFromFetch(null);
     } catch {
-      Alert.alert('Falha', 'Não foi possível marcar a mensagem como lida.');
+      void notifyAppAlert(
+        'Falha',
+        'Não foi possível marcar a mensagem como lida.',
+        'danger',
+      );
     } finally {
       setMarkingRead(false);
     }
@@ -325,7 +333,11 @@ export default function MessagesScreen() {
       setSelectedFromFetch(null);
       await notificationsState.refresh();
     } catch {
-      Alert.alert('Falha', 'Não foi possível remover a mensagem.');
+      void notifyAppAlert(
+        'Falha',
+        'Não foi possível remover a mensagem.',
+        'danger',
+      );
     } finally {
       setHidingNotification(false);
     }
@@ -342,12 +354,17 @@ export default function MessagesScreen() {
         }),
       );
       await notificationsState.refresh();
-      Alert.alert(
+      void notifyAppAlert(
         'Concluído',
         `${result.hidden} mensagem(ns) removida(s) da sua lista.`,
+        'success',
       );
     } catch {
-      Alert.alert('Falha', 'Não foi possível limpar o histórico.');
+      void notifyAppAlert(
+        'Falha',
+        'Não foi possível limpar o histórico.',
+        'danger',
+      );
     } finally {
       setClearingReadHistory(false);
     }

@@ -9,6 +9,7 @@ import { useOrgContext } from '../mobile/hooks/use-org-context';
 import { appConfig } from '../mobile/config';
 import { prefetchTodayData } from '../mobile/prefetch';
 import { ThemePreferenceProvider, useThemePreference } from '../mobile/theme-preference';
+import { AppAlertHost } from '../mobile/components/app-alert-host';
 import {
   addNotificationResponseListener,
   configureNotificationHandling,
@@ -286,6 +287,7 @@ export default function RootLayout() {
             <BackgroundPrefetch />
             <NotificationRegistrar />
             <RootNavigator />
+            <AppAlertHost />
           </ThemeWrapper>
         </ThemePreferenceProvider>
       </AuthProvider>

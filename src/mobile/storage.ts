@@ -71,3 +71,25 @@ export const getDailyCacheValue = async <T>(key: string, dayKey: string = getDay
 export const clearCache = async (key: string) => {
   await AsyncStorage.removeItem(key);
 };
+
+export const clearStorageByPrefix = async (
+  prefix: string,
+  options?: { preserveKeys?: string[] },
+) => {
+  const allKeys = await AsyncStorage.getAllKeys();
+  if (!allKeys.length) {
+    return 0;
+  }
+
+  const preserveSet = new Set(options?.preserveKeys ?? []);
+  const keysToRemove = allKeys.filter(
+    (key) => key.startsWith(prefix) && !preserveSet.has(key),
+  );
+
+  if (!keysToRemove.length) {
+    return 0;
+  }
+
+  await AsyncStorage.multiRemove(keysToRemove);
+  return keysToRemove.length;
+};

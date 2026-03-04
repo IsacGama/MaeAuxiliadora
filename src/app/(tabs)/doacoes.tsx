@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Clipboard,
   Image,
   Linking,
@@ -24,6 +23,7 @@ import { publicApi } from '../../mobile/api';
 import { HttpError } from '../../mobile/http';
 import { GatewayDonationIntent, GatewayPixPaymentResponse } from '../../mobile/types';
 import { useAppTheme } from '../../mobile/theme';
+import { notifyAppAlert } from '../../mobile/app-alert';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -338,9 +338,17 @@ export default function DonationsScreen() {
       const status = await publicApi.fetchGatewayPaymentStatus(orgUnitId, gatewayPaymentId);
       if (status.status !== 'PENDING') {
         if (status.status === 'PAID') {
-          Alert.alert('Pagamento confirmado', 'Recebemos sua contribuição com sucesso.');
+          void notifyAppAlert(
+            'Pagamento confirmado',
+            'Recebemos sua contribuição com sucesso.',
+            'success',
+          );
         } else if (status.status === 'FAILED' || status.status === 'CANCELED') {
-          Alert.alert('Pagamento não concluído', 'Confira os dados e tente novamente.');
+          void notifyAppAlert(
+            'Pagamento não concluído',
+            'Confira os dados e tente novamente.',
+            'danger',
+          );
         }
         setGatewayPaymentId(null);
       }
@@ -396,16 +404,24 @@ export default function DonationsScreen() {
   const copyPixCode = useCallback(() => {
     const code = pixResult?.pixCopyPaste?.trim();
     if (!code) {
-      Alert.alert('PIX indisponível', 'Nenhum código PIX disponível para copiar.');
+      void notifyAppAlert(
+        'PIX indisponível',
+        'Nenhum código PIX disponível para copiar.',
+        'danger',
+      );
       return;
     }
     Clipboard.setString(code);
-    Alert.alert('Copiado', 'Código PIX copiado para a área de transferência.');
+    void notifyAppAlert(
+      'Copiado',
+      'Código PIX copiado para a área de transferência.',
+      'success',
+    );
   }, [pixResult?.pixCopyPaste]);
 
   const validateForm = () => {
     if (amount <= 0) {
-      Alert.alert('Valor inválido', 'Informe um valor maior que zero.');
+      void notifyAppAlert('Valor inválido', 'Informe um valor maior que zero.', 'danger');
       return false;
     }
 
@@ -413,16 +429,18 @@ export default function DonationsScreen() {
 
     if (isTitheIntent) {
       if (!isAuthenticated || !session?.user?.personId) {
-        Alert.alert(
+        void notifyAppAlert(
           'Login obrigatório',
           'Para doar dízimo, entre com sua conta de fiel.',
+          'danger',
         );
         return false;
       }
       if (!isActiveTitherInOrg) {
-        Alert.alert(
+        void notifyAppAlert(
           'Dizimista obrigatório',
           'Para doar dízimo, você precisa estar cadastrado como dizimista ativo nesta organização.',
+          'danger',
         );
         return false;
       }
@@ -430,11 +448,19 @@ export default function DonationsScreen() {
 
     if (!effectiveAnonymous) {
       if (donorName.trim().length < 3) {
-        Alert.alert('Nome inválido', 'Informe o nome completo do doador.');
+        void notifyAppAlert(
+          'Nome inválido',
+          'Informe o nome completo do doador.',
+          'danger',
+        );
         return false;
       }
       if (!isValidEmail(donorEmail)) {
-        Alert.alert('E-mail inválido', 'Informe um e-mail válido para o doador.');
+        void notifyAppAlert(
+          'E-mail inválido',
+          'Informe um e-mail válido para o doador.',
+          'danger',
+        );
         return false;
       }
     }
@@ -445,14 +471,19 @@ export default function DonationsScreen() {
   const submitDonation = useCallback(async () => {
     const orgUnitId = org.entity?.orgUnitId;
     if (!orgUnitId) {
-      Alert.alert('Organização indisponível', 'Não foi possível identificar a organização da doação.');
+      void notifyAppAlert(
+        'Organização indisponível',
+        'Não foi possível identificar a organização da doação.',
+        'danger',
+      );
       return;
     }
 
     if (!providerAvailable) {
-      Alert.alert(
+      void notifyAppAlert(
         'Pagamento indisponível',
         'A organização ainda não conectou o Mercado Pago.',
+        'danger',
       );
       return;
     }
@@ -484,7 +515,11 @@ export default function DonationsScreen() {
         });
         setPixResult(result);
         setGatewayPaymentId(result.id);
-        Alert.alert('PIX gerado', 'Use o QR Code ou PIX copia e cola para concluir a doação.');
+        void notifyAppAlert(
+          'PIX gerado',
+          'Use o QR Code ou PIX copia e cola para concluir a doação.',
+          'success',
+        );
         return;
       }
 
@@ -492,19 +527,31 @@ export default function DonationsScreen() {
       setGatewayPaymentId(result.id);
       const checkoutUrl = (result.checkoutUrl || result.sandboxCheckoutUrl || '').trim();
       if (!checkoutUrl) {
-        Alert.alert('Checkout indisponível', 'Não foi possível iniciar o pagamento com cartão.');
+        void notifyAppAlert(
+          'Checkout indisponível',
+          'Não foi possível iniciar o pagamento com cartão.',
+          'danger',
+        );
         return;
       }
 
       const supported = await Linking.canOpenURL(checkoutUrl);
       if (!supported) {
-        Alert.alert('Link inválido', 'Não foi possível abrir o checkout do Mercado Pago.');
+        void notifyAppAlert(
+          'Link inválido',
+          'Não foi possível abrir o checkout do Mercado Pago.',
+          'danger',
+        );
         return;
       }
 
       await Linking.openURL(checkoutUrl);
     } catch (error) {
-      Alert.alert('Falha ao processar doação', messageFromError(error, 'Tente novamente em instantes.'));
+      void notifyAppAlert(
+        'Falha ao processar doação',
+        messageFromError(error, 'Tente novamente em instantes.'),
+        'danger',
+      );
     } finally {
       setIsSubmitting(false);
     }

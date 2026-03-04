@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Modal,
   Pressable,
   RefreshControl,
@@ -22,6 +21,7 @@ import { useAppTheme, withAlpha } from '../../mobile/theme';
 import { authApi, publicApi } from '../../mobile/api';
 import { ChapelPublic, ParishPublic } from '../../mobile/types';
 import { ThemePreference, useThemePreference } from '../../mobile/theme-preference';
+import { AppAlertDialog } from '../../mobile/components/app-alert-dialog';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -208,6 +208,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  noticeCard: {
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  noticeText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
 });
 
 const money = (value: number) =>
@@ -315,6 +325,9 @@ export default function AccountScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [titherSubmitting, setTitherSubmitting] = useState(false);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [logoutSubmitting, setLogoutSubmitting] = useState(false);
+  const [postLogoutNotice, setPostLogoutNotice] = useState<string | null>(null);
 
   const setChapelsIfNeeded = (next: ChapelPublic[]) => {
     setChapels(next);
@@ -497,8 +510,18 @@ export default function AccountScreen() {
   };
 
   const onLogout = async () => {
-    await logout();
-    Alert.alert('Sessão encerrada', 'Você saiu da conta neste dispositivo.');
+    setLogoutSubmitting(true);
+    setSubmitError(null);
+    try {
+      await logout();
+      setPostLogoutNotice('Sessão encerrada com sucesso neste dispositivo.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível sair da conta.';
+      setSubmitError(message);
+    } finally {
+      setLogoutSubmitting(false);
+      setLogoutDialogOpen(false);
+    }
   };
 
   if (authLoading) {
@@ -556,6 +579,22 @@ export default function AccountScreen() {
           ) : undefined
         }
       >
+        {!!postLogoutNotice && !isAuthenticated && (
+          <View
+            style={[
+              styles.noticeCard,
+              {
+                borderColor: theme.secondary,
+                backgroundColor: withAlpha(theme.secondary, 0.12),
+              },
+            ]}
+          >
+            <Text style={[styles.noticeText, { color: theme.secondary }]}>
+              {postLogoutNotice}
+            </Text>
+          </View>
+        )}
+
         {!isAuthenticated ? (
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.toggleRow}>
@@ -1003,7 +1042,7 @@ export default function AccountScreen() {
 
               <Pressable
                 style={[styles.button, { borderColor: theme.destructive, backgroundColor: withAlpha(theme.destructive, 0.14) }]}
-                onPress={onLogout}
+                onPress={() => setLogoutDialogOpen(true)}
               >
                 <Text style={[styles.buttonText, { color: theme.destructive }]}>Sair</Text>
               </Pressable>
@@ -1136,6 +1175,22 @@ export default function AccountScreen() {
           </View>
         </View>
       </ScrollView>
+      <AppAlertDialog
+        visible={logoutDialogOpen}
+        theme={theme}
+        variant="danger"
+        title="Encerrar sessão?"
+        description="Você será desconectado deste dispositivo e precisará entrar novamente para acessar recursos privados."
+        cancelLabel="Cancelar"
+        confirmLabel="Sair"
+        confirmLoading={logoutSubmitting}
+        onCancel={() => {
+          if (!logoutSubmitting) {
+            setLogoutDialogOpen(false);
+          }
+        }}
+        onConfirm={onLogout}
+      />
     </SafeAreaView >
   );
 }

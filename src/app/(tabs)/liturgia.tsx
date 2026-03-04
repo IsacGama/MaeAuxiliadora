@@ -1,7 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,8 +13,8 @@ import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { DayKeyPicker } from '../../mobile/components/day-key-picker';
 import { formatDateLabel } from '../../mobile/date';
 import { useDailyLiturgy } from '../../mobile/hooks/use-daily-liturgy';
-import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useAppTheme } from '../../mobile/theme';
+import { presentAppAlert } from '../../mobile/app-alert';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -80,7 +79,6 @@ const readingSections: Array<{
 
 export default function LiturgyScreen() {
   const liturgy = useDailyLiturgy();
-  const org = useOrgContext();
   const tabBarHeight = useBottomTabBarHeight();
   const theme = useAppTheme();
 
@@ -89,14 +87,24 @@ export default function LiturgyScreen() {
       return;
     }
 
-    Alert.alert(
-      'Liturgia indisponível',
-      `Ainda não há liturgia para ${formatDateLabel(liturgy.dateMismatch.requestedDate)}. Exibimos ${formatDateLabel(
-        liturgy.dateMismatch.payloadDate,
-      )}.`,
-      [{ text: 'OK', onPress: liturgy.clearDateMismatch }],
-      { cancelable: true, onDismiss: liturgy.clearDateMismatch },
-    );
+    let cancelled = false;
+    void presentAppAlert({
+      title: 'Liturgia indisponível',
+      description: `Ainda não há liturgia para ${formatDateLabel(
+        liturgy.dateMismatch.requestedDate,
+      )}. Exibimos ${formatDateLabel(liturgy.dateMismatch.payloadDate)}.`,
+      variant: 'info',
+      showCancel: false,
+      confirmLabel: 'Entendi',
+    }).finally(() => {
+      if (!cancelled) {
+        liturgy.clearDateMismatch();
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [liturgy.clearDateMismatch, liturgy.dateMismatch]);
 
   if (liturgy.isLoading && !liturgy.liturgy) {

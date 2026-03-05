@@ -23,10 +23,13 @@ const resolveManifestEntry = (
   language: DevotionLanguage,
 ): ManifestEntry | null => {
   const entries = (manifest.entries ?? []) as ManifestEntry[];
-  const found = entries.find(
-    (entry) => entry.id === prayerId && entry.lang === language,
-  );
-  return found ?? null;
+  for (let index = entries.length - 1; index >= 0; index -= 1) {
+    const entry = entries[index];
+    if (entry.id === prayerId && entry.lang === language) {
+      return entry;
+    }
+  }
+  return null;
 };
 
 const resolveManifestEntries = (
@@ -122,7 +125,7 @@ export const downloadPrayerAudioEntries = async (options: {
     failed: number;
   }) => void;
 }) => {
-  const manifest = await getDevotionAudioManifest();
+  const manifest = await getDevotionAudioManifest({ forceRemote: true });
   const allEntries = resolveManifestEntries(manifest, {
     language: options.language,
     prayerIds: options.prayerIds,
@@ -130,9 +133,7 @@ export const downloadPrayerAudioEntries = async (options: {
 
   const uniqueById = new Map<string, ManifestEntry>();
   allEntries.forEach((entry) => {
-    if (!uniqueById.has(entry.id)) {
-      uniqueById.set(entry.id, entry);
-    }
+    uniqueById.set(entry.id, entry);
   });
 
   const entries = [...uniqueById.values()];

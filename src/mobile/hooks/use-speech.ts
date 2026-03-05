@@ -62,6 +62,18 @@ export const useSpeech = (options?: UseSpeechOptions) => {
     async (text: string, language: string, payload?: SpeakOptions) => {
       const playToken = playTokenRef.current + 1;
       playTokenRef.current = playToken;
+      let finished = false;
+
+      const finish = (shouldNotifyDone: boolean) => {
+        if (finished || playTokenRef.current !== playToken) {
+          return;
+        }
+        finished = true;
+        setIsSpeaking(false);
+        if (shouldNotifyDone) {
+          onDoneRef.current?.();
+        }
+      };
 
       await cleanupSound();
       Speech.stop();
@@ -87,15 +99,15 @@ export const useSpeech = (options?: UseSpeechOptions) => {
             }
 
             if (status?.didJustFinish) {
-              setIsSpeaking(false);
-              onDoneRef.current?.();
+              finish(true);
               void cleanupSound();
               return;
             }
 
             if (status?.isLoaded === false || status?.error) {
-              setIsSpeaking(false);
+              finish(true);
               void cleanupSound();
+              return;
             }
           });
 
@@ -111,9 +123,11 @@ export const useSpeech = (options?: UseSpeechOptions) => {
           const message =
             error instanceof Error ? error.message : 'erro desconhecido';
           console.warn(
-            `[speech] falha ao tocar MP3 (${audioUri}), fallback para TTS: ${message}`,
+            `[speech] falha ao tocar MP3 (${audioUri}): ${message}`,
           );
           await cleanupSound();
+          finish(true);
+          return;
         }
       }
 
@@ -121,23 +135,13 @@ export const useSpeech = (options?: UseSpeechOptions) => {
         language,
         rate,
         onDone: () => {
-          if (playTokenRef.current !== playToken) {
-            return;
-          }
-          setIsSpeaking(false);
-          onDoneRef.current?.();
+          finish(true);
         },
         onStopped: () => {
-          if (playTokenRef.current !== playToken) {
-            return;
-          }
-          setIsSpeaking(false);
+          finish(false);
         },
         onError: () => {
-          if (playTokenRef.current !== playToken) {
-            return;
-          }
-          setIsSpeaking(false);
+          finish(true);
         },
       });
     },

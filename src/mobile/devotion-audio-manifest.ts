@@ -41,6 +41,8 @@ const manifestCachePath = manifestCacheDirectory
 const embeddedManifest = audioManifestData as AudioManifest;
 let manifestSnapshot: AudioManifest = embeddedManifest;
 let manifestPromise: Promise<AudioManifest> | null = null;
+let lastRemoteRefreshAt = 0;
+const REMOTE_REFRESH_INTERVAL_MS = 5 * 60 * 1000;
 
 const trimTrailingSlash = (value: string) => value.replace(/\/+$/, '');
 
@@ -55,6 +57,9 @@ const isValidManifest = (payload: unknown): payload is AudioManifest => {
   const entries = (payload as any).entries;
   return Array.isArray(entries);
 };
+
+const hasManifestEntries = (payload: AudioManifest | null | undefined) =>
+  Boolean(payload && Array.isArray(payload.entries) && payload.entries.length > 0);
 
 const ensureCacheDirectory = async () => {
   if (!manifestCacheDirectory) {
@@ -146,18 +151,46 @@ const refreshRemoteManifestInBackground = async () => {
     return;
   }
   manifestSnapshot = remote;
+  lastRemoteRefreshAt = Date.now();
   await saveManifestCache(remote);
 };
 
-export const getDevotionAudioManifest = async () => {
+export const getDevotionAudioManifest = async (options?: {
+  forceRemote?: boolean;
+}) => {
+  const forceRemote = options?.forceRemote === true;
+
+  if (!forceRemote && hasManifestEntries(manifestSnapshot)) {
+    const now = Date.now();
+    if (
+      now - lastRemoteRefreshAt > REMOTE_REFRESH_INTERVAL_MS &&
+      !manifestPromise
+    ) {
+      void refreshRemoteManifestInBackground();
+      lastRemoteRefreshAt = now;
+    }
+    return manifestSnapshot;
+  }
+
   if (manifestPromise) {
     return manifestPromise;
   }
 
   manifestPromise = (async () => {
+    if (forceRemote) {
+      const remote = await loadRemoteManifest();
+      if (remote) {
+        manifestSnapshot = remote;
+        lastRemoteRefreshAt = Date.now();
+        await saveManifestCache(remote);
+        return remote;
+      }
+    }
+
     const remote = await loadRemoteManifest();
     if (remote) {
       manifestSnapshot = remote;
+      lastRemoteRefreshAt = Date.now();
       await saveManifestCache(remote);
       return remote;
     }
@@ -165,6 +198,7 @@ export const getDevotionAudioManifest = async () => {
     const cached = await readManifestCache();
     if (cached) {
       manifestSnapshot = cached;
+      lastRemoteRefreshAt = Date.now();
       void refreshRemoteManifestInBackground();
       return cached;
     }

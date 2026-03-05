@@ -218,6 +218,7 @@ export default function RosaryScreen() {
   const [stepIndex, setStepIndex] = useState(0);
   const [downloadBusy, setDownloadBusy] = useState(false);
   const [syncBusy, setSyncBusy] = useState(false);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [downloadMeta, setDownloadMeta] = useState<{ count: number; bytes: number }>({
     count: 0,
     bytes: 0,
@@ -258,7 +259,14 @@ export default function RosaryScreen() {
   const syncDevotionsState = useCallback(async (force = false) => {
     setSyncBusy(true);
     try {
-      await syncDevotionsFromBackend({ force });
+      const synced = await syncDevotionsFromBackend({ force });
+      if (!synced) {
+        setSyncMessage(
+          'Não foi possível sincronizar as devoções agora. Verifique sua conexão com o backend e tente novamente.',
+        );
+        return;
+      }
+      setSyncMessage(null);
       setDevotionsVersion((current) => current + 1);
     } finally {
       setSyncBusy(false);
@@ -379,6 +387,17 @@ export default function RosaryScreen() {
     }
     setMode('terco');
   }, [isRosaryDevotion]);
+
+  useEffect(() => {
+    if (!isRosaryDevotion || mode !== 'rosario') {
+      return;
+    }
+    if (getRosaryMysteryOrder().length > 0) {
+      return;
+    }
+    setMode('terco');
+    setStepIndex(0);
+  }, [devotionsVersion, isRosaryDevotion, mode]);
 
   useEffect(() => {
     setStepIndex((current) => Math.max(0, Math.min(current, guidedSteps.length - 1)));
@@ -551,6 +570,7 @@ export default function RosaryScreen() {
   const languageRef = useRef(language);
   languageRef.current = language;
   const autoSpeakRequestRef = useRef(0);
+  const activeSpeakRequestRef = useRef(0);
   const pendingPrayerAfterAnnouncementRef = useRef<{
     text: string;
     languageCode: string;
@@ -563,9 +583,13 @@ export default function RosaryScreen() {
 
   const { isSpeaking, speak, stop, rate, setRate } = useSpeech({
     onDone: () => {
+      if (activeSpeakRequestRef.current !== autoSpeakRequestRef.current) {
+        return;
+      }
       const pendingPrayer = pendingPrayerAfterAnnouncementRef.current;
       if (pendingPrayer) {
         pendingPrayerAfterAnnouncementRef.current = null;
+        activeSpeakRequestRef.current = autoSpeakRequestRef.current;
         void speakRef.current(pendingPrayer.text, pendingPrayer.languageCode, {
           audioUri: pendingPrayer.audioUri,
         });
@@ -632,6 +656,7 @@ export default function RosaryScreen() {
             languageCode: languageCodeRef.current,
             audioUri: prayerAudioSource?.uri ?? null,
           };
+          activeSpeakRequestRef.current = requestId;
           void speakRef.current(
             mysteryAnnouncement.text,
             languageCodeRef.current,
@@ -643,6 +668,7 @@ export default function RosaryScreen() {
         }
 
         pendingPrayerAfterAnnouncementRef.current = null;
+        activeSpeakRequestRef.current = requestId;
         void speakRef.current(currentPrayerText, languageCodeRef.current, {
           audioUri: prayerAudioSource?.uri ?? null,
         });
@@ -650,10 +676,18 @@ export default function RosaryScreen() {
     );
   }, [buildMysteryAnnouncement]);
 
+  const cancelCurrentSpeechFlow = useCallback(() => {
+    autoSpeakRequestRef.current += 1;
+    activeSpeakRequestRef.current = autoSpeakRequestRef.current;
+    pendingPrayerAfterAnnouncementRef.current = null;
+    stop();
+  }, [stop]);
+
   // Speak whenever auto-play is on and step changes
   useEffect(() => {
     if (!isAutoPlaying) {
-      autoSpeakRequestRef.current += 1;
+      activeSpeakRequestRef.current = autoSpeakRequestRef.current + 1;
+      autoSpeakRequestRef.current = activeSpeakRequestRef.current;
       return;
     }
     speakAutoStep(stepIndexRef.current);
@@ -661,44 +695,35 @@ export default function RosaryScreen() {
 
   // Stop audio when mode/language changes
   useEffect(() => {
-    autoSpeakRequestRef.current += 1;
-    pendingPrayerAfterAnnouncementRef.current = null;
-    stop();
-  }, [mode, language, selectedDevotion?.id, stop]);
+    cancelCurrentSpeechFlow();
+  }, [cancelCurrentSpeechFlow, mode, language, selectedDevotion?.id]);
 
   const handleToggleAutoPlay = useCallback(() => {
     if (isAutoPlaying) {
-      autoSpeakRequestRef.current += 1;
-      pendingPrayerAfterAnnouncementRef.current = null;
-      stop();
+      cancelCurrentSpeechFlow();
       setIsAutoPlaying(false);
     } else {
       setIsAutoPlaying(true);
     }
-  }, [isAutoPlaying, stop]);
+  }, [cancelCurrentSpeechFlow, isAutoPlaying]);
 
   const handleManualStepMove = useCallback((direction: 'prev' | 'next') => {
-    if (isAutoPlayingRef.current) {
-      autoSpeakRequestRef.current += 1;
-      pendingPrayerAfterAnnouncementRef.current = null;
-      stop();
-    }
+    cancelCurrentSpeechFlow();
     moveStep(direction);
-  }, [moveStep, stop]);
+  }, [cancelCurrentSpeechFlow, moveStep]);
 
   const handleRestartCurrentDevotion = useCallback(() => {
-    if (isAutoPlayingRef.current) {
-      autoSpeakRequestRef.current += 1;
-      pendingPrayerAfterAnnouncementRef.current = null;
-      stop();
-    }
+    cancelCurrentSpeechFlow();
     setStepIndex(0);
-  }, [stop]);
+  }, [cancelCurrentSpeechFlow]);
 
   const handleRetryDevotionsSync = useCallback(() => {
     if (syncBusy) {
       return;
     }
+    setSyncMessage(null);
+    setMode('terco');
+    setStepIndex(0);
     void syncDevotionsState(true);
   }, [syncBusy, syncDevotionsState]);
 
@@ -978,6 +1003,11 @@ export default function RosaryScreen() {
             <Text style={[styles.subtitle, { color: theme.textSoft }]}>
               Estrutura da devoção ainda não carregada.
             </Text>
+            {syncMessage ? (
+              <Text style={[styles.subtitle, { color: theme.secondary }]}>
+                {syncMessage}
+              </Text>
+            ) : null}
             <View style={styles.buttonRow}>
               <Pressable
                 style={[

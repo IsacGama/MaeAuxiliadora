@@ -332,6 +332,49 @@ const isCatalogShape = (value: unknown): value is Partial<DevotionCatalog> =>
     Array.isArray((value as any).devotions),
   );
 
+const hasUsableCatalog = (catalog: Partial<DevotionCatalog> | null | undefined) => {
+  if (!isCatalogShape(catalog)) {
+    return false;
+  }
+
+  const devotionsList = catalog.devotions ?? [];
+  if (!devotionsList.length) {
+    return false;
+  }
+
+  const normalizedDevotions = devotionsList
+    .map((devotion) => {
+      const id = typeof devotion?.id === 'string' ? devotion.id.trim() : '';
+      const structure = Array.isArray(devotion?.structure) ? devotion.structure : [];
+      const normalizedStructure = structure
+        .map((step) => normalizeStructureStep(step))
+        .filter((step): step is DevotionStructureStep => Boolean(step));
+      return {
+        id,
+        structureCount: normalizedStructure.length,
+      };
+    })
+    .filter((item) => item.id.length > 0 && item.structureCount > 0);
+
+  if (!normalizedDevotions.length) {
+    return false;
+  }
+
+  const rosaryDevotion = normalizedDevotions.find((item) => item.id === 'rosary');
+  if (!rosaryDevotion || rosaryDevotion.structureCount <= 0) {
+    return false;
+  }
+
+  const rawRosary = devotionsList.find((item) => item?.id === 'rosary');
+  const mysteries = rawRosary?.mysteries ?? {};
+  const mysteryEntries = Object.values(mysteries);
+  const hasAtLeastOneMysteryList = mysteryEntries.some(
+    (entry) => Array.isArray(entry) && entry.length > 0,
+  );
+
+  return hasAtLeastOneMysteryList;
+};
+
 const applyDevotionState = (
   inputPrayers: PrayerRecord[],
   inputCatalog: Partial<DevotionCatalog> | null | undefined,
@@ -463,7 +506,12 @@ const readDevotionsCache = async (): Promise<RemoteDevotionsPayload | null> => {
       return null;
     }
     const parsed = JSON.parse(raw) as RemoteDevotionsPayload;
-    if (!isPrayerRecordArray(parsed?.prayers) || !isCatalogShape(parsed?.catalog)) {
+    if (
+      !isPrayerRecordArray(parsed?.prayers) ||
+      !isCatalogShape(parsed?.catalog) ||
+      !hasUsableCatalog(parsed?.catalog)
+    ) {
+      await AsyncStorage.removeItem(devotionSyncCacheKey).catch(() => undefined);
       return null;
     }
     return parsed;
@@ -489,7 +537,11 @@ export const syncDevotionsFromBackend = async (options?: { force?: boolean }) =>
         fetchJsonWithTimeout<Partial<DevotionCatalog>>(`${baseUrl}/public/devotions/catalog`),
       ]);
 
-      if (!isPrayerRecordArray(remotePrayers) || !isCatalogShape(remoteCatalog)) {
+      if (
+        !isPrayerRecordArray(remotePrayers) ||
+        !isCatalogShape(remoteCatalog) ||
+        !hasUsableCatalog(remoteCatalog)
+      ) {
         throw new Error('Payload inválido para devoções.');
       }
 

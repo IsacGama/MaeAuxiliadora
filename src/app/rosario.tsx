@@ -57,19 +57,36 @@ const modeLabels: Record<RosaryMode, string> = {
   rosario: 'Rosário (todos os mistérios)',
 };
 
-const mysteryOrdinalLabel: Record<number, string> = {
-  1: 'Primeiro',
-  2: 'Segundo',
-  3: 'Terceiro',
-  4: 'Quarto',
-  5: 'Quinto',
+const mysteryOrdinalLabelsByLanguage: Record<DevotionLanguage, Record<number, string>> = {
+  pt: {
+    1: 'Primeiro',
+    2: 'Segundo',
+    3: 'Terceiro',
+    4: 'Quarto',
+    5: 'Quinto',
+  },
+  la: {
+    1: 'Primum',
+    2: 'Secundum',
+    3: 'Tertium',
+    4: 'Quartum',
+    5: 'Quintum',
+  },
 };
 
-const mysteryTypeLabelPt: Record<RosaryMysteryKey, string> = {
-  gozosos: 'gozoso',
-  dolorosos: 'doloroso',
-  gloriosos: 'glorioso',
-  luminosos: 'luminoso',
+const mysteryTypeLabelsByLanguage: Record<DevotionLanguage, Record<RosaryMysteryKey, string>> = {
+  pt: {
+    gozosos: 'gozoso',
+    dolorosos: 'doloroso',
+    gloriosos: 'glorioso',
+    luminosos: 'luminoso',
+  },
+  la: {
+    gozosos: 'gaudiosum',
+    dolorosos: 'dolorosum',
+    gloriosos: 'gloriosum',
+    luminosos: 'luminosum',
+  },
 };
 
 const styles = StyleSheet.create({
@@ -372,7 +389,10 @@ export default function RosaryScreen() {
     ? getRosaryStepPrayerText(currentStep.type, language)
     : 'Sem conteúdo disponível.';
 
-  const buildMysteryAnnouncement = (targetIndex: number) => {
+  const buildMysteryAnnouncement = (
+    targetIndex: number,
+    targetLanguage: DevotionLanguage,
+  ) => {
     if (!isRosaryDevotion) {
       return null;
     }
@@ -393,10 +413,20 @@ export default function RosaryScreen() {
     }
 
     const ordinal =
-      mysteryOrdinalLabel[targetStep.decade] ?? `${targetStep.decade}º`;
-    const mysteryType = mysteryTypeLabelPt[targetStep.mysteryKey] ?? 'do dia';
+      mysteryOrdinalLabelsByLanguage[targetLanguage]?.[targetStep.decade] ??
+      `${targetStep.decade}º`;
+    const mysteryType =
+      mysteryTypeLabelsByLanguage[targetLanguage]?.[targetStep.mysteryKey] ??
+      'do dia';
+    const prefix =
+      targetLanguage === 'la'
+        ? `${ordinal} mysterium ${mysteryType}`
+        : `${ordinal} mistério ${mysteryType}`;
 
-    return `${ordinal} mistério ${mysteryType}: ${targetStep.mysteryTitle}.`;
+    return {
+      id: `rosary-mystery-${targetStep.mysteryKey}-${targetStep.decade}`,
+      text: `${prefix}: ${targetStep.mysteryTitle}.`,
+    };
   };
 
   const moveStep = (direction: 'prev' | 'next') => {
@@ -431,6 +461,14 @@ export default function RosaryScreen() {
     }
 
     const prayerIds = Array.from(new Set(expandedDevotionSteps.map((step) => step.type)));
+    if (isRosaryDevotion) {
+      getRosaryMysteryOrder().forEach((segmentKey) => {
+        const mysteries = getRosaryMysteriesByKey(segmentKey);
+        mysteries.forEach((_title, index) => {
+          prayerIds.push(`rosary-mystery-${segmentKey}-${index + 1}`);
+        });
+      });
+    }
     if (!prayerIds.length) {
       setDownloadMessage('Sem orações para download nesta devoção.');
       return;
@@ -455,7 +493,13 @@ export default function RosaryScreen() {
     } finally {
       setDownloadBusy(false);
     }
-  }, [downloadBusy, expandedDevotionSteps, language, refreshDownloadStats]);
+  }, [
+    downloadBusy,
+    expandedDevotionSteps,
+    isRosaryDevotion,
+    language,
+    refreshDownloadStats,
+  ]);
 
   const handleClearDownloadedAudio = useCallback(async () => {
     if (downloadBusy) {
@@ -493,9 +537,26 @@ export default function RosaryScreen() {
   guidedStepsRef.current = guidedSteps;
   const languageRef = useRef(language);
   languageRef.current = language;
+  const pendingPrayerAfterAnnouncementRef = useRef<{
+    text: string;
+    languageCode: string;
+    audioUri: string | null;
+  } | null>(null);
+  const speakRef = useRef(
+    (_text: string, _language: string, _payload?: { audioUri?: string | null }) =>
+      Promise.resolve(),
+  );
 
   const { isSpeaking, speak, stop, rate, setRate } = useSpeech({
     onDone: () => {
+      const pendingPrayer = pendingPrayerAfterAnnouncementRef.current;
+      if (pendingPrayer) {
+        pendingPrayerAfterAnnouncementRef.current = null;
+        void speakRef.current(pendingPrayer.text, pendingPrayer.languageCode, {
+          audioUri: pendingPrayer.audioUri,
+        });
+        return;
+      }
       if (!isAutoPlayingRef.current) return;
       if (stepIndexRef.current >= guidedStepsLengthRef.current - 1) {
         setIsAutoPlaying(false);
@@ -507,41 +568,76 @@ export default function RosaryScreen() {
     },
   });
 
-  const speakRef = useRef(speak);
   speakRef.current = speak;
 
-  // Speak whenever auto-play is on and step changes
-  useEffect(() => {
-    if (!isAutoPlaying) return;
-    const currentIndex = stepIndexRef.current;
-    const currentGuidedStep = guidedStepsRef.current[currentIndex];
+  const speakAutoStep = useCallback((targetIndex: number) => {
+    const currentGuidedStep = guidedStepsRef.current[targetIndex];
     if (!currentGuidedStep) {
       return;
     }
 
-    const mysteryAnnouncement = buildMysteryAnnouncement(currentIndex);
-    const effectiveText = mysteryAnnouncement
-      ? `${mysteryAnnouncement}\n\n${prayerTextRef.current}`
-      : prayerTextRef.current;
+    const mysteryAnnouncement = buildMysteryAnnouncement(
+      targetIndex,
+      languageRef.current,
+    );
 
-    void getPrayerAudioSource({
+    const prayerAudioPromise = getPrayerAudioSource({
       prayerId: currentGuidedStep.type,
       language: languageRef.current,
-    }).then((audioSource) => {
-      if (!isAutoPlayingRef.current) {
-        return;
-      }
-      void speakRef.current(effectiveText, languageCodeRef.current, {
-        audioUri: mysteryAnnouncement ? null : audioSource?.uri ?? null,
-      });
     });
-  }, [stepIndex, isAutoPlaying]);
+
+    const announcementAudioPromise = mysteryAnnouncement
+      ? getPrayerAudioSource({
+          prayerId: mysteryAnnouncement.id,
+          language: languageRef.current,
+        })
+      : Promise.resolve(null);
+
+    void Promise.all([announcementAudioPromise, prayerAudioPromise]).then(
+      ([announcementAudioSource, prayerAudioSource]) => {
+        if (!isAutoPlayingRef.current) {
+          return;
+        }
+
+        if (mysteryAnnouncement) {
+          pendingPrayerAfterAnnouncementRef.current = {
+            text: prayerTextRef.current,
+            languageCode: languageCodeRef.current,
+            audioUri: prayerAudioSource?.uri ?? null,
+          };
+          void speakRef.current(
+            mysteryAnnouncement.text,
+            languageCodeRef.current,
+            {
+              audioUri: announcementAudioSource?.uri ?? null,
+            },
+          );
+          return;
+        }
+
+        pendingPrayerAfterAnnouncementRef.current = null;
+        void speakRef.current(prayerTextRef.current, languageCodeRef.current, {
+          audioUri: prayerAudioSource?.uri ?? null,
+        });
+      },
+    );
+  }, [buildMysteryAnnouncement]);
+
+  // Speak whenever auto-play is on and step changes
+  useEffect(() => {
+    if (!isAutoPlaying) return;
+    speakAutoStep(stepIndexRef.current);
+  }, [isAutoPlaying, speakAutoStep, stepIndex]);
 
   // Stop audio when mode/language changes
-  useEffect(() => { stop(); }, [mode, language, selectedDevotion?.id, stop]);
+  useEffect(() => {
+    pendingPrayerAfterAnnouncementRef.current = null;
+    stop();
+  }, [mode, language, selectedDevotion?.id, stop]);
 
   const handleToggleAutoPlay = useCallback(() => {
     if (isAutoPlaying) {
+      pendingPrayerAfterAnnouncementRef.current = null;
       stop();
       setIsAutoPlaying(false);
     } else {

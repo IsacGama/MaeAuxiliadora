@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "provider": "azure-speech",
+  "generatedAt": null,
+  "executeMode": false,
+  "profile": {
+    "rate": "-8%",
+    "pitch": "-2st",
+    "format": "audio-24khz-48kbitrate-mono-mp3"
+  },
+  "langs": [],
+  "count": 0,
+  "byKey": {},
+  "entries": []
+}

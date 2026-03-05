@@ -16,7 +16,10 @@ import { useSpeech, speechRateLabels, type SpeechRate } from '../mobile/hooks/us
 import { useAppTheme } from '../mobile/theme';
 import {
   buildGuidedRosarySteps,
+  devotions,
   devotionLanguageLabels,
+  getDevotionById,
+  getExpandedDevotionSteps,
   getRosaryMysteryByDate,
   getRosarySegmentLabel,
   getRosaryStepPrayerText,
@@ -26,13 +29,21 @@ import {
   getRosaryMysteriesByKey,
   getRosaryMysteryOrder,
   rosaryMysteryLabels,
+  syncDevotionsFromBackend,
   type DevotionLanguage,
   type RosaryMode,
   type RosaryMysteryKey,
   type RosaryWeekdayKey,
 } from '../mobile/devotions';
+import {
+  clearDownloadedPrayerAudios,
+  downloadPrayerAudioEntries,
+  getDownloadedPrayerAudioStats,
+  getPrayerAudioSource,
+} from '../mobile/devotion-audio';
 
 type RosaryProgressPayload = {
+  devotionId?: string;
   mode?: RosaryMode;
   mysteryKey?: RosaryMysteryKey;
   language?: DevotionLanguage;
@@ -44,6 +55,21 @@ const STORAGE_KEY = '@devotions:rosary:progress';
 const modeLabels: Record<RosaryMode, string> = {
   terco: 'Terço (mistério do dia)',
   rosario: 'Rosário (todos os mistérios)',
+};
+
+const mysteryOrdinalLabel: Record<number, string> = {
+  1: 'Primeiro',
+  2: 'Segundo',
+  3: 'Terceiro',
+  4: 'Quarto',
+  5: 'Quinto',
+};
+
+const mysteryTypeLabelPt: Record<RosaryMysteryKey, string> = {
+  gozosos: 'gozoso',
+  dolorosos: 'doloroso',
+  gloriosos: 'glorioso',
+  luminosos: 'luminoso',
 };
 
 const styles = StyleSheet.create({
@@ -169,18 +195,87 @@ export default function RosaryScreen() {
   const theme = useAppTheme();
 
   const [mode, setMode] = useState<RosaryMode>('terco');
+  const [devotionId, setDevotionId] = useState('rosary');
   const [mysteryKey, setMysteryKey] = useState<RosaryMysteryKey>(() => getRosaryMysteryByDate(new Date()));
   const [language, setLanguage] = useState<DevotionLanguage>('pt');
   const [stepIndex, setStepIndex] = useState(0);
+  const [downloadBusy, setDownloadBusy] = useState(false);
+  const [downloadMeta, setDownloadMeta] = useState<{ count: number; bytes: number }>({
+    count: 0,
+    bytes: 0,
+  });
+  const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
+  const [devotionsVersion, setDevotionsVersion] = useState(0);
 
   const todayWeekdayKey = useMemo<RosaryWeekdayKey>(() => getRosaryWeekdayByDate(new Date()), []);
   const todayMysteryKey = useMemo<RosaryMysteryKey>(() => getRosaryMysteryByDate(new Date()), []);
-  const weeklySchedule = useMemo(() => getRosaryWeeklySchedule(), []);
+  const weeklySchedule = useMemo(
+    () => getRosaryWeeklySchedule(),
+    [devotionsVersion],
+  );
+  const availableDevotions = useMemo(
+    () => [...devotions],
+    [devotionsVersion],
+  );
+  const selectedDevotion = useMemo(
+    () => getDevotionById(devotionId) ?? getDevotionById('rosary'),
+    [devotionId],
+  );
+  const isRosaryDevotion = selectedDevotion?.id === 'rosary';
   const effectiveMysteryKey = mode === 'terco' ? todayMysteryKey : mysteryKey;
+  const expandedDevotionSteps = useMemo(
+    () => getExpandedDevotionSteps(selectedDevotion?.id ?? 'rosary'),
+    [selectedDevotion?.id],
+  );
+
+  const refreshDownloadStats = useCallback(async () => {
+    const stats = await getDownloadedPrayerAudioStats();
+    setDownloadMeta(stats);
+  }, []);
+
+  useEffect(() => {
+    void refreshDownloadStats();
+  }, [refreshDownloadStats]);
+
+  useEffect(() => {
+    let active = true;
+    const sync = async () => {
+      await syncDevotionsFromBackend();
+      if (active) {
+        setDevotionsVersion((current) => current + 1);
+      }
+    };
+    void sync();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const guidedSteps = useMemo(
-    () => buildGuidedRosarySteps({ mode, mysteryKey: effectiveMysteryKey }),
-    [effectiveMysteryKey, mode],
+    () => {
+      if (isRosaryDevotion) {
+        return buildGuidedRosarySteps({ mode, mysteryKey: effectiveMysteryKey });
+      }
+
+      return expandedDevotionSteps.map((step, index) => ({
+        ...step,
+        id: `${selectedDevotion?.id ?? 'devotion'}-${index + 1}-${step.type}`,
+        segmentIndex: 0,
+        segmentTotal: 1,
+        mysteryKey: todayMysteryKey,
+        mysteryLabel: selectedDevotion?.title ?? 'Devoção',
+        mysteryTitle: null,
+      }));
+    },
+    [
+      effectiveMysteryKey,
+      expandedDevotionSteps,
+      isRosaryDevotion,
+      mode,
+      selectedDevotion?.id,
+      selectedDevotion?.title,
+      todayMysteryKey,
+    ],
   );
 
   useEffect(() => {
@@ -198,6 +293,9 @@ export default function RosaryScreen() {
         }
 
         const parsed = JSON.parse(raw) as RosaryProgressPayload;
+        if (parsed.devotionId) {
+          setDevotionId(parsed.devotionId);
+        }
         if (parsed.mode) {
           setMode(parsed.mode);
         }
@@ -228,6 +326,7 @@ export default function RosaryScreen() {
     }
 
     setMode('terco');
+    setDevotionId('rosary');
     setMysteryKey(getRosaryMysteryByDate(new Date()));
     setStepIndex(0);
   }, [forceTodayPreset]);
@@ -238,8 +337,16 @@ export default function RosaryScreen() {
     }
 
     setMode('rosario');
+    setDevotionId('rosary');
     setStepIndex(0);
   }, [forceRosarioPreset]);
+
+  useEffect(() => {
+    if (isRosaryDevotion) {
+      return;
+    }
+    setMode('terco');
+  }, [isRosaryDevotion]);
 
   useEffect(() => {
     setStepIndex((current) => Math.max(0, Math.min(current, guidedSteps.length - 1)));
@@ -248,6 +355,7 @@ export default function RosaryScreen() {
   useEffect(() => {
     const safeIndex = Math.max(0, Math.min(stepIndex, guidedSteps.length - 1));
     const payload: RosaryProgressPayload = {
+      devotionId: selectedDevotion?.id,
       mode,
       mysteryKey,
       language,
@@ -255,7 +363,7 @@ export default function RosaryScreen() {
     };
 
     void AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  }, [guidedSteps.length, language, mode, mysteryKey, stepIndex]);
+  }, [guidedSteps.length, language, mode, mysteryKey, selectedDevotion?.id, stepIndex]);
 
   const currentStep = guidedSteps[stepIndex] ?? guidedSteps[0];
 
@@ -263,6 +371,33 @@ export default function RosaryScreen() {
   const prayerText = currentStep
     ? getRosaryStepPrayerText(currentStep.type, language)
     : 'Sem conteúdo disponível.';
+
+  const buildMysteryAnnouncement = (targetIndex: number) => {
+    if (!isRosaryDevotion) {
+      return null;
+    }
+
+    const targetStep = guidedSteps[targetIndex];
+    if (!targetStep || targetStep.decade <= 0 || !targetStep.mysteryTitle) {
+      return null;
+    }
+
+    const previousStep = targetIndex > 0 ? guidedSteps[targetIndex - 1] : null;
+    const entersNewDecade =
+      !previousStep ||
+      previousStep.segmentIndex !== targetStep.segmentIndex ||
+      previousStep.decade !== targetStep.decade;
+
+    if (!entersNewDecade) {
+      return null;
+    }
+
+    const ordinal =
+      mysteryOrdinalLabel[targetStep.decade] ?? `${targetStep.decade}º`;
+    const mysteryType = mysteryTypeLabelPt[targetStep.mysteryKey] ?? 'do dia';
+
+    return `${ordinal} mistério ${mysteryType}: ${targetStep.mysteryTitle}.`;
+  };
 
   const moveStep = (direction: 'prev' | 'next') => {
     setStepIndex((current) => {
@@ -274,11 +409,68 @@ export default function RosaryScreen() {
   };
 
   const renderModeSummary = () => {
+    if (!isRosaryDevotion) {
+      return `${selectedDevotion?.title ?? 'Devoção'} • ${guidedSteps.length} passos`;
+    }
     if (mode === 'terco') {
       return `Hoje (${getRosaryWeekdayLabel(todayWeekdayKey)}): ${rosaryMysteryLabels[todayMysteryKey]}`;
     }
     return `Sequência completa: ${getRosaryMysteryOrder().map((key) => rosaryMysteryLabels[key]).join(' • ')}`;
   };
+
+  const formatBytes = (bytes: number) => {
+    if (bytes <= 0) return '0 KB';
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} KB`;
+    return `${(kb / 1024).toFixed(2)} MB`;
+  };
+
+  const handleDownloadCurrentDevotion = useCallback(async () => {
+    if (downloadBusy) {
+      return;
+    }
+
+    const prayerIds = Array.from(new Set(expandedDevotionSteps.map((step) => step.type)));
+    if (!prayerIds.length) {
+      setDownloadMessage('Sem orações para download nesta devoção.');
+      return;
+    }
+
+    setDownloadBusy(true);
+    setDownloadMessage('Iniciando download...');
+    try {
+      const result = await downloadPrayerAudioEntries({
+        language,
+        prayerIds,
+        onProgress: (progress) => {
+          setDownloadMessage(
+            `Baixando ${progress.current}/${progress.total} (ok: ${progress.downloaded}, existentes: ${progress.skipped}, falhas: ${progress.failed})`,
+          );
+        },
+      });
+      await refreshDownloadStats();
+      setDownloadMessage(
+        `Concluído: ${result.downloaded} novos, ${result.skipped} já existentes, ${result.failed} falhas.`,
+      );
+    } finally {
+      setDownloadBusy(false);
+    }
+  }, [downloadBusy, expandedDevotionSteps, language, refreshDownloadStats]);
+
+  const handleClearDownloadedAudio = useCallback(async () => {
+    if (downloadBusy) {
+      return;
+    }
+
+    setDownloadBusy(true);
+    try {
+      await clearDownloadedPrayerAudios();
+      await refreshDownloadStats();
+      setDownloadMessage('Áudios offline removidos do dispositivo.');
+    } finally {
+      setDownloadBusy(false);
+    }
+  }, [downloadBusy, refreshDownloadStats]);
 
   // --- Leitura em voz alta ---
   const [isAutoPlaying, setIsAutoPlaying] = useState(false);
@@ -297,6 +489,10 @@ export default function RosaryScreen() {
   prayerTextRef.current = prayerText;
   const languageCodeRef = useRef(languageCode);
   languageCodeRef.current = languageCode;
+  const guidedStepsRef = useRef(guidedSteps);
+  guidedStepsRef.current = guidedSteps;
+  const languageRef = useRef(language);
+  languageRef.current = language;
 
   const { isSpeaking, speak, stop, rate, setRate } = useSpeech({
     onDone: () => {
@@ -317,11 +513,32 @@ export default function RosaryScreen() {
   // Speak whenever auto-play is on and step changes
   useEffect(() => {
     if (!isAutoPlaying) return;
-    speakRef.current(prayerTextRef.current, languageCodeRef.current);
+    const currentIndex = stepIndexRef.current;
+    const currentGuidedStep = guidedStepsRef.current[currentIndex];
+    if (!currentGuidedStep) {
+      return;
+    }
+
+    const mysteryAnnouncement = buildMysteryAnnouncement(currentIndex);
+    const effectiveText = mysteryAnnouncement
+      ? `${mysteryAnnouncement}\n\n${prayerTextRef.current}`
+      : prayerTextRef.current;
+
+    void getPrayerAudioSource({
+      prayerId: currentGuidedStep.type,
+      language: languageRef.current,
+    }).then((audioSource) => {
+      if (!isAutoPlayingRef.current) {
+        return;
+      }
+      void speakRef.current(effectiveText, languageCodeRef.current, {
+        audioUri: mysteryAnnouncement ? null : audioSource?.uri ?? null,
+      });
+    });
   }, [stepIndex, isAutoPlaying]);
 
   // Stop audio when mode/language changes
-  useEffect(() => { stop(); }, [mode, language, stop]);
+  useEffect(() => { stop(); }, [mode, language, selectedDevotion?.id, stop]);
 
   const handleToggleAutoPlay = useCallback(() => {
     if (isAutoPlaying) {
@@ -346,13 +563,13 @@ export default function RosaryScreen() {
         </View>
 
         <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Modo</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Devoção</Text>
           <View style={styles.buttonRow}>
-            {(['terco', 'rosario'] as RosaryMode[]).map((nextMode) => {
-              const isSelected = nextMode === mode;
+            {availableDevotions.map((devotion) => {
+              const isSelected = devotion.id === selectedDevotion?.id;
               return (
                 <Pressable
-                  key={nextMode}
+                  key={devotion.id}
                   style={[
                     styles.chip,
                     {
@@ -361,23 +578,58 @@ export default function RosaryScreen() {
                     },
                   ]}
                   onPress={() => {
-                    setMode(nextMode);
+                    setDevotionId(devotion.id);
                     setStepIndex(0);
                   }}
                 >
                   <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft }]}>
-                    {modeLabels[nextMode]}
+                    {devotion.title}
                   </Text>
                 </Pressable>
               );
             })}
           </View>
 
-          {mode === 'terco' ? (
+          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Modo</Text>
+          {isRosaryDevotion ? (
+            <>
+              <View style={styles.buttonRow}>
+                {(['terco', 'rosario'] as RosaryMode[]).map((nextMode) => {
+                  const isSelected = nextMode === mode;
+                  return (
+                    <Pressable
+                      key={nextMode}
+                      style={[
+                        styles.chip,
+                        {
+                          borderColor: isSelected ? theme.secondary : theme.border,
+                          backgroundColor: isSelected ? 'rgba(218, 139, 60, 0.15)' : theme.surface,
+                        },
+                      ]}
+                      onPress={() => {
+                        setMode(nextMode);
+                        setStepIndex(0);
+                      }}
+                    >
+                      <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft }]}>
+                        {modeLabels[nextMode]}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+
+              {mode === 'terco' ? (
+                <Text style={[styles.subtitle, { color: theme.secondary }]}>
+                  No modo Terço, o app usa automaticamente o mistério do dia: {rosaryMysteryLabels[todayMysteryKey]}
+                </Text>
+              ) : null}
+            </>
+          ) : (
             <Text style={[styles.subtitle, { color: theme.secondary }]}>
-              No modo Terço, o app usa automaticamente o mistério do dia: {rosaryMysteryLabels[todayMysteryKey]}
+              Sequência completa da devoção selecionada.
             </Text>
-          ) : null}
+          )}
 
           <View style={styles.buttonRow}>
             {(Object.keys(devotionLanguageLabels) as DevotionLanguage[]).map((nextLanguage) => {
@@ -407,19 +659,63 @@ export default function RosaryScreen() {
                 {
                   borderColor: theme.border,
                   backgroundColor: theme.surface,
-                  opacity: mode === 'terco' ? 0.4 : 1,
+                  opacity: mode === 'terco' || !isRosaryDevotion ? 0.4 : 1,
                 },
               ]}
               onPress={() => {
                 setMode('terco');
                 setStepIndex(0);
               }}
-              disabled={mode === 'terco'}
+              disabled={mode === 'terco' || !isRosaryDevotion}
             >
               <Text style={[styles.chipText, { color: theme.primary }]}>Terço de hoje</Text>
             </Pressable>
           </View>
           <Text style={[styles.subtitle, { color: theme.secondary }]}>{renderModeSummary()}</Text>
+
+          <View style={styles.buttonRow}>
+            <Pressable
+              style={[
+                styles.chip,
+                {
+                  borderColor: theme.secondary,
+                  backgroundColor: 'rgba(218, 139, 60, 0.15)',
+                  opacity: downloadBusy ? 0.6 : 1,
+                },
+              ]}
+              onPress={() => {
+                void handleDownloadCurrentDevotion();
+              }}
+              disabled={downloadBusy}
+            >
+              <Text style={[styles.chipText, { color: theme.secondary }]}>
+                Baixar offline ({devotionLanguageLabels[language]})
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.chip,
+                {
+                  borderColor: theme.border,
+                  backgroundColor: theme.surface,
+                  opacity: downloadBusy ? 0.6 : 1,
+                },
+              ]}
+              onPress={() => {
+                void handleClearDownloadedAudio();
+              }}
+              disabled={downloadBusy}
+            >
+              <Text style={[styles.chipText, { color: theme.textSoft }]}>Limpar offline</Text>
+            </Pressable>
+          </View>
+          <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+            Offline salvo: {downloadMeta.count} arquivos ({formatBytes(downloadMeta.bytes)}).
+          </Text>
+          {downloadMessage ? (
+            <Text style={[styles.subtitle, { color: theme.secondary }]}>{downloadMessage}</Text>
+          ) : null}
         </View>
 
         <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
@@ -434,14 +730,16 @@ export default function RosaryScreen() {
           <View style={[styles.card, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.08)' }]}>
             <Text style={[styles.stepTitle, { color: theme.primary }]}>{currentStep.label}</Text>
             <Text style={[styles.mysteryText, { color: theme.secondary }]}>
-              {getRosarySegmentLabel(
-                mode,
-                currentStep.mysteryKey,
-                currentStep.segmentIndex,
-                currentStep.segmentTotal,
-              )}
+              {isRosaryDevotion
+                ? getRosarySegmentLabel(
+                  mode,
+                  currentStep.mysteryKey,
+                  currentStep.segmentIndex,
+                  currentStep.segmentTotal,
+                )
+                : selectedDevotion?.title ?? 'Devoção'}
             </Text>
-            {!!currentStep.mysteryTitle && (
+            {!!currentStep.mysteryTitle && isRosaryDevotion && (
               <Text style={[styles.mysteryText, { color: theme.secondary }]}>
                 {currentStep.decade}º mistério: {currentStep.mysteryTitle}
               </Text>
@@ -524,7 +822,7 @@ export default function RosaryScreen() {
           </View>
         )}
 
-        {mode === 'terco' ? (
+        {isRosaryDevotion && mode === 'terco' ? (
           <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
             <Text style={[styles.subtitle, { color: theme.primary }]}>Mistérios selecionados</Text>
             {getRosaryMysteriesByKey(effectiveMysteryKey).map((mystery, index) => {
@@ -552,7 +850,7 @@ export default function RosaryScreen() {
               );
             })}
           </View>
-        ) : (
+        ) : isRosaryDevotion ? (
           <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
             <Text style={[styles.subtitle, { color: theme.primary }]}>Ordem dos mistérios no Rosário completo</Text>
             {getRosaryMysteryOrder().map((segmentKey, segmentIndex) => {
@@ -581,32 +879,58 @@ export default function RosaryScreen() {
               );
             })}
           </View>
+        ) : (
+          <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
+            <Text style={[styles.subtitle, { color: theme.primary }]}>Sequência da devoção</Text>
+            {guidedSteps.map((step, index) => {
+              const isCurrent = currentStep?.id === step.id;
+              return (
+                <View
+                  key={step.id}
+                  style={[
+                    styles.mysteryItem,
+                    {
+                      borderColor: isCurrent ? theme.secondary : theme.border,
+                      backgroundColor: isCurrent ? 'rgba(218, 139, 60, 0.12)' : theme.surface,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.mysteryItemText, { color: isCurrent ? theme.text : theme.textSoft }]}>
+                    <Text style={{ fontWeight: '800' }}>{index + 1}. </Text>
+                    {step.label}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
         )}
 
-        <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-          <Text style={[styles.subtitle, { color: theme.primary }]}>Mistérios por dia da semana</Text>
-          {weeklySchedule.map((entry) => {
-            const isToday = entry.weekdayKey === todayWeekdayKey;
+        {isRosaryDevotion ? (
+          <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
+            <Text style={[styles.subtitle, { color: theme.primary }]}>Mistérios por dia da semana</Text>
+            {weeklySchedule.map((entry) => {
+              const isToday = entry.weekdayKey === todayWeekdayKey;
 
-            return (
-              <View
-                key={entry.weekdayKey}
-                style={[
-                  styles.weekdayItem,
-                  {
-                    borderColor: isToday ? theme.secondary : theme.border,
-                    backgroundColor: isToday ? 'rgba(218, 139, 60, 0.12)' : theme.surface,
-                  },
-                ]}
-              >
-                <Text style={[styles.weekdayLabel, { color: isToday ? theme.secondary : theme.textSoft }]}>
-                  {entry.weekdayLabel}
-                </Text>
-                <Text style={[styles.weekdayMystery, { color: theme.text }]}>{entry.mysteryLabel}</Text>
-              </View>
-            );
-          })}
-        </View>
+              return (
+                <View
+                  key={entry.weekdayKey}
+                  style={[
+                    styles.weekdayItem,
+                    {
+                      borderColor: isToday ? theme.secondary : theme.border,
+                      backgroundColor: isToday ? 'rgba(218, 139, 60, 0.12)' : theme.surface,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.weekdayLabel, { color: isToday ? theme.secondary : theme.textSoft }]}>
+                    {entry.weekdayLabel}
+                  </Text>
+                  <Text style={[styles.weekdayMystery, { color: theme.text }]}>{entry.mysteryLabel}</Text>
+                </View>
+              );
+            })}
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );

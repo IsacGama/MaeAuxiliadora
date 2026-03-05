@@ -7,6 +7,11 @@ const parseIntSafe = (value: string | undefined, fallback: number) => {
 
 export const appConfig = {
   apiUrl: trimTrailingSlash(process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'),
+  devotionAudioBaseUrl: trimTrailingSlash(
+    process.env.EXPO_PUBLIC_DEVOTION_AUDIO_BASE_URL ??
+      process.env.EXPO_PUBLIC_API_URL ??
+      'http://localhost:3000',
+  ),
   liturgyApiUrl: trimTrailingSlash(
     process.env.EXPO_PUBLIC_LITURGY_API_URL ?? 'https://liturgia.up.railway.app/v2',
   ),

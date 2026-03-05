@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -19,9 +19,16 @@ import {
   devotionLanguageLabels,
   getPrayerTextByLanguage,
   prayers,
+  syncDevotionsFromBackend,
   type DevotionLanguage,
   type PrayerRecord,
 } from '../mobile/devotions';
+import {
+  clearDownloadedPrayerAudios,
+  downloadPrayerAudioEntries,
+  getDownloadedPrayerAudioStats,
+  getPrayerAudioSource,
+} from '../mobile/devotion-audio';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -140,6 +147,29 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: 22,
   },
+  downloadRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    alignItems: 'center',
+  },
+  downloadButton: {
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  downloadButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  downloadMetaText: {
+    fontSize: 12,
+    lineHeight: 18,
+  },
 });
 
 const normalize = (value: string) =>
@@ -165,6 +195,13 @@ export default function PrayersScreen() {
   const [query, setQuery] = useState('');
   const [language, setLanguage] = useState<DevotionLanguage>('pt');
   const [expandedById, setExpandedById] = useState<Record<string, boolean>>({});
+  const [downloadBusy, setDownloadBusy] = useState(false);
+  const [downloadMeta, setDownloadMeta] = useState<{ count: number; bytes: number }>({
+    count: 0,
+    bytes: 0,
+  });
+  const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
+  const [devotionsVersion, setDevotionsVersion] = useState(0);
 
   // Active prayer being read aloud (only one at a time)
   const [speakingPrayerId, setSpeakingPrayerId] = useState<string | null>(null);
@@ -174,6 +211,29 @@ export default function PrayersScreen() {
 
   const { isSpeaking, speak, stop, rate, setRate } = useSpeech();
 
+  const refreshDownloadStats = useCallback(async () => {
+    const stats = await getDownloadedPrayerAudioStats();
+    setDownloadMeta(stats);
+  }, []);
+
+  useEffect(() => {
+    void refreshDownloadStats();
+  }, [refreshDownloadStats]);
+
+  useEffect(() => {
+    let active = true;
+    const sync = async () => {
+      await syncDevotionsFromBackend();
+      if (active) {
+        setDevotionsVersion((current) => current + 1);
+      }
+    };
+    void sync();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const filteredPrayers = useMemo(() => {
     const normalizedQuery = normalize(query);
     return prayers.filter((prayer) => {
@@ -182,7 +242,7 @@ export default function PrayersScreen() {
       const text = `${prayer.title} ${prayer.text.pt} ${prayer.text.la}`;
       return normalize(text).includes(normalizedQuery);
     });
-  }, [query, language]);
+  }, [query, language, devotionsVersion]);
 
   const togglePrayer = (prayerId: string) => {
     setExpandedById((current) => ({
@@ -196,7 +256,7 @@ export default function PrayersScreen() {
     }
   };
 
-  const handleToggleSpeech = useCallback((prayer: PrayerRecord) => {
+  const handleToggleSpeech = useCallback(async (prayer: PrayerRecord) => {
     // If already speaking this prayer → stop
     if (speakingPrayerId === prayer.id) {
       stop();
@@ -207,8 +267,56 @@ export default function PrayersScreen() {
     stop();
     const text = getPrayerTextByLanguage(prayer, language);
     setSpeakingPrayerId(prayer.id);
-    speak(text, languageCode);
+    const source = await getPrayerAudioSource({
+      prayerId: prayer.id,
+      language,
+    });
+    await speak(text, languageCode, { audioUri: source?.uri ?? null });
   }, [speakingPrayerId, stop, language, languageCode, speak]);
+
+  const formatBytes = (bytes: number) => {
+    if (bytes <= 0) return '0 KB';
+    const kb = bytes / 1024;
+    if (kb < 1024) return `${kb.toFixed(1)} KB`;
+    return `${(kb / 1024).toFixed(2)} MB`;
+  };
+
+  const handleDownloadAudio = useCallback(async () => {
+    if (downloadBusy) return;
+
+    setDownloadBusy(true);
+    setDownloadMessage('Iniciando download...');
+    try {
+      const result = await downloadPrayerAudioEntries({
+        language,
+        prayerIds: prayers.map((prayer) => prayer.id),
+        onProgress: (progress) => {
+          setDownloadMessage(
+            `Baixando ${progress.current}/${progress.total} (ok: ${progress.downloaded}, existentes: ${progress.skipped}, falhas: ${progress.failed})`,
+          );
+        },
+      });
+      await refreshDownloadStats();
+      setDownloadMessage(
+        `Concluído: ${result.downloaded} novos, ${result.skipped} já existentes, ${result.failed} falhas.`,
+      );
+    } finally {
+      setDownloadBusy(false);
+    }
+  }, [downloadBusy, language, refreshDownloadStats]);
+
+  const handleClearAudio = useCallback(async () => {
+    if (downloadBusy) return;
+
+    setDownloadBusy(true);
+    try {
+      await clearDownloadedPrayerAudios();
+      await refreshDownloadStats();
+      setDownloadMessage('Áudios offline removidos do dispositivo.');
+    } finally {
+      setDownloadBusy(false);
+    }
+  }, [downloadBusy, refreshDownloadStats]);
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
@@ -277,6 +385,57 @@ export default function PrayersScreen() {
                 );
               })}
             </View>
+
+            <View style={styles.downloadRow}>
+              <Pressable
+                style={[
+                  styles.downloadButton,
+                  {
+                    borderColor: theme.secondary,
+                    backgroundColor: withAlpha(theme.secondary, 0.12),
+                    opacity: downloadBusy ? 0.6 : 1,
+                  },
+                ]}
+                onPress={() => {
+                  void handleDownloadAudio();
+                }}
+                disabled={downloadBusy}
+              >
+                <MaterialCommunityIcons name="download-outline" size={16} color={theme.secondary} />
+                <Text style={[styles.downloadButtonText, { color: theme.secondary }]}>
+                  Baixar offline ({devotionLanguageLabels[language]})
+                </Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.downloadButton,
+                  {
+                    borderColor: theme.border,
+                    backgroundColor: theme.surface,
+                    opacity: downloadBusy ? 0.6 : 1,
+                  },
+                ]}
+                onPress={() => {
+                  void handleClearAudio();
+                }}
+                disabled={downloadBusy}
+              >
+                <MaterialCommunityIcons name="delete-outline" size={16} color={theme.textSoft} />
+                <Text style={[styles.downloadButtonText, { color: theme.textSoft }]}>
+                  Limpar offline
+                </Text>
+              </Pressable>
+            </View>
+
+            <Text style={[styles.downloadMetaText, { color: theme.textSoft }]}>
+              Offline salvo: {downloadMeta.count} arquivos ({formatBytes(downloadMeta.bytes)}).
+            </Text>
+            {downloadMessage ? (
+              <Text style={[styles.downloadMetaText, { color: theme.secondary }]}>
+                {downloadMessage}
+              </Text>
+            ) : null}
           </View>
         }
         ListEmptyComponent={
@@ -332,7 +491,9 @@ export default function PrayersScreen() {
                           : withAlpha(theme.secondary, 0.08),
                       },
                     ]}
-                    onPress={() => handleToggleSpeech(item)}
+                    onPress={() => {
+                      void handleToggleSpeech(item);
+                    }}
                   >
                     <MaterialCommunityIcons
                       name={isThisSpeaking ? 'pause-circle-outline' : 'play-circle-outline'}

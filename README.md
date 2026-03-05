@@ -36,6 +36,7 @@ cp .env.example .env
 | Variável | Obrigatória | Exemplo | Descrição |
 |---|---|---|---|
 | `EXPO_PUBLIC_API_URL` | Sim | `http://localhost:3000` | URL da API backend. |
+| `EXPO_PUBLIC_DEVOTION_AUDIO_BASE_URL` | Não | `https://backend.seudominio.com` | Base para baixar/cachar MP3 de devoções (fallback: `EXPO_PUBLIC_API_URL`). |
 | `EXPO_PUBLIC_LITURGY_API_URL` | Não | `https://liturgia.up.railway.app/v2` | API de liturgia diária. |
 | `EXPO_PUBLIC_SAINT_API_URL` | Não | `https://catolicoapp.com/wp-json/wp/v2/santos` | API de santo do dia. |
 | `EXPO_PUBLIC_ORG_DOMAIN` | Não | `paroquia.seudominio.com` | Domínio da unidade para resolver branding/entidade. |
@@ -115,12 +116,34 @@ Cache local (TTL diário / 24h, conforme módulo):
 - Sessão autenticada
 - Dashboard do membro
 - Mensagens do membro
+- Catálogo de devoções (orações/rosário) via `AsyncStorage` após sincronização com backend
 
 Ações de notificação são por usuário (conta atual):
 
 - marcar como lida
 - remover da lista
 - limpeza automática por preferência
+
+## Áudio neural (oracoes/terços)
+
+O build de MP3 neural foi centralizado no **backend**.
+
+No repositório `backend-sistema-paroquial`, use:
+
+```bash
+npm run devotion-audio:build:dry
+npm run devotion-audio:build
+npm run devotion-audio:sync
+```
+
+### Reprodução no mobile
+
+- O app sempre funciona com fallback TTS (`expo-speech`).
+- Para tocar MP3 neural no dispositivo, o app consulta o manifest público
+  `/public/devotions/audio/manifest`.
+- O usuário escolhe quando baixar/remover os arquivos locais (offline opcional).
+- O catálogo de orações/rosário é fonte canônica do backend (`/public/devotions/*`) e
+  fica em cache local depois da primeira carga online.
 
 ## Troubleshooting
 

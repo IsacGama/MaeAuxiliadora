@@ -104,7 +104,7 @@ export const useSpeech = (options?: UseSpeechOptions) => {
               return;
             }
 
-            if (status?.isLoaded === false || status?.error) {
+            if (status?.error) {
               finish(true);
               void cleanupSound();
               return;

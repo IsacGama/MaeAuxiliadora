@@ -709,11 +709,13 @@ export default function RosaryScreen() {
 
   const handleManualStepMove = useCallback((direction: 'prev' | 'next') => {
     cancelCurrentSpeechFlow();
+    setIsAutoPlaying(false);
     moveStep(direction);
   }, [cancelCurrentSpeechFlow, moveStep]);
 
   const handleRestartCurrentDevotion = useCallback(() => {
     cancelCurrentSpeechFlow();
+    setIsAutoPlaying(false);
     setStepIndex(0);
   }, [cancelCurrentSpeechFlow]);
 

@@ -18,6 +18,9 @@ expo-env.d.ts
 *.mobileprovision
 google-services.json
 android/app/google-services.json
+android/keystore.properties
+android/app/*.keystore
+android/app/*.keystore.jks
 paroquiadigital-123a0-8d65aaea6664.json
 
 # Metro

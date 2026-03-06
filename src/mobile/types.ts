@@ -127,6 +127,9 @@ export type AuthUser = {
   name: string;
   email: string;
   personId?: string | null;
+  emailVerified: boolean;
+  accountSetupRequired: boolean;
+  mustChangePassword: boolean;
   roles?: string[];
   personOrgLinks?: Array<{
     orgId: string;
@@ -139,6 +142,11 @@ export type AuthResponse = {
   accessToken: string;
   refreshToken: string;
   user: AuthUser;
+};
+
+export type AuthQueuedActionResponse = {
+  message: string;
+  email: string;
 };
 
 export type MemberDashboard = {

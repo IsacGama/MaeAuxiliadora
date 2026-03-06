@@ -22,7 +22,7 @@ import {
 } from './auth-session-storage';
 import { notifyAppAlert } from './app-alert';
 import { clearStorageByPrefix } from './storage';
-import { AuthResponse, AuthUser } from './types';
+import { AuthQueuedActionResponse, AuthResponse, AuthUser } from './types';
 
 type AuthSession = {
   accessToken: string;
@@ -38,12 +38,15 @@ type AuthContextValue = {
   register: (payload: {
     name: string;
     email: string;
-    password: string;
     orgId: string;
     primaryPhone?: string;
     cpf?: string;
     gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
-  }) => Promise<void>;
+  }) => Promise<AuthQueuedActionResponse>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string,
+  ) => Promise<void>;
   logout: () => Promise<void>;
   requestWithAuth: <T>(request: (accessToken: string) => Promise<T>) => Promise<T>;
 };
@@ -190,18 +193,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     async (payload: {
       name: string;
       email: string;
-      password: string;
       orgId: string;
       primaryPhone?: string;
       cpf?: string;
       gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
     }) => {
-      const response = await authApi.register(payload);
-      const nextSession = toSession(response);
-      setSession(nextSession);
-      await persistSession(nextSession);
+      return authApi.register(payload);
     },
-    [persistSession],
+    [],
   );
 
   const logout = useCallback(async () => {
@@ -319,6 +318,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     [invalidateSession, refreshSession, session],
   );
 
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      const updatedUser = await requestWithAuth((accessToken) =>
+        authApi.changePassword(accessToken, { currentPassword, newPassword }),
+      );
+      setSession((current) => {
+        if (!current) return current;
+        const nextSession = {
+          ...current,
+          user: updatedUser.user,
+        };
+        void persistSession(nextSession);
+        return nextSession;
+      });
+    },
+    [persistSession, requestWithAuth],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -326,10 +343,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       isAuthenticated: Boolean(session),
       login,
       register,
+      changePassword,
       logout,
       requestWithAuth,
     }),
-    [isLoading, login, logout, register, requestWithAuth, session],
+    [changePassword, isLoading, login, logout, register, requestWithAuth, session],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

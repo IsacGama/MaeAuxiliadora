@@ -2,6 +2,7 @@ import { appConfig } from './config';
 import { fetchJson, HttpError } from './http';
 import {
   AuthResponse,
+  AuthQueuedActionResponse,
   ChapelPublic,
   CommunityEvent,
   DevicePlatform,
@@ -381,16 +382,21 @@ export const authApi = {
   register: (payload: {
     name: string;
     email: string;
-    password: string;
     orgId: string;
     primaryPhone?: string;
     cpf?: string;
     gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
   }) =>
-    fetchJson<AuthResponse>(api('/auth/register'), {
+    fetchJson<AuthQueuedActionResponse>(api('/auth/register'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
+    }),
+  requestAccountSetupEmail: (email: string) =>
+    fetchJson<AuthQueuedActionResponse>(api('/auth/account-setup/resend'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
     }),
   login: (email: string, password: string) =>
     fetchJson<AuthResponse>(api('/auth/login'), {
@@ -408,6 +414,18 @@ export const authApi = {
     fetchJson(api('/auth/logout'), {
       method: 'POST',
       headers: { Authorization: `Bearer ${accessToken}` },
+    }),
+  changePassword: (
+    accessToken: string,
+    payload: { currentPassword: string; newPassword: string },
+  ) =>
+    fetchJson<{ message: string; user: AuthResponse['user'] }>(api('/auth/password/change'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify(payload),
     }),
   dashboard: (accessToken: string) =>
     fetchJson<MemberDashboard>(api('/member/dashboard'), {

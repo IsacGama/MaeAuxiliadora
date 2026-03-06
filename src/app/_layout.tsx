@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Animated, Linking, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -222,6 +222,27 @@ function NotificationRegistrar() {
   return null;
 }
 
+function PasswordChangeGate() {
+  const { isAuthenticated, isLoading, session } = useAuth();
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (
+      isLoading ||
+      !isAuthenticated ||
+      !session?.user.mustChangePassword ||
+      pathname === '/conta'
+    ) {
+      return;
+    }
+
+    router.replace('/conta' as never);
+  }, [isAuthenticated, isLoading, pathname, router, session?.user.mustChangePassword]);
+
+  return null;
+}
+
 function RootNavigator() {
   const { resolvedMode } = useThemePreference();
 
@@ -286,6 +307,7 @@ export default function RootLayout() {
           <ThemeWrapper>
             <BackgroundPrefetch />
             <NotificationRegistrar />
+            <PasswordChangeGate />
             <RootNavigator />
             <AppAlertHost />
           </ThemeWrapper>

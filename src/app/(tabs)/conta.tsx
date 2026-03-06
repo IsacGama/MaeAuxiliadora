@@ -285,6 +285,7 @@ export default function AccountScreen() {
     isAuthenticated,
     login,
     register,
+    changePassword,
     logout,
     requestWithAuth,
   } = useAuth();
@@ -306,8 +307,6 @@ export default function AccountScreen() {
   const [registerGender, setRegisterGender] = useState<
     'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED'
   >('UNDECLARED');
-  const [registerPassword, setRegisterPassword] = useState('');
-  const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
   const [selectedParishId, setSelectedParishId] = useState<string>('');
   const [selectedChapelId, setSelectedChapelId] = useState<string>('');
   const [parishPickerOpen, setParishPickerOpen] = useState(false);
@@ -325,6 +324,14 @@ export default function AccountScreen() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [titherSubmitting, setTitherSubmitting] = useState(false);
+  const [queuedAccessEmail, setQueuedAccessEmail] = useState<string | null>(null);
+  const [accountSetupNotice, setAccountSetupNotice] = useState<string | null>(null);
+  const [resendingAccessEmail, setResendingAccessEmail] = useState(false);
+  const [currentPasswordInput, setCurrentPasswordInput] = useState('');
+  const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
+  const [passwordChangeSubmitting, setPasswordChangeSubmitting] = useState(false);
+  const [passwordChangeNotice, setPasswordChangeNotice] = useState<string | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [logoutSubmitting, setLogoutSubmitting] = useState(false);
   const [postLogoutNotice, setPostLogoutNotice] = useState<string | null>(null);
@@ -405,6 +412,26 @@ export default function AccountScreen() {
     return () => clearTimeout(timer);
   }, [chapelQuery]);
 
+  const filteredParishes = useMemo(() => {
+    const normalizedQuery = normalizeForSearch(debouncedParishQuery);
+    if (!normalizedQuery) {
+      return parishes;
+    }
+    return parishes.filter((parish) => {
+      const name = normalizeForSearch(parish.name);
+      const dioceseName = normalizeForSearch(parish.diocese?.name ?? '');
+      return name.includes(normalizedQuery) || dioceseName.includes(normalizedQuery);
+    });
+  }, [debouncedParishQuery, parishes]);
+
+  const filteredChapels = useMemo(() => {
+    const normalizedQuery = normalizeForSearch(debouncedChapelQuery);
+    if (!normalizedQuery) {
+      return chapels;
+    }
+    return chapels.filter((chapel) => normalizeForSearch(chapel.name).includes(normalizedQuery));
+  }, [chapels, debouncedChapelQuery]);
+
   const onLogin = async () => {
     if (!email.trim() || !password.trim()) {
       setSubmitError('Informe e-mail e senha.');
@@ -416,9 +443,18 @@ export default function AccountScreen() {
 
     try {
       await login(email.trim(), password);
+      setQueuedAccessEmail(null);
+      setAccountSetupNotice(null);
+      setPasswordChangeNotice(null);
       setPassword('');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Não foi possível fazer login.';
+      if (/conta ainda não ativada|verifique seu e-mail/i.test(message)) {
+        setQueuedAccessEmail(email.trim().toLowerCase());
+        setAccountSetupNotice(
+          'Sua conta ainda precisa ser ativada pelo e-mail. Abra o link enviado e depois faça login.',
+        );
+      }
       setSubmitError(message);
     } finally {
       setSubmitting(false);
@@ -426,8 +462,8 @@ export default function AccountScreen() {
   };
 
   const onRegister = async () => {
-    if (!registerName.trim() || !registerEmail.trim() || !registerPassword.trim()) {
-      setSubmitError('Preencha nome, e-mail e senha.');
+    if (!registerName.trim() || !registerEmail.trim()) {
+      setSubmitError('Preencha nome e e-mail.');
       return;
     }
     if (!registerPhone.trim()) {
@@ -444,14 +480,6 @@ export default function AccountScreen() {
     }
     if (!isValidCpf(registerCpf)) {
       setSubmitError('CPF inválido.');
-      return;
-    }
-    if (registerPassword.length < 6) {
-      setSubmitError('A senha deve ter no mínimo 6 caracteres.');
-      return;
-    }
-    if (registerPassword !== registerPasswordConfirm) {
-      setSubmitError('A confirmação de senha não confere.');
       return;
     }
     if (!selectedParishId) {
@@ -471,25 +499,82 @@ export default function AccountScreen() {
     setSubmitError(null);
 
     try {
-      await register({
+      const result = await register({
         name: registerName.trim(),
         email: registerEmail.trim().toLowerCase(),
-        password: registerPassword,
         orgId: targetOrgId,
         primaryPhone: onlyDigits(registerPhone),
         cpf: onlyDigits(registerCpf),
         gender: registerGender,
       });
+      setAccountSetupNotice(result.message);
+      setQueuedAccessEmail(result.email);
+      setMode('login');
+      setRegisterName('');
+      setRegisterEmail('');
       setRegisterPhone('');
       setRegisterCpf('');
       setRegisterGender('UNDECLARED');
-      setRegisterPassword('');
-      setRegisterPasswordConfirm('');
+      setPassword('');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Não foi possível criar sua conta.';
       setSubmitError(message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const onResendAccessEmail = async () => {
+    const targetEmail = queuedAccessEmail?.trim().toLowerCase();
+    if (!targetEmail) {
+      setSubmitError('Informe um e-mail válido para reenviar o acesso.');
+      return;
+    }
+
+    setResendingAccessEmail(true);
+    setSubmitError(null);
+
+    try {
+      const result = await authApi.requestAccountSetupEmail(targetEmail);
+      setAccountSetupNotice(result.message);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Não foi possível reenviar o e-mail de acesso.';
+      setSubmitError(message);
+    } finally {
+      setResendingAccessEmail(false);
+    }
+  };
+
+  const onChangePassword = async () => {
+    if (!currentPasswordInput.trim() || !newPasswordInput.trim()) {
+      setSubmitError('Preencha a senha atual e a nova senha.');
+      return;
+    }
+    if (newPasswordInput.length < 6) {
+      setSubmitError('A nova senha deve ter no mínimo 6 caracteres.');
+      return;
+    }
+    if (newPasswordInput !== confirmPasswordInput) {
+      setSubmitError('A confirmação da nova senha não confere.');
+      return;
+    }
+
+    setPasswordChangeSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      await changePassword(currentPasswordInput, newPasswordInput);
+      setCurrentPasswordInput('');
+      setNewPasswordInput('');
+      setConfirmPasswordInput('');
+      setPasswordChangeNotice('Senha atualizada com sucesso. Seu acesso foi liberado.');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Não foi possível atualizar a senha.';
+      setSubmitError(message);
+    } finally {
+      setPasswordChangeSubmitting(false);
     }
   };
 
@@ -538,26 +623,9 @@ export default function AccountScreen() {
   const activeTither = dashboard.dashboard?.titherProfiles?.find((profile) => profile.status === 'ACTIVE');
   const streak = dashboard.dashboard?.titheSummary.currentStreakMonths ?? 0;
   const fireCount = Math.min(Math.max(streak, 0), 12);
+  const mustChangePassword = Boolean(session?.user.mustChangePassword);
   const selectedParish = parishes.find((parish) => parish.id === selectedParishId);
   const selectedChapel = chapels.find((chapel) => chapel.id === selectedChapelId);
-  const filteredParishes = useMemo(() => {
-    const normalizedQuery = normalizeForSearch(debouncedParishQuery);
-    if (!normalizedQuery) {
-      return parishes;
-    }
-    return parishes.filter((parish) => {
-      const name = normalizeForSearch(parish.name);
-      const dioceseName = normalizeForSearch(parish.diocese?.name ?? '');
-      return name.includes(normalizedQuery) || dioceseName.includes(normalizedQuery);
-    });
-  }, [debouncedParishQuery, parishes]);
-  const filteredChapels = useMemo(() => {
-    const normalizedQuery = normalizeForSearch(debouncedChapelQuery);
-    if (!normalizedQuery) {
-      return chapels;
-    }
-    return chapels.filter((chapel) => normalizeForSearch(chapel.name).includes(normalizedQuery));
-  }, [chapels, debouncedChapelQuery]);
   const themeOptions: Array<{ value: ThemePreference; label: string }> = [
     { value: 'SYSTEM', label: 'Sistema' },
     { value: 'LIGHT', label: 'Claro' },
@@ -592,6 +660,42 @@ export default function AccountScreen() {
             <Text style={[styles.noticeText, { color: theme.secondary }]}>
               {postLogoutNotice}
             </Text>
+          </View>
+        )}
+
+        {!!accountSetupNotice && !isAuthenticated && (
+          <View
+            style={[
+              styles.noticeCard,
+              {
+                borderColor: theme.secondary,
+                backgroundColor: withAlpha(theme.secondary, 0.12),
+              },
+            ]}
+          >
+            <Text style={[styles.noticeText, { color: theme.secondary }]}>
+              {accountSetupNotice}
+            </Text>
+            {!!queuedAccessEmail && (
+              <Pressable
+                style={[
+                  styles.button,
+                  {
+                    marginTop: 10,
+                    borderColor: theme.secondary,
+                    backgroundColor: 'transparent',
+                  },
+                ]}
+                onPress={() => {
+                  void onResendAccessEmail();
+                }}
+                disabled={resendingAccessEmail}
+              >
+                <Text style={[styles.buttonText, { color: theme.secondary }]}>
+                  {resendingAccessEmail ? 'Reenviando...' : 'Reenviar e-mail de acesso'}
+                </Text>
+              </Pressable>
+            )}
           </View>
         )}
 
@@ -671,7 +775,7 @@ export default function AccountScreen() {
               <>
                 <Text style={[styles.title, { color: theme.primary }]}>Criar conta de fiel</Text>
                 <Text style={[styles.subtitle, { color: theme.textSoft }]}>
-                  Escolha sua paróquia e, se for o caso, sua capela.
+                  Escolha sua paróquia e, se for o caso, sua capela. O acesso inicial será enviado por e-mail.
                 </Text>
 
                 <TextInput
@@ -747,23 +851,6 @@ export default function AccountScreen() {
                   ))}
                 </View>
 
-                <TextInput
-                  value={registerPassword}
-                  onChangeText={setRegisterPassword}
-                  secureTextEntry
-                  placeholder="Senha (mínimo 6 caracteres)"
-                  placeholderTextColor={theme.textSoft}
-                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
-                />
-                <TextInput
-                  value={registerPasswordConfirm}
-                  onChangeText={setRegisterPasswordConfirm}
-                  secureTextEntry
-                  placeholder="Confirmar senha"
-                  placeholderTextColor={theme.textSoft}
-                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
-                />
-
                 <Text style={[styles.statLabel, { color: theme.textSoft }]}>Paróquia</Text>
                 {loadingParishes ? (
                   <ActivityIndicator size="small" color={theme.secondary} />
@@ -837,7 +924,7 @@ export default function AccountScreen() {
                   disabled={submitting || loadingParishes}
                 >
                   <Text style={[styles.buttonText, { color: theme.secondary }]}>
-                    {submitting ? 'Cadastrando...' : 'Criar conta e entrar'}
+                    {submitting ? 'Enviando acesso...' : 'Criar conta'}
                   </Text>
                 </Pressable>
               </>
@@ -1025,20 +1112,26 @@ export default function AccountScreen() {
               <Text style={[styles.subtitle, { color: theme.textSoft }]}>{session?.user.name}</Text>
               <Text style={[styles.subtitle, { color: theme.textSoft }]}>{session?.user.email}</Text>
 
-              <Pressable
-                style={[
-                  styles.button,
-                  {
-                    borderColor: theme.secondary,
-                    backgroundColor: 'rgba(218, 139, 60, 0.16)',
-                  },
-                ]}
-                onPress={() => router.push('/mensagens' as never)}
-              >
-                <Text style={[styles.buttonText, { color: theme.secondary }]}>
-                  Ver mensagens recebidas
+              {mustChangePassword ? (
+                <Text style={[styles.subtitle, { color: theme.secondary }]}>
+                  Atualize sua senha agora para liberar o restante das áreas privadas.
                 </Text>
-              </Pressable>
+              ) : (
+                <Pressable
+                  style={[
+                    styles.button,
+                    {
+                      borderColor: theme.secondary,
+                      backgroundColor: 'rgba(218, 139, 60, 0.16)',
+                    },
+                  ]}
+                  onPress={() => router.push('/mensagens' as never)}
+                >
+                  <Text style={[styles.buttonText, { color: theme.secondary }]}>
+                    Ver mensagens recebidas
+                  </Text>
+                </Pressable>
+              )}
 
               <Pressable
                 style={[styles.button, { borderColor: theme.destructive, backgroundColor: withAlpha(theme.destructive, 0.14) }]}
@@ -1048,7 +1141,64 @@ export default function AccountScreen() {
               </Pressable>
             </View>
 
-            {dashboard.isLoading && !dashboard.dashboard ? (
+            {mustChangePassword ? (
+              <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+                <Text style={[styles.title, { color: theme.primary }]}>Atualize sua senha</Text>
+                <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+                  Por segurança, seu primeiro acesso só é concluído depois que você trocar a senha.
+                </Text>
+
+                <TextInput
+                  value={currentPasswordInput}
+                  onChangeText={setCurrentPasswordInput}
+                  secureTextEntry
+                  placeholder="Senha atual"
+                  placeholderTextColor={theme.textSoft}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                />
+                <TextInput
+                  value={newPasswordInput}
+                  onChangeText={setNewPasswordInput}
+                  secureTextEntry
+                  placeholder="Nova senha"
+                  placeholderTextColor={theme.textSoft}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                />
+                <TextInput
+                  value={confirmPasswordInput}
+                  onChangeText={setConfirmPasswordInput}
+                  secureTextEntry
+                  placeholder="Confirmar nova senha"
+                  placeholderTextColor={theme.textSoft}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                />
+
+                <Pressable
+                  style={[
+                    styles.button,
+                    {
+                      borderColor: theme.secondary,
+                      backgroundColor: 'rgba(218, 139, 60, 0.16)',
+                    },
+                  ]}
+                  onPress={() => {
+                    void onChangePassword();
+                  }}
+                  disabled={passwordChangeSubmitting}
+                >
+                  <Text style={[styles.buttonText, { color: theme.secondary }]}>
+                    {passwordChangeSubmitting ? 'Atualizando...' : 'Atualizar senha'}
+                  </Text>
+                </Pressable>
+
+                {!!passwordChangeNotice && (
+                  <Text style={{ color: '#86EFAC', fontWeight: '700' }}>
+                    {passwordChangeNotice}
+                  </Text>
+                )}
+                {!!submitError && <Text style={{ color: '#FCA5A5' }}>{submitError}</Text>}
+              </View>
+            ) : dashboard.isLoading && !dashboard.dashboard ? (
               <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, alignItems: 'center' }]}>
                 <ActivityIndicator size="large" color={theme.secondary} />
                 <Text style={{ color: theme.textSoft }}>Carregando seu painel...</Text>

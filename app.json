@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Paroquia Digital",
+    "name": "EclesialHub",
     "slug": "paroquia-digital",
     "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon-generic.png",
-    "scheme": "paroquiadigital",
+    "scheme": "eclesialhub",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -15,14 +15,14 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.paroquiadigital.app"
+      "bundleIdentifier": "com.eclesialhub.app"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon-generic.png",
         "backgroundColor": "#1E293B"
       },
-      "package": "com.paroquiadigital.app"
+      "package": "com.eclesialhub.app"
     },
     "web": {
       "bundler": "metro",

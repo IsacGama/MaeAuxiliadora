@@ -1,4 +1,4 @@
-package com.paroquiadigital.app
+package com.eclesialhub.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

@@ -68,7 +68,7 @@ export const buildPixPayload = (options: PixPayloadOptions) => {
   const key = normalizePixKey(options.key, options.keyType);
   if (!key) return null;
 
-  const merchantName = (onlyAscii(options.merchantName || "PAROQUIA DIGITAL") || "PAROQUIA DIGITAL").slice(0, 25);
+  const merchantName = (onlyAscii(options.merchantName || "ECLESIALHUB") || "ECLESIALHUB").slice(0, 25);
   const merchantCity = (onlyAscii(options.merchantCity || "BRASILIA") || "BRASILIA").slice(0, 15);
   const description = onlyAscii(options.description || "").slice(0, 72);
 

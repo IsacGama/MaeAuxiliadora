@@ -173,10 +173,10 @@ export default function HomeScreen() {
       : org.entity?.type === 'CHAPEL'
         ? 'Bem-vindo à nossa comunidade de fé. Aqui celebramos a vida cristã em unidade com a paróquia.'
         : 'Bem-vindo à nossa comunidade de fé. Venha celebrar conosco a alegria do Evangelho.';
-  const heroTitle = isAuthenticated ? org.displayName : 'Sua Paróquia Digital';
+  const heroTitle = isAuthenticated ? org.displayName : 'EclesialHub';
   const heroWelcomeText = isAuthenticated
     ? (siteTexts.heroWelcomeText?.trim() || orgDefaultWelcomeText)
-    : 'Bem-vindo ao app da Sua Paróquia Digital. Faça login para acessar a sua comunidade.';
+    : 'Bem-vindo ao app da EclesialHub. Faça login para acessar a sua comunidade.';
   const heroSlogan = isAuthenticated ? (org.branding?.slogan?.trim() || '') : '';
   const shouldShowHeroSlogan = heroSlogan && heroSlogan.toLowerCase() !== heroWelcomeText.toLowerCase();
   const todayRosaryMysteryLabel = useMemo(

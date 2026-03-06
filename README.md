@@ -1,6 +1,6 @@
-# App Mobile — Paróquia Digital (Expo)
+# App Mobile — EclesialHub (Expo)
 
-Aplicativo móvel do ecossistema **Paróquia Digital** para fiéis e membros administrativos vinculados a pessoa.
+Aplicativo móvel do ecossistema **EclesialHub** para fiéis e membros administrativos vinculados a pessoa.
 
 ## Stack
 
@@ -128,7 +128,7 @@ Ações de notificação são por usuário (conta atual):
 
 O build de MP3 neural foi centralizado no **backend**.
 
-No repositório `backend-sistema-paroquial`, use:
+No repositório `eclesialhub-backend`, use:
 
 ```bash
 npm run devotion-audio:build:dry

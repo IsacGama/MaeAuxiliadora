@@ -147,18 +147,21 @@ export type AuthResponse = {
 export type AuthQueuedActionResponse = {
   message: string;
   email: string;
+  loginUrl?: string | null;
 };
 
 export type AuthPasswordResetPreviewResponse = {
   name: string;
   email: string;
   expiresAt: string;
+  loginUrl?: string | null;
 };
 
 export type AuthAccountSetupPreviewResponse = {
   name: string;
   email: string;
   expiresAt: string;
+  loginUrl?: string | null;
 };
 
 export type MemberDashboard = {

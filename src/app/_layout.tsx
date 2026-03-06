@@ -254,6 +254,7 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="oracoes" />
         <Stack.Screen name="rosario" />
+        <Stack.Screen name="intencoes" />
         <Stack.Screen name="ativar-conta" />
         <Stack.Screen name="redefinir-senha" />
       </Stack>

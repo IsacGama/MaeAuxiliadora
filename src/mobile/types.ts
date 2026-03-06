@@ -1,6 +1,13 @@
 export type OrgEntityType = 'DIOCESE' | 'PARISH' | 'CHAPEL';
 export type DevicePlatform = 'ANDROID' | 'IOS';
 export type GatewayDonationIntent = 'TITHE' | 'DONATION' | 'OFFERING' | 'EVENT' | 'OTHER';
+export type DevotionalRequestType = 'MASS_INTENTION' | 'PRAYER_REQUEST';
+export type DevotionalRequestStatus =
+  | 'PENDING_PAYMENT'
+  | 'PENDING_REVIEW'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'CANCELED';
 export type GatewayPaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELED' | 'REFUNDED';
 
 export type MediaAsset = {
@@ -379,4 +386,59 @@ export type GatewayPaymentStatusResponse = {
   accountingPaymentId: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type DevotionalRequestSettings = {
+  orgUnitId: string;
+  massIntentionEnabled: boolean;
+  massIntentionAmount: number;
+  prayerRequestEnabled: boolean;
+  prayerRequestAmount: number;
+  publicInstructions?: string | null;
+};
+
+export type DevotionalRequest = {
+  id: string;
+  orgUnitId: string;
+  personId?: string | null;
+  type: DevotionalRequestType;
+  status: DevotionalRequestStatus;
+  requesterName: string;
+  requesterEmail: string;
+  requesterPhone?: string | null;
+  intentionFor?: string | null;
+  intentionText: string;
+  requestedForDate?: string | null;
+  amount: number;
+  gatewayPaymentId?: string | null;
+  gatewayPaymentStatus?: GatewayPaymentStatus | null;
+  reviewNotes?: string | null;
+  reviewedAt?: string | null;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+  canceledAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type DevotionalRequestPixResponse = {
+  requestId: string;
+  amount: number;
+  gatewayPaymentId: string;
+  status: GatewayPaymentStatus;
+  pixCopyPaste?: string | null;
+  pixQrBase64?: string | null;
+  pixExpiresAt?: string | null;
+  createdAt: string;
+};
+
+export type DevotionalRequestCardCheckoutResponse = {
+  requestId: string;
+  amount: number;
+  gatewayPaymentId: string;
+  status: GatewayPaymentStatus;
+  preferenceId?: string | null;
+  checkoutUrl?: string | null;
+  sandboxCheckoutUrl?: string | null;
+  createdAt: string;
 };

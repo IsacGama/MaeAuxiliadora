@@ -15,6 +15,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useAuth } from '../../mobile/auth-context';
@@ -246,6 +247,7 @@ const messageFromError = (error: unknown, fallback: string) => {
 };
 
 export default function DonationsScreen() {
+  const router = useRouter();
   const { session, isAuthenticated } = useAuth();
   const memberDashboard = useMemberDashboard();
   const org = useOrgContext();
@@ -614,6 +616,14 @@ export default function DonationsScreen() {
           <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}> 
             Contribua com {org.displayName}. Pagamentos via Mercado Pago com PIX dinâmico e cartão.
           </Text>
+          <Pressable
+            style={[styles.button, { borderColor: theme.secondary, backgroundColor: theme.bg }]}
+            onPress={() => router.push('/intencoes' as never)}
+          >
+            <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>
+              Ir para intenções de missa e oração
+            </Text>
+          </Pressable>
           {!isAuthenticated && (
             <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}> 
               Você pode doar de forma anônima ou preencher seu nome e e-mail para identificação.

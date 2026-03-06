@@ -434,6 +434,14 @@ export default function HomeScreen() {
             <Text style={[styles.actionDescription, { color: theme.textSoft, fontSize: scaled.actionDescription }]}>PIX, dados bancários e localização</Text>
           </Pressable>
 
+          <Pressable
+            style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
+            onPress={() => router.push('/intencoes' as never)}
+          >
+            <Text style={[styles.actionTitle, { color: theme.primary, fontSize: scaled.actionTitle }]}>Intenções</Text>
+            <Text style={[styles.actionDescription, { color: theme.textSoft, fontSize: scaled.actionDescription }]}>Missa e pedidos de oração</Text>
+          </Pressable>
+
           {isAuthenticated && (
             <Pressable
               style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}

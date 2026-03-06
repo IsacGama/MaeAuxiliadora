@@ -8,6 +8,10 @@ import {
   ChapelPublic,
   CommunityEvent,
   DevicePlatform,
+  DevotionalRequest,
+  DevotionalRequestCardCheckoutResponse,
+  DevotionalRequestPixResponse,
+  DevotionalRequestSettings,
   DiocesePublic,
   EventRsvpStatus,
   LiturgyPayload,
@@ -309,6 +313,56 @@ export const publicApi = {
       api(
         `/public/org-units/${encodeURIComponent(orgUnitId)}/gateway-payments/${encodeURIComponent(gatewayPaymentId)}`,
       ),
+    ),
+  fetchDevotionalRequestSettings: (orgUnitId: string) =>
+    fetchJson<DevotionalRequestSettings>(
+      api(`/public/org-units/${encodeURIComponent(orgUnitId)}/devotional-requests/settings`),
+    ),
+  createDevotionalRequestPix: (
+    orgUnitId: string,
+    payload: {
+      type: 'MASS_INTENTION' | 'PRAYER_REQUEST';
+      requesterName: string;
+      requesterEmail: string;
+      requesterPhone?: string;
+      intentionFor?: string;
+      intentionText: string;
+      requestedForDate?: string;
+      personId?: string;
+    },
+  ) =>
+    fetchJson<DevotionalRequestPixResponse>(
+      api(`/public/org-units/${encodeURIComponent(orgUnitId)}/devotional-requests/pix`),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+    ),
+  createDevotionalRequestCardCheckout: (
+    orgUnitId: string,
+    payload: {
+      type: 'MASS_INTENTION' | 'PRAYER_REQUEST';
+      requesterName: string;
+      requesterEmail: string;
+      requesterPhone?: string;
+      intentionFor?: string;
+      intentionText: string;
+      requestedForDate?: string;
+      personId?: string;
+    },
+  ) =>
+    fetchJson<DevotionalRequestCardCheckoutResponse>(
+      api(`/public/org-units/${encodeURIComponent(orgUnitId)}/devotional-requests/card-checkout`),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      },
+    ),
+  fetchDevotionalRequest: (orgUnitId: string, requestId: string) =>
+    fetchJson<DevotionalRequest>(
+      api(`/public/org-units/${encodeURIComponent(orgUnitId)}/devotional-requests/${encodeURIComponent(requestId)}`),
     ),
   fetchPublicPosts: (orgId?: string) =>
     fetchJson<PublicPost[]>(

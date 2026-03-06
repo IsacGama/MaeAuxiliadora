@@ -155,6 +155,12 @@ export type AuthPasswordResetPreviewResponse = {
   expiresAt: string;
 };
 
+export type AuthAccountSetupPreviewResponse = {
+  name: string;
+  email: string;
+  expiresAt: string;
+};
+
 export type MemberDashboard = {
   person: {
     id: string;

@@ -1,6 +1,7 @@
 import { appConfig } from './config';
 import { fetchJson, HttpError } from './http';
 import {
+  AuthAccountSetupPreviewResponse,
   AuthResponse,
   AuthPasswordResetPreviewResponse,
   AuthQueuedActionResponse,
@@ -398,6 +399,16 @@ export const authApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
+    }),
+  previewAccountSetup: (token: string) =>
+    fetchJson<AuthAccountSetupPreviewResponse>(
+      api(`/auth/account-setup/preview?token=${encodeURIComponent(token)}`),
+    ),
+  completeAccountSetup: (payload: { token: string; password: string }) =>
+    fetchJson<{ message: string }>(api('/auth/account-setup/complete'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     }),
   requestPasswordReset: (email: string) =>
     fetchJson<AuthQueuedActionResponse>(api('/auth/password/forgot'), {

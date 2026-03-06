@@ -149,6 +149,12 @@ export type AuthQueuedActionResponse = {
   email: string;
 };
 
+export type AuthPasswordResetPreviewResponse = {
+  name: string;
+  email: string;
+  expiresAt: string;
+};
+
 export type MemberDashboard = {
   person: {
     id: string;

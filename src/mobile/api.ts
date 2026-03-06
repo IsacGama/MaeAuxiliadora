@@ -2,6 +2,7 @@ import { appConfig } from './config';
 import { fetchJson, HttpError } from './http';
 import {
   AuthResponse,
+  AuthPasswordResetPreviewResponse,
   AuthQueuedActionResponse,
   ChapelPublic,
   CommunityEvent,
@@ -403,6 +404,16 @@ export const authApi = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
+    }),
+  previewPasswordReset: (token: string) =>
+    fetchJson<AuthPasswordResetPreviewResponse>(
+      api(`/auth/password/reset/preview?token=${encodeURIComponent(token)}`),
+    ),
+  completePasswordReset: (payload: { token: string; password: string }) =>
+    fetchJson<{ message: string }>(api('/auth/password/reset/complete'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     }),
   login: (email: string, password: string) =>
     fetchJson<AuthResponse>(api('/auth/login'), {

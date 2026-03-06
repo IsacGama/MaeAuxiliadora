@@ -39,9 +39,9 @@ type AuthContextValue = {
     name: string;
     email: string;
     orgId: string;
-    primaryPhone?: string;
-    cpf?: string;
-    gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
+    primaryPhone: string;
+    cpf: string;
+    gender: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
   }) => Promise<AuthQueuedActionResponse>;
   changePassword: (
     currentPassword: string,
@@ -194,9 +194,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       name: string;
       email: string;
       orgId: string;
-      primaryPhone?: string;
-      cpf?: string;
-      gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
+      primaryPhone: string;
+      cpf: string;
+      gender: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
     }) => {
       return authApi.register(payload);
     },

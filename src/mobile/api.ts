@@ -383,9 +383,9 @@ export const authApi = {
     name: string;
     email: string;
     orgId: string;
-    primaryPhone?: string;
-    cpf?: string;
-    gender?: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
+    primaryPhone: string;
+    cpf: string;
+    gender: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
   }) =>
     fetchJson<AuthQueuedActionResponse>(api('/auth/register'), {
       method: 'POST',

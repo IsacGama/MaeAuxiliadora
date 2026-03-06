@@ -15,6 +15,7 @@ import { useAuth } from '../../mobile/auth-context';
 import { useCommunityEvents } from '../../mobile/hooks/use-community-events';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useAppTheme } from '../../mobile/theme';
+import { scaleFont, useFontScalePreference } from '../../mobile/font-scale-preference';
 import { CommunityEvent, EventRsvpStatus } from '../../mobile/types';
 import { notifyAppAlert } from '../../mobile/app-alert';
 
@@ -136,6 +137,24 @@ export default function EventsScreen() {
   const { isAuthenticated } = useAuth();
   const org = useOrgContext();
   const theme = useAppTheme();
+  const { fontScale } = useFontScalePreference();
+  const scaled = useMemo(
+    () => ({
+      title: scaleFont(22, fontScale),
+      subtitle: scaleFont(13, fontScale),
+      subtitleLineHeight: scaleFont(19, fontScale),
+      cardTitle: scaleFont(17, fontScale),
+      cardTitleLineHeight: scaleFont(24, fontScale),
+      cardSummary: scaleFont(14, fontScale),
+      cardSummaryLineHeight: scaleFont(21, fontScale),
+      metaText: scaleFont(12, fontScale),
+      rsvpButtonText: scaleFont(12, fontScale),
+      statusText: scaleFont(11, fontScale),
+      buttonText: scaleFont(13, fontScale),
+      loadingText: scaleFont(14, fontScale),
+    }),
+    [fontScale],
+  );
 
   const orgId = org.entity?.orgUnitId ?? null;
   const eventsState = useCommunityEvents(orgId);
@@ -165,10 +184,10 @@ export default function EventsScreen() {
                 onPress={() => router.replace('/(tabs)/conta')}
               >
                 <MaterialCommunityIcons name="account-circle-outline" size={16} color={theme.secondary} />
-                <Text style={{ color: theme.secondary, fontWeight: '700' }}>Ir para conta</Text>
+                <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>Ir para conta</Text>
               </Pressable>
-              <Text style={[styles.title, { color: theme.text }]}>Eventos da comunidade</Text>
-              <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+              <Text style={[styles.title, { color: theme.text, fontSize: scaled.title }]}>Eventos da comunidade</Text>
+              <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
                 Faça login ou cadastre-se para confirmar presença nos próximos encontros.
               </Text>
             </View>
@@ -200,10 +219,10 @@ export default function EventsScreen() {
               onPress={() => router.back()}
             >
               <MaterialCommunityIcons name="arrow-left" size={16} color={theme.secondary} />
-              <Text style={{ color: theme.secondary, fontWeight: '700' }}>Voltar</Text>
+              <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>Voltar</Text>
             </Pressable>
-            <Text style={[styles.title, { color: theme.text }]}>Eventos</Text>
-            <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+            <Text style={[styles.title, { color: theme.text, fontSize: scaled.title }]}>Eventos</Text>
+            <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
               Acompanhe os próximos eventos e confirme sua presença.
             </Text>
           </View>
@@ -212,12 +231,12 @@ export default function EventsScreen() {
           eventsState.isLoading ? (
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, alignItems: 'center' }]}>
               <ActivityIndicator size="large" color={theme.secondary} />
-              <Text style={{ color: theme.textSoft }}>Carregando eventos...</Text>
+              <Text style={{ color: theme.textSoft, fontSize: scaled.loadingText }}>Carregando eventos...</Text>
             </View>
           ) : (
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.cardTitle, { color: theme.text }]}>Nenhum evento ativo</Text>
-              <Text style={[styles.cardSummary, { color: theme.textSoft }]}>
+              <Text style={[styles.cardTitle, { color: theme.text, fontSize: scaled.cardTitle, lineHeight: scaled.cardTitleLineHeight }]}>Nenhum evento ativo</Text>
+              <Text style={[styles.cardSummary, { color: theme.textSoft, fontSize: scaled.cardSummary, lineHeight: scaled.cardSummaryLineHeight }]}>
                 Quando houver novas programações, elas aparecerão aqui.
               </Text>
             </View>
@@ -241,35 +260,35 @@ export default function EventsScreen() {
 
           return (
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.cardTitle, { color: theme.text }]}>{event.title}</Text>
+              <Text style={[styles.cardTitle, { color: theme.text, fontSize: scaled.cardTitle, lineHeight: scaled.cardTitleLineHeight }]}>{event.title}</Text>
               {!!event.description && (
-                <Text style={[styles.cardSummary, { color: theme.textSoft }]} numberOfLines={3}>
+                <Text style={[styles.cardSummary, { color: theme.textSoft, fontSize: scaled.cardSummary, lineHeight: scaled.cardSummaryLineHeight }]} numberOfLines={3}>
                   {event.description}
                 </Text>
               )}
 
               {!!label && (
                 <View style={[styles.statusBadge, { borderColor: theme.secondary }]}>
-                  <Text style={[styles.statusText, { color: theme.secondary }]}>{label}</Text>
+                  <Text style={[styles.statusText, { color: theme.secondary, fontSize: scaled.statusText }]}>{label}</Text>
                 </View>
               )}
 
               <View style={styles.metaRow}>
-                <Text style={[styles.metaText, { color: theme.textSoft }]}>
+                <Text style={[styles.metaText, { color: theme.textSoft, fontSize: scaled.metaText }]}>
                   Início: {formatDateTime(event.startsAt)}
                 </Text>
                 {!!event.endsAt && (
-                  <Text style={[styles.metaText, { color: theme.textSoft }]}>
+                  <Text style={[styles.metaText, { color: theme.textSoft, fontSize: scaled.metaText }]}>
                     Fim: {formatDateTime(event.endsAt)}
                   </Text>
                 )}
               </View>
 
               <View style={styles.metaRow}>
-                <Text style={[styles.metaText, { color: theme.textSoft }]}>
+                <Text style={[styles.metaText, { color: theme.textSoft, fontSize: scaled.metaText }]}>
                   Local: {event.location || 'Não informado'}
                 </Text>
-                <Text style={[styles.metaText, { color: theme.textSoft }]}>
+                <Text style={[styles.metaText, { color: theme.textSoft, fontSize: scaled.metaText }]}>
                   {attendeeLabel}
                 </Text>
               </View>
@@ -300,7 +319,7 @@ export default function EventsScreen() {
                       <Text
                         style={[
                           styles.rsvpButtonText,
-                          { color: isSelected ? theme.secondary : theme.textSoft },
+                          { color: isSelected ? theme.secondary : theme.textSoft, fontSize: scaled.rsvpButtonText },
                         ]}
                       >
                         {choice.label}

@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useAppTheme } from '../../mobile/theme';
+import { scaleFont, useFontScalePreference } from '../../mobile/font-scale-preference';
 
 type Verse = { versiculo: number; texto: string };
 type Chapter = { capitulo: number; versiculos: Verse[] };
@@ -246,6 +247,7 @@ export default function BibleScreen() {
   const org = useOrgContext();
   const tabBarHeight = useBottomTabBarHeight();
   const theme = useAppTheme();
+  const { fontScale } = useFontScalePreference();
 
   const [query, setQuery] = useState('');
   const [selectedBookIndex, setSelectedBookIndex] = useState(0);
@@ -259,6 +261,24 @@ export default function BibleScreen() {
   const [searchHasMore, setSearchHasMore] = useState(false);
   const [searchLoadingMore, setSearchLoadingMore] = useState(false);
   const searchLoadingRef = useRef(false);
+  const scaled = useMemo(
+    () => ({
+      title: scaleFont(20, fontScale),
+      subtitle: scaleFont(13, fontScale),
+      input: scaleFont(15, fontScale),
+      selectTriggerLabel: scaleFont(15, fontScale),
+      selectTriggerHint: scaleFont(12, fontScale),
+      modalHeaderTitle: scaleFont(17, fontScale),
+      modalSearchInput: scaleFont(14, fontScale),
+      modalOptionTitle: scaleFont(14, fontScale),
+      modalOptionSubtitle: scaleFont(12, fontScale),
+      verseRef: scaleFont(12, fontScale),
+      verseText: scaleFont(14, fontScale),
+      verseLineHeight: scaleFont(21, fontScale),
+      loadMoreText: scaleFont(12, fontScale),
+    }),
+    [fontScale],
+  );
 
   const normalizedQuery = useMemo(() => normalizeForSearch(query), [query]);
   const isSearchMode = normalizedQuery.length >= 3;
@@ -366,32 +386,32 @@ export default function BibleScreen() {
         scrollEventThrottle={16}
       >
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.title, { color: theme.primary }]}>Bíblia Sagrada</Text>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Busca local e leitura offline completa</Text>
+          <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Bíblia Sagrada</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>Busca local e leitura offline completa</Text>
 
           <TextInput
             value={query}
             onChangeText={setQuery}
             placeholder="Buscar trecho (mínimo 3 letras)"
             placeholderTextColor={theme.textSoft}
-            style={[styles.searchInput, { borderColor: theme.border, color: theme.text }]}
+            style={[styles.searchInput, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
           />
         </View>
 
         {isSearchMode ? (
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+            <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
               {searchResults.length}
               {searchHasMore ? '+' : ''} resultado(s) para "{query.trim()}"
             </Text>
             {searchResults.map((result, index) => (
               <View key={`${result.referencia}-${index}`} style={[styles.verseCard, { borderColor: theme.border }]}>
-                <Text style={[styles.verseRef, { color: theme.secondary }]}>{result.referencia}</Text>
-                <Text style={[styles.verseText, { color: theme.text }]}>{result.texto}</Text>
+                <Text style={[styles.verseRef, { color: theme.secondary, fontSize: scaled.verseRef }]}>{result.referencia}</Text>
+                <Text style={[styles.verseText, { color: theme.text, fontSize: scaled.verseText, lineHeight: scaled.verseLineHeight }]}>{result.texto}</Text>
               </View>
             ))}
             {searchResults.length === 0 && (
-              <Text style={{ color: theme.textSoft }}>Nenhum resultado encontrado.</Text>
+              <Text style={{ color: theme.textSoft, fontSize: scaled.subtitle }}>Nenhum resultado encontrado.</Text>
             )}
             {searchHasMore && (
               <View style={styles.loadMoreRow}>
@@ -400,7 +420,7 @@ export default function BibleScreen() {
                 ) : (
                   <MaterialCommunityIcons name="arrow-down" size={16} color={theme.textSoft} />
                 )}
-                <Text style={[styles.loadMoreText, { color: theme.textSoft }]}>
+                <Text style={[styles.loadMoreText, { color: theme.textSoft, fontSize: scaled.loadMoreText }]}>
                   {searchLoadingMore ? 'Carregando mais resultados...' : 'Role até o fim para carregar mais resultados'}
                 </Text>
               </View>
@@ -409,7 +429,7 @@ export default function BibleScreen() {
         ) : (
           <>
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.subtitle, { color: theme.secondary }]}>Livro</Text>
+              <Text style={[styles.subtitle, { color: theme.secondary, fontSize: scaled.subtitle }]}>Livro</Text>
               <Pressable
                 style={[styles.selectTrigger, { borderColor: theme.border }]}
                 onPress={() => {
@@ -418,10 +438,10 @@ export default function BibleScreen() {
                 }}
               >
                 <View style={styles.selectTriggerTextWrap}>
-                  <Text style={[styles.selectTriggerLabel, { color: theme.primary }]} numberOfLines={1}>
+                  <Text style={[styles.selectTriggerLabel, { color: theme.primary, fontSize: scaled.selectTriggerLabel }]} numberOfLines={1}>
                     {selectedBook?.nome}
                   </Text>
-                  <Text style={[styles.selectTriggerHint, { color: theme.textSoft }]} numberOfLines={1}>
+                  <Text style={[styles.selectTriggerHint, { color: theme.textSoft, fontSize: scaled.selectTriggerHint }]} numberOfLines={1}>
                     {getTestamentLabel(selectedBook?.testamento ?? 'AT')}
                   </Text>
                 </View>
@@ -430,7 +450,7 @@ export default function BibleScreen() {
             </View>
 
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.subtitle, { color: theme.secondary }]}>Capítulo</Text>
+              <Text style={[styles.subtitle, { color: theme.secondary, fontSize: scaled.subtitle }]}>Capítulo</Text>
               <Pressable
                 style={[styles.selectTrigger, { borderColor: theme.border }]}
                 onPress={() => {
@@ -439,10 +459,10 @@ export default function BibleScreen() {
                 }}
               >
                 <View style={styles.selectTriggerTextWrap}>
-                  <Text style={[styles.selectTriggerLabel, { color: theme.primary }]} numberOfLines={1}>
+                  <Text style={[styles.selectTriggerLabel, { color: theme.primary, fontSize: scaled.selectTriggerLabel }]} numberOfLines={1}>
                     Capítulo {selectedChapter}
                   </Text>
-                  <Text style={[styles.selectTriggerHint, { color: theme.textSoft }]} numberOfLines={1}>
+                  <Text style={[styles.selectTriggerHint, { color: theme.textSoft, fontSize: scaled.selectTriggerHint }]} numberOfLines={1}>
                     {availableChapters.length} capítulo(s) disponível(is)
                   </Text>
                 </View>
@@ -451,11 +471,11 @@ export default function BibleScreen() {
             </View>
 
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.title, { color: theme.primary }]}>{selectedBook?.nome} {selectedChapter}</Text>
+              <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>{selectedBook?.nome} {selectedChapter}</Text>
               {chapterData?.versiculos.map((verse) => (
                 <View key={`${selectedBook?.nome}-${selectedChapter}-${verse.versiculo}`} style={[styles.verseCard, { borderColor: theme.border }]}>
-                  <Text style={[styles.verseRef, { color: theme.secondary }]}>v.{verse.versiculo}</Text>
-                  <Text style={[styles.verseText, { color: theme.text }]}>{verse.texto}</Text>
+                  <Text style={[styles.verseRef, { color: theme.secondary, fontSize: scaled.verseRef }]}>v.{verse.versiculo}</Text>
+                  <Text style={[styles.verseText, { color: theme.text, fontSize: scaled.verseText, lineHeight: scaled.verseLineHeight }]}>{verse.texto}</Text>
                 </View>
               ))}
             </View>
@@ -473,7 +493,7 @@ export default function BibleScreen() {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setBookPickerOpen(false)} />
           <View style={[styles.modalPanel, { backgroundColor: theme.surfaceOpaque, borderColor: theme.border }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>Escolher livro</Text>
+              <Text style={[styles.modalHeaderTitle, { color: theme.text, fontSize: scaled.modalHeaderTitle }]}>Escolher livro</Text>
               <Pressable
                 style={[styles.modalCloseButton, { borderColor: theme.border }]}
                 onPress={() => setBookPickerOpen(false)}
@@ -489,7 +509,7 @@ export default function BibleScreen() {
                 onChangeText={setBookQuery}
                 placeholder="Buscar livro ou testamento"
                 placeholderTextColor={theme.textSoft}
-                style={[styles.modalSearchInput, { color: theme.text }]}
+                style={[styles.modalSearchInput, { color: theme.text, fontSize: scaled.modalSearchInput }]}
               />
             </View>
 
@@ -515,19 +535,19 @@ export default function BibleScreen() {
                     <Text
                       style={[
                         styles.modalOptionTitle,
-                        { color: theme.text, fontWeight: selectedBookIndex === index ? '800' : '700' },
+                        { color: theme.text, fontWeight: selectedBookIndex === index ? '800' : '700', fontSize: scaled.modalOptionTitle },
                       ]}
                       numberOfLines={1}
                     >
                       {book.nome}
                     </Text>
-                    <Text style={[styles.modalOptionSubtitle, { color: theme.textSoft }]}>
+                    <Text style={[styles.modalOptionSubtitle, { color: theme.textSoft, fontSize: scaled.modalOptionSubtitle }]}>
                       {getTestamentLabel(book.testamento)}
                     </Text>
                   </Pressable>
                 ))
               ) : (
-                <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+                <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
                   Nenhum livro encontrado para "{bookQuery.trim()}".
                 </Text>
               )}
@@ -546,7 +566,7 @@ export default function BibleScreen() {
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setChapterPickerOpen(false)} />
           <View style={[styles.modalPanel, { backgroundColor: theme.surfaceOpaque, borderColor: theme.border }]}>
             <View style={styles.modalHeader}>
-              <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>Escolher capítulo</Text>
+              <Text style={[styles.modalHeaderTitle, { color: theme.text, fontSize: scaled.modalHeaderTitle }]}>Escolher capítulo</Text>
               <Pressable
                 style={[styles.modalCloseButton, { borderColor: theme.border }]}
                 onPress={() => setChapterPickerOpen(false)}
@@ -563,7 +583,7 @@ export default function BibleScreen() {
                 keyboardType="number-pad"
                 placeholder="Buscar número do capítulo"
                 placeholderTextColor={theme.textSoft}
-                style={[styles.modalSearchInput, { color: theme.text }]}
+                style={[styles.modalSearchInput, { color: theme.text, fontSize: scaled.modalSearchInput }]}
               />
             </View>
 
@@ -589,7 +609,7 @@ export default function BibleScreen() {
                     <Text
                       style={[
                         styles.modalOptionTitle,
-                        { color: theme.text, fontWeight: selectedChapter === chapter.capitulo ? '800' : '700' },
+                        { color: theme.text, fontWeight: selectedChapter === chapter.capitulo ? '800' : '700', fontSize: scaled.modalOptionTitle },
                       ]}
                     >
                       Capítulo {chapter.capitulo}
@@ -597,7 +617,7 @@ export default function BibleScreen() {
                   </Pressable>
                 ))
               ) : (
-                <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+                <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
                   Nenhum capítulo encontrado para "{chapterQuery.trim()}".
                 </Text>
               )}

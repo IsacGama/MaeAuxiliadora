@@ -23,6 +23,7 @@ import {
 import { notifyAppAlert } from './app-alert';
 import { clearStorageByPrefix } from './storage';
 import { AuthQueuedActionResponse, AuthResponse, AuthUser } from './types';
+import { FONT_SCALE_PREFERENCE_STORAGE_KEY } from './font-scale-preference';
 
 type AuthSession = {
   accessToken: string;
@@ -93,7 +94,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(null);
       await persistSession(null);
       await clearStorageByPrefix(APP_STORAGE_PREFIX, {
-        preserveKeys: [THEME_PREFERENCE_STORAGE_KEY],
+        preserveKeys: [THEME_PREFERENCE_STORAGE_KEY, FONT_SCALE_PREFERENCE_STORAGE_KEY],
       });
     },
     [persistSession],

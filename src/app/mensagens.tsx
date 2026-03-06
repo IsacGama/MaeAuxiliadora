@@ -17,6 +17,7 @@ import { authApi } from '../mobile/api';
 import { useMemberNotifications } from '../mobile/hooks/use-member-notifications';
 import { useOrgContext } from '../mobile/hooks/use-org-context';
 import { useAppTheme } from '../mobile/theme';
+import { scaleFont, useFontScalePreference } from '../mobile/font-scale-preference';
 import { MemberNotificationItem, MemberNotificationPreferences } from '../mobile/types';
 import { notifyAppAlert } from '../mobile/app-alert';
 
@@ -191,6 +192,26 @@ export default function MessagesScreen() {
   const org = useOrgContext();
   const notificationsState = useMemberNotifications();
   const theme = useAppTheme();
+  const { fontScale } = useFontScalePreference();
+  const scaled = useMemo(
+    () => ({
+      title: scaleFont(22, fontScale),
+      subtitle: scaleFont(13, fontScale),
+      subtitleLineHeight: scaleFont(19, fontScale),
+      sectionTitle: scaleFont(15, fontScale),
+      badgeText: scaleFont(11, fontScale),
+      itemTitle: scaleFont(16, fontScale),
+      itemTitleLineHeight: scaleFont(22, fontScale),
+      itemBody: scaleFont(14, fontScale),
+      itemBodyLineHeight: scaleFont(21, fontScale),
+      metaText: scaleFont(12, fontScale),
+      actionButtonText: scaleFont(13, fontScale),
+      chipText: scaleFont(12, fontScale),
+      buttonText: scaleFont(13, fontScale),
+      loadingText: scaleFont(14, fontScale),
+    }),
+    [fontScale],
+  );
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedFromFetch, setSelectedFromFetch] =
@@ -387,7 +408,7 @@ export default function MessagesScreen() {
               } as never)
             }
           >
-            <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+            <Text style={[styles.actionButtonText, { color: theme.secondary, fontSize: scaled.actionButtonText }]}>
               Abrir post relacionado
             </Text>
           </Pressable>
@@ -400,7 +421,7 @@ export default function MessagesScreen() {
               void Linking.openURL(destination.url).catch(() => undefined);
             }}
           >
-            <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+            <Text style={[styles.actionButtonText, { color: theme.secondary, fontSize: scaled.actionButtonText }]}>
               Abrir link externo
             </Text>
           </Pressable>
@@ -420,7 +441,7 @@ export default function MessagesScreen() {
               router.push('/eventos' as never);
             }}
           >
-            <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+            <Text style={[styles.actionButtonText, { color: theme.secondary, fontSize: scaled.actionButtonText }]}>
               Abrir evento relacionado
             </Text>
           </Pressable>
@@ -435,7 +456,7 @@ export default function MessagesScreen() {
                 void markSelectedAsRead();
               }}
             >
-              <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+              <Text style={[styles.actionButtonText, { color: theme.secondary, fontSize: scaled.actionButtonText }]}>
                 {markingRead ? 'Marcando...' : 'Marcar como lida'}
               </Text>
             </Pressable>
@@ -448,7 +469,7 @@ export default function MessagesScreen() {
               void hideSelectedNotification();
             }}
           >
-            <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+            <Text style={[styles.actionButtonText, { color: theme.secondary, fontSize: scaled.actionButtonText }]}>
               {hidingNotification ? 'Removendo...' : 'Remover da minha lista'}
             </Text>
           </Pressable>
@@ -467,15 +488,15 @@ export default function MessagesScreen() {
               { backgroundColor: theme.surface, borderColor: theme.border },
             ]}
           >
-            <Text style={[styles.title, { color: theme.text }]}>Mensagens</Text>
-            <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+            <Text style={[styles.title, { color: theme.text, fontSize: scaled.title }]}>Mensagens</Text>
+            <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
               Faça login para visualizar os comunicados enviados para sua conta.
             </Text>
             <Pressable
               style={[styles.actionButton, { borderColor: theme.secondary }]}
               onPress={() => router.replace('/conta')}
             >
-              <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+              <Text style={[styles.actionButtonText, { color: theme.secondary, fontSize: scaled.actionButtonText }]}>
                 Ir para conta
               </Text>
             </Pressable>
@@ -516,11 +537,11 @@ export default function MessagesScreen() {
               size={16}
               color={theme.secondary}
             />
-            <Text style={{ color: theme.secondary, fontWeight: '700' }}>Voltar</Text>
+            <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>Voltar</Text>
           </Pressable>
 
-          <Text style={[styles.title, { color: theme.text }]}>Mensagens</Text>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+          <Text style={[styles.title, { color: theme.text, fontSize: scaled.title }]}>Mensagens</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
             Avisos e comunicados enviados para você pela comunidade.
           </Text>
         </View>
@@ -537,7 +558,7 @@ export default function MessagesScreen() {
             ]}
           >
             <ActivityIndicator size="large" color={theme.secondary} />
-            <Text style={{ color: theme.textSoft }}>Carregando mensagens...</Text>
+            <Text style={{ color: theme.textSoft, fontSize: scaled.loadingText }}>Carregando mensagens...</Text>
           </View>
         ) : null}
 
@@ -557,7 +578,7 @@ export default function MessagesScreen() {
                     { borderColor: theme.border, backgroundColor: 'transparent' },
                   ]}
                 >
-                  <Text style={[styles.badgeText, { color: theme.secondary }]}>
+                  <Text style={[styles.badgeText, { color: theme.secondary, fontSize: scaled.badgeText }]}>
                     {channelLabel(selectedFromFetch.channel)}
                   </Text>
                 </View>
@@ -571,20 +592,20 @@ export default function MessagesScreen() {
                       },
                     ]}
                   >
-                    <Text style={[styles.badgeText, { color: theme.secondary }]}>
+                    <Text style={[styles.badgeText, { color: theme.secondary, fontSize: scaled.badgeText }]}>
                       Nova
                     </Text>
                   </View>
                 ) : null}
               </View>
-              <Text style={[styles.metaText, { color: theme.textSoft }]}>
+              <Text style={[styles.metaText, { color: theme.textSoft, fontSize: scaled.metaText }]}>
                 {formatDateTime(selectedFromFetch.deliveredAt)}
               </Text>
             </View>
-            <Text style={[styles.itemTitle, { color: theme.text }]}>
+            <Text style={[styles.itemTitle, { color: theme.text, fontSize: scaled.itemTitle, lineHeight: scaled.itemTitleLineHeight }]}>
               {selectedFromFetch.title}
             </Text>
-            <Text style={[styles.itemBody, { color: theme.textSoft }]}>
+            <Text style={[styles.itemBody, { color: theme.textSoft, fontSize: scaled.itemBody, lineHeight: scaled.itemBodyLineHeight }]}>
               {selectedFromFetch.body}
             </Text>
             {renderNotificationActions(selectedFromFetch)}
@@ -597,10 +618,10 @@ export default function MessagesScreen() {
             { backgroundColor: theme.surface, borderColor: theme.border },
           ]}
         >
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
+          <Text style={[styles.sectionTitle, { color: theme.text, fontSize: scaled.sectionTitle }]}>
             Configuração de notificações
           </Text>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+          <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
             A limpeza é aplicada só na sua conta.
           </Text>
           <View style={styles.chipRow}>
@@ -627,7 +648,7 @@ export default function MessagesScreen() {
                   <Text
                     style={[
                       styles.chipText,
-                      { color: active ? theme.secondary : theme.textSoft },
+                      { color: active ? theme.secondary : theme.textSoft, fontSize: scaled.chipText },
                     ]}
                   >
                     {option.label}
@@ -643,7 +664,7 @@ export default function MessagesScreen() {
               void clearReadHistory();
             }}
           >
-            <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+            <Text style={[styles.actionButtonText, { color: theme.secondary, fontSize: scaled.actionButtonText }]}>
               {clearingReadHistory ? 'Limpando...' : 'Limpar lidas antigas'}
             </Text>
           </Pressable>
@@ -656,10 +677,10 @@ export default function MessagesScreen() {
               { backgroundColor: theme.surface, borderColor: theme.border },
             ]}
           >
-            <Text style={[styles.itemTitle, { color: theme.text }]}>
+            <Text style={[styles.itemTitle, { color: theme.text, fontSize: scaled.itemTitle, lineHeight: scaled.itemTitleLineHeight }]}>
               Nenhuma mensagem por enquanto
             </Text>
-            <Text style={[styles.itemBody, { color: theme.textSoft }]}>
+            <Text style={[styles.itemBody, { color: theme.textSoft, fontSize: scaled.itemBody, lineHeight: scaled.itemBodyLineHeight }]}>
               Assim que a comunidade enviar um comunicado para sua conta, ele aparecerá aqui.
             </Text>
           </View>
@@ -686,7 +707,7 @@ export default function MessagesScreen() {
                         { borderColor: theme.border, backgroundColor: 'transparent' },
                       ]}
                     >
-                      <Text style={[styles.badgeText, { color: theme.secondary }]}>
+                      <Text style={[styles.badgeText, { color: theme.secondary, fontSize: scaled.badgeText }]}>
                         {channelLabel(notification.channel)}
                       </Text>
                     </View>
@@ -700,26 +721,26 @@ export default function MessagesScreen() {
                           },
                         ]}
                       >
-                        <Text style={[styles.badgeText, { color: theme.secondary }]}>
+                        <Text style={[styles.badgeText, { color: theme.secondary, fontSize: scaled.badgeText }]}>
                           Nova
                         </Text>
                       </View>
                     ) : null}
                   </View>
-                  <Text style={[styles.metaText, { color: theme.textSoft }]}>
+                  <Text style={[styles.metaText, { color: theme.textSoft, fontSize: scaled.metaText }]}>
                     {formatDateTime(notification.deliveredAt)}
                   </Text>
                 </View>
                 <Text
                   style={[
                     styles.itemTitle,
-                    { color: theme.text, fontWeight: notification.isRead ? '700' : '800' },
+                    { color: theme.text, fontWeight: notification.isRead ? '700' : '800', fontSize: scaled.itemTitle, lineHeight: scaled.itemTitleLineHeight },
                   ]}
                 >
                   {notification.title}
                 </Text>
                 <Text
-                  style={[styles.itemBody, { color: theme.textSoft }]}
+                  style={[styles.itemBody, { color: theme.textSoft, fontSize: scaled.itemBody, lineHeight: scaled.itemBodyLineHeight }]}
                   numberOfLines={isSelected ? undefined : 2}
                 >
                   {notification.body}

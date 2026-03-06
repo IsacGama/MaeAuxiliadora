@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { DayKeyPicker } from '../../mobile/components/day-key-picker';
+import { scaleFont, useFontScalePreference } from '../../mobile/font-scale-preference';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useSaintOfDay } from '../../mobile/hooks/use-saint-of-day';
 import { useAppTheme } from '../../mobile/theme';
@@ -77,6 +78,7 @@ export default function SaintOfDayScreen() {
   const saint = useSaintOfDay();
   const tabBarHeight = useBottomTabBarHeight();
   const theme = useAppTheme();
+  const { fontScale } = useFontScalePreference();
 
   const saintData = saint.saint;
   const saintName = stripHtml(saintData?.title?.rendered) || 'Santo do Dia';
@@ -90,6 +92,16 @@ export default function SaintOfDayScreen() {
     .split('\n\n')
     .map((part) => part.trim())
     .filter(Boolean);
+  const scaled = useMemo(
+    () => ({
+      title: scaleFont(22, fontScale),
+      titleLineHeight: scaleFont(30, fontScale),
+      subtitle: scaleFont(13, fontScale),
+      text: scaleFont(14, fontScale),
+      textLineHeight: scaleFont(22, fontScale),
+    }),
+    [fontScale],
+  );
 
   useEffect(() => {
     setImageLoadFailed(false);
@@ -162,19 +174,23 @@ export default function SaintOfDayScreen() {
           <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" color={theme.secondary} />
-              <Text style={[styles.text, { color: theme.textSoft }]}>Carregando a data selecionada...</Text>
+              <Text style={[styles.text, { color: theme.textSoft, fontSize: scaled.text, lineHeight: scaled.textLineHeight }]}>
+                Carregando a data selecionada...
+              </Text>
             </View>
           </View>
         )}
 
         <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.title, { color: theme.primary }]}>
+          <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title, lineHeight: scaled.titleLineHeight }]}>
             {saintName}
           </Text>
           {!!festiveDay && (
-            <Text style={[styles.subtitle, { color: theme.secondary }]}>{festiveDay}</Text>
+            <Text style={[styles.subtitle, { color: theme.secondary, fontSize: scaled.subtitle }]}>{festiveDay}</Text>
           )}
-          {!!saintExcerpt && <Text style={[styles.subtitle, { color: theme.textSoft }]}>{saintExcerpt}</Text>}
+          {!!saintExcerpt && (
+            <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>{saintExcerpt}</Text>
+          )}
           {!!saint.error && <Text style={{ color: '#FCA5A5' }}>{saint.error}</Text>}
         </View>
 
@@ -192,15 +208,15 @@ export default function SaintOfDayScreen() {
         )}
 
         <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.text, { color: theme.secondary }]}>Reflexão do dia</Text>
+          <Text style={[styles.text, { color: theme.secondary, fontSize: scaled.text, lineHeight: scaled.textLineHeight }]}>Reflexão do dia</Text>
           {paragraphs.length > 0 ? (
             paragraphs.map((paragraph, index) => (
-              <Text key={`saint-p-${index}`} style={[styles.text, { color: theme.text }]}>
+              <Text key={`saint-p-${index}`} style={[styles.text, { color: theme.text, fontSize: scaled.text, lineHeight: scaled.textLineHeight }]}>
                 {paragraph}
               </Text>
             ))
           ) : (
-            <Text style={[styles.text, { color: theme.textSoft }]}>Conteúdo não disponível hoje.</Text>
+            <Text style={[styles.text, { color: theme.textSoft, fontSize: scaled.text, lineHeight: scaled.textLineHeight }]}>Conteúdo não disponível hoje.</Text>
           )}
         </View>
       </ScrollView>

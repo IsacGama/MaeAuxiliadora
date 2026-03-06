@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -12,6 +12,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../../mobile/auth-context';
 import { authApi } from '../../../mobile/api';
+import { scaleFont, useFontScalePreference } from '../../../mobile/font-scale-preference';
 import { useAppTheme } from '../../../mobile/theme';
 import { notifyAppAlert } from '../../../mobile/app-alert';
 
@@ -64,8 +65,19 @@ export default function EventCheckInScreen() {
   const { token } = useLocalSearchParams<{ token?: string }>();
   const { isAuthenticated, requestWithAuth } = useAuth();
   const theme = useAppTheme();
+  const { fontScale } = useFontScalePreference();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusLabel, setStatusLabel] = useState<string | null>(null);
+  const scaled = useMemo(
+    () => ({
+      title: scaleFont(22, fontScale),
+      subtitle: scaleFont(14, fontScale),
+      subtitleLineHeight: scaleFont(21, fontScale),
+      button: scaleFont(14, fontScale),
+      back: scaleFont(14, fontScale),
+    }),
+    [fontScale],
+  );
 
   const handleCheckIn = async () => {
     if (typeof token !== 'string' || !token.trim()) {
@@ -102,24 +114,24 @@ export default function EventCheckInScreen() {
             onPress={() => router.back()}
           >
             <MaterialCommunityIcons name="arrow-left" size={16} color={theme.secondary} />
-            <Text style={{ color: theme.secondary, fontWeight: '700' }}>Voltar</Text>
+            <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.back }}>Voltar</Text>
           </Pressable>
 
-          <Text style={[styles.title, { color: theme.text }]}>Check-in do evento</Text>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+          <Text style={[styles.title, { color: theme.text, fontSize: scaled.title }]}>Check-in do evento</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
             Use esta tela para confirmar sua presença no evento.
           </Text>
 
           {!isAuthenticated ? (
             <>
-              <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+              <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
                 Faça login na sua conta para finalizar o check-in.
               </Text>
               <Pressable
                 style={[styles.actionButton, { borderColor: theme.secondary }]}
                 onPress={() => router.replace('/(tabs)/conta')}
               >
-                <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+                <Text style={[styles.actionButtonText, { color: theme.secondary, fontSize: scaled.button }]}>
                   Ir para login
                 </Text>
               </Pressable>
@@ -133,7 +145,7 @@ export default function EventCheckInScreen() {
                 }}
                 disabled={isSubmitting}
               >
-                <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+                <Text style={[styles.actionButtonText, { color: theme.secondary, fontSize: scaled.button }]}>
                   Confirmar check-in
                 </Text>
               </Pressable>
@@ -145,7 +157,7 @@ export default function EventCheckInScreen() {
               ) : null}
 
               {!!statusLabel && (
-                <Text style={[styles.subtitle, { color: theme.secondary }]}>
+                <Text style={[styles.subtitle, { color: theme.secondary, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
                   {statusLabel}
                 </Text>
               )}

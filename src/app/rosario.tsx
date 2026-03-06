@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useOrgContext } from '../mobile/hooks/use-org-context';
 import { useSpeech, speechRateLabels, type SpeechRate } from '../mobile/hooks/use-speech';
 import { useAppTheme } from '../mobile/theme';
+import { scaleFont, useFontScalePreference } from '../mobile/font-scale-preference';
 import {
   buildGuidedRosarySteps,
   devotions,
@@ -210,6 +211,7 @@ export default function RosaryScreen() {
   const forceTodayPreset = params.preset === 'today';
   const forceRosarioPreset = params.preset === 'rosario';
   const theme = useAppTheme();
+  const { fontScale } = useFontScalePreference();
 
   const [mode, setMode] = useState<RosaryMode>('terco');
   const [devotionId, setDevotionId] = useState('rosary');
@@ -225,6 +227,24 @@ export default function RosaryScreen() {
   });
   const [downloadMessage, setDownloadMessage] = useState<string | null>(null);
   const [devotionsVersion, setDevotionsVersion] = useState(0);
+  const scaled = useMemo(
+    () => ({
+      title: scaleFont(22, fontScale),
+      subtitle: scaleFont(13, fontScale),
+      subtitleLineHeight: scaleFont(19, fontScale),
+      chipText: scaleFont(12, fontScale),
+      stepTitle: scaleFont(20, fontScale),
+      mysteryText: scaleFont(13, fontScale),
+      prayerText: scaleFont(15, fontScale),
+      prayerLineHeight: scaleFont(23, fontScale),
+      actionButtonText: scaleFont(13, fontScale),
+      mysteryItemText: scaleFont(13, fontScale),
+      mysteryItemLineHeight: scaleFont(19, fontScale),
+      weekdayLabel: scaleFont(12, fontScale),
+      weekdayMystery: scaleFont(13, fontScale),
+    }),
+    [fontScale],
+  );
 
   const todayWeekdayKey = useMemo<RosaryWeekdayKey>(() => getRosaryWeekdayByDate(new Date()), []);
   const todayMysteryKey = useMemo<RosaryMysteryKey>(() => getRosaryMysteryByDate(new Date()), []);
@@ -738,12 +758,12 @@ export default function RosaryScreen() {
             <Text style={{ color: theme.secondary, fontWeight: '700' }}>Voltar</Text>
           </Pressable>
 
-          <Text style={[styles.title, { color: theme.primary }]}>Terço e Rosário Guiado</Text>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Escolha o modo de oração: terço de hoje ou rosário completo.</Text>
+          <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Terço e Rosário Guiado</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>Escolha o modo de oração: terço de hoje ou rosário completo.</Text>
         </View>
 
         <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Devoção</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>Devoção</Text>
           <View style={styles.buttonRow}>
             {availableDevotions.map((devotion) => {
               const isSelected = devotion.id === selectedDevotion?.id;
@@ -762,7 +782,7 @@ export default function RosaryScreen() {
                     setStepIndex(0);
                   }}
                 >
-                  <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft }]}>
+                  <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft, fontSize: scaled.chipText }]}>
                     {devotion.title}
                   </Text>
                 </Pressable>
@@ -770,7 +790,7 @@ export default function RosaryScreen() {
             })}
           </View>
 
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Modo</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>Modo</Text>
           {isRosaryDevotion ? (
             <>
               <View style={styles.buttonRow}>
@@ -791,7 +811,7 @@ export default function RosaryScreen() {
                         setStepIndex(0);
                       }}
                     >
-                      <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft }]}>
+                      <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft, fontSize: scaled.chipText }]}>
                         {modeLabels[nextMode]}
                       </Text>
                     </Pressable>
@@ -800,13 +820,13 @@ export default function RosaryScreen() {
               </View>
 
               {mode === 'terco' ? (
-                <Text style={[styles.subtitle, { color: theme.secondary }]}>
+                <Text style={[styles.subtitle, { color: theme.secondary, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
                   No modo Terço, o app usa automaticamente o mistério do dia: {rosaryMysteryLabels[todayMysteryKey]}
                 </Text>
               ) : null}
             </>
           ) : (
-            <Text style={[styles.subtitle, { color: theme.secondary }]}>
+            <Text style={[styles.subtitle, { color: theme.secondary, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
               Sequência completa da devoção selecionada.
             </Text>
           )}
@@ -826,7 +846,7 @@ export default function RosaryScreen() {
                   ]}
                   onPress={() => setLanguage(nextLanguage)}
                 >
-                  <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft }]}>
+                  <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft, fontSize: scaled.chipText }]}>
                     {devotionLanguageLabels[nextLanguage]}
                   </Text>
                 </Pressable>
@@ -848,10 +868,10 @@ export default function RosaryScreen() {
               }}
               disabled={mode === 'terco' || !isRosaryDevotion}
             >
-              <Text style={[styles.chipText, { color: theme.primary }]}>Terço de hoje</Text>
+              <Text style={[styles.chipText, { color: theme.primary, fontSize: scaled.chipText }]}>Terço de hoje</Text>
             </Pressable>
           </View>
-          <Text style={[styles.subtitle, { color: theme.secondary }]}>{renderModeSummary()}</Text>
+          <Text style={[styles.subtitle, { color: theme.secondary, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>{renderModeSummary()}</Text>
 
           <View style={styles.buttonRow}>
             <Pressable
@@ -868,7 +888,7 @@ export default function RosaryScreen() {
               }}
               disabled={downloadBusy}
             >
-              <Text style={[styles.chipText, { color: theme.secondary }]}>
+              <Text style={[styles.chipText, { color: theme.secondary, fontSize: scaled.chipText }]}>
                 Baixar offline ({devotionLanguageLabels[language]})
               </Text>
             </Pressable>
@@ -887,29 +907,29 @@ export default function RosaryScreen() {
               }}
               disabled={downloadBusy}
             >
-              <Text style={[styles.chipText, { color: theme.textSoft }]}>Limpar offline</Text>
+              <Text style={[styles.chipText, { color: theme.textSoft, fontSize: scaled.chipText }]}>Limpar offline</Text>
             </Pressable>
           </View>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+          <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
             Offline salvo: {downloadMeta.count} arquivos ({formatBytes(downloadMeta.bytes)}).
           </Text>
           {downloadMessage ? (
-            <Text style={[styles.subtitle, { color: theme.secondary }]}>{downloadMessage}</Text>
+            <Text style={[styles.subtitle, { color: theme.secondary, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>{downloadMessage}</Text>
           ) : null}
         </View>
 
         <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>Etapa {stepIndex + 1} de {guidedSteps.length}</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>Etapa {stepIndex + 1} de {guidedSteps.length}</Text>
           <View style={[styles.progressTrack, { borderColor: theme.border, backgroundColor: theme.bg }]}>
             <View style={[styles.progressFill, { backgroundColor: theme.secondary, width: `${progress}%` }]} />
           </View>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>{Math.round(progress)}% concluído</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>{Math.round(progress)}% concluído</Text>
         </View>
 
         {currentStep ? (
           <View style={[styles.card, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.08)' }]}>
-            <Text style={[styles.stepTitle, { color: theme.primary }]}>{currentStep.label}</Text>
-            <Text style={[styles.mysteryText, { color: theme.secondary }]}>
+            <Text style={[styles.stepTitle, { color: theme.primary, fontSize: scaled.stepTitle }]}>{currentStep.label}</Text>
+            <Text style={[styles.mysteryText, { color: theme.secondary, fontSize: scaled.mysteryText }]}>
               {isRosaryDevotion
                 ? getRosarySegmentLabel(
                   mode,
@@ -920,12 +940,12 @@ export default function RosaryScreen() {
                 : selectedDevotion?.title ?? 'Devoção'}
             </Text>
             {!!currentStep.mysteryTitle && isRosaryDevotion && (
-              <Text style={[styles.mysteryText, { color: theme.secondary }]}>
+              <Text style={[styles.mysteryText, { color: theme.secondary, fontSize: scaled.mysteryText }]}>
                 {currentStep.decade}º mistério: {currentStep.mysteryTitle}
               </Text>
             )}
 
-            <Text style={[styles.prayerText, { color: theme.text }]}>{prayerText}</Text>
+            <Text style={[styles.prayerText, { color: theme.text, fontSize: scaled.prayerText, lineHeight: scaled.prayerLineHeight }]}>{prayerText}</Text>
 
             <View style={styles.buttonRow}>
               <Pressable
@@ -943,7 +963,7 @@ export default function RosaryScreen() {
                   size={15}
                   color={isAutoPlaying ? theme.secondary : theme.primary}
                 />
-                <Text style={[styles.chipText, { color: isAutoPlaying ? theme.secondary : theme.primary }]}>
+                <Text style={[styles.chipText, { color: isAutoPlaying ? theme.secondary : theme.primary, fontSize: scaled.chipText }]}>
                   {isAutoPlaying ? 'Parar leitura' : isSpeaking ? 'Lendo...' : 'Rezar em voz alta'}
                 </Text>
               </Pressable>
@@ -963,7 +983,7 @@ export default function RosaryScreen() {
                     ]}
                     onPress={() => setRate(r)}
                   >
-                    <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft }]}>
+                    <Text style={[styles.chipText, { color: isSelected ? theme.secondary : theme.textSoft, fontSize: scaled.chipText }]}>
                       {speechRateLabels[r]}
                     </Text>
                   </Pressable>
@@ -978,7 +998,7 @@ export default function RosaryScreen() {
                 disabled={stepIndex === 0}
               >
                 <MaterialCommunityIcons name="chevron-left" size={16} color={stepIndex === 0 ? theme.textSoft : theme.primary} />
-                <Text style={[styles.actionButtonText, { color: stepIndex === 0 ? theme.textSoft : theme.primary }]}>Anterior</Text>
+                <Text style={[styles.actionButtonText, { color: stepIndex === 0 ? theme.textSoft : theme.primary, fontSize: scaled.actionButtonText }]}>Anterior</Text>
               </Pressable>
 
               <Pressable
@@ -986,7 +1006,7 @@ export default function RosaryScreen() {
                 onPress={() => handleManualStepMove('next')}
                 disabled={stepIndex >= guidedSteps.length - 1}
               >
-                <Text style={[styles.actionButtonText, { color: stepIndex >= guidedSteps.length - 1 ? theme.textSoft : theme.secondary }]}>Próxima oração</Text>
+                <Text style={[styles.actionButtonText, { color: stepIndex >= guidedSteps.length - 1 ? theme.textSoft : theme.secondary, fontSize: scaled.actionButtonText }]}>Próxima oração</Text>
                 <MaterialCommunityIcons name="chevron-right" size={16} color={stepIndex >= guidedSteps.length - 1 ? theme.textSoft : theme.secondary} />
               </Pressable>
 
@@ -996,17 +1016,17 @@ export default function RosaryScreen() {
                 disabled={stepIndex === 0}
               >
                 <MaterialCommunityIcons name="refresh" size={16} color={theme.primary} />
-                <Text style={[styles.actionButtonText, { color: theme.primary }]}>Recomeçar</Text>
+                <Text style={[styles.actionButtonText, { color: theme.primary, fontSize: scaled.actionButtonText }]}>Recomeçar</Text>
               </Pressable>
             </View>
           </View>
         ) : (
           <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-            <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+            <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
               Estrutura da devoção ainda não carregada.
             </Text>
             {syncMessage ? (
-              <Text style={[styles.subtitle, { color: theme.secondary }]}>
+              <Text style={[styles.subtitle, { color: theme.secondary, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
                 {syncMessage}
               </Text>
             ) : null}
@@ -1023,7 +1043,7 @@ export default function RosaryScreen() {
                 onPress={handleRetryDevotionsSync}
                 disabled={syncBusy}
               >
-                <Text style={[styles.chipText, { color: theme.secondary }]}>
+                <Text style={[styles.chipText, { color: theme.secondary, fontSize: scaled.chipText }]}>
                   {syncBusy ? 'Sincronizando...' : 'Recarregar devoções'}
                 </Text>
               </Pressable>
@@ -1033,7 +1053,7 @@ export default function RosaryScreen() {
 
         {isRosaryDevotion && mode === 'terco' ? (
           <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-            <Text style={[styles.subtitle, { color: theme.primary }]}>Mistérios selecionados</Text>
+            <Text style={[styles.subtitle, { color: theme.primary, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>Mistérios selecionados</Text>
             {getRosaryMysteriesByKey(effectiveMysteryKey).map((mystery, index) => {
               const decade = index + 1;
               const isCurrent =
@@ -1051,7 +1071,7 @@ export default function RosaryScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.mysteryItemText, { color: isCurrent ? theme.text : theme.textSoft }]}>
+                  <Text style={[styles.mysteryItemText, { color: isCurrent ? theme.text : theme.textSoft, fontSize: scaled.mysteryItemText, lineHeight: scaled.mysteryItemLineHeight }]}>
                     <Text style={{ fontWeight: '800' }}>{decade}. </Text>
                     {mystery}
                   </Text>
@@ -1061,7 +1081,7 @@ export default function RosaryScreen() {
           </View>
         ) : isRosaryDevotion ? (
           <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-            <Text style={[styles.subtitle, { color: theme.primary }]}>Ordem dos mistérios no Rosário completo</Text>
+            <Text style={[styles.subtitle, { color: theme.primary, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>Ordem dos mistérios no Rosário completo</Text>
             {getRosaryMysteryOrder().map((segmentKey, segmentIndex) => {
               const isActiveSegment = currentStep?.mysteryKey === segmentKey;
               return (
@@ -1075,11 +1095,11 @@ export default function RosaryScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.weekdayLabel, { color: isActiveSegment ? theme.secondary : theme.textSoft }]}>
+                  <Text style={[styles.weekdayLabel, { color: isActiveSegment ? theme.secondary : theme.textSoft, fontSize: scaled.weekdayLabel }]}>
                     {segmentIndex + 1}. {rosaryMysteryLabels[segmentKey]}
                   </Text>
                   {getRosaryMysteriesByKey(segmentKey).map((title, idx) => (
-                    <Text key={`${segmentKey}-${idx + 1}`} style={[styles.mysteryItemText, { color: theme.textSoft }]}>
+                    <Text key={`${segmentKey}-${idx + 1}`} style={[styles.mysteryItemText, { color: theme.textSoft, fontSize: scaled.mysteryItemText, lineHeight: scaled.mysteryItemLineHeight }]}>
                       <Text style={{ fontWeight: '800' }}>{idx + 1}. </Text>
                       {title}
                     </Text>
@@ -1090,7 +1110,7 @@ export default function RosaryScreen() {
           </View>
         ) : (
           <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-            <Text style={[styles.subtitle, { color: theme.primary }]}>Sequência da devoção</Text>
+            <Text style={[styles.subtitle, { color: theme.primary, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>Sequência da devoção</Text>
             {guidedSteps.map((step, index) => {
               const isCurrent = currentStep?.id === step.id;
               return (
@@ -1104,7 +1124,7 @@ export default function RosaryScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.mysteryItemText, { color: isCurrent ? theme.text : theme.textSoft }]}>
+                  <Text style={[styles.mysteryItemText, { color: isCurrent ? theme.text : theme.textSoft, fontSize: scaled.mysteryItemText, lineHeight: scaled.mysteryItemLineHeight }]}>
                     <Text style={{ fontWeight: '800' }}>{index + 1}. </Text>
                     {step.label}
                   </Text>
@@ -1116,7 +1136,7 @@ export default function RosaryScreen() {
 
         {isRosaryDevotion ? (
           <View style={[styles.card, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-            <Text style={[styles.subtitle, { color: theme.primary }]}>Mistérios por dia da semana</Text>
+            <Text style={[styles.subtitle, { color: theme.primary, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>Mistérios por dia da semana</Text>
             {weeklySchedule.map((entry) => {
               const isToday = entry.weekdayKey === todayWeekdayKey;
 
@@ -1131,10 +1151,10 @@ export default function RosaryScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.weekdayLabel, { color: isToday ? theme.secondary : theme.textSoft }]}>
+                  <Text style={[styles.weekdayLabel, { color: isToday ? theme.secondary : theme.textSoft, fontSize: scaled.weekdayLabel }]}>
                     {entry.weekdayLabel}
                   </Text>
-                  <Text style={[styles.weekdayMystery, { color: theme.text }]}>{entry.mysteryLabel}</Text>
+                  <Text style={[styles.weekdayMystery, { color: theme.text, fontSize: scaled.weekdayMystery }]}>{entry.mysteryLabel}</Text>
                 </View>
               );
             })}

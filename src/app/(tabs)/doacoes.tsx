@@ -23,6 +23,7 @@ import { publicApi } from '../../mobile/api';
 import { HttpError } from '../../mobile/http';
 import { GatewayDonationIntent, GatewayPixPaymentResponse } from '../../mobile/types';
 import { useAppTheme } from '../../mobile/theme';
+import { scaleFont, useFontScalePreference } from '../../mobile/font-scale-preference';
 import { notifyAppAlert } from '../../mobile/app-alert';
 
 const styles = StyleSheet.create({
@@ -250,6 +251,7 @@ export default function DonationsScreen() {
   const org = useOrgContext();
   const tabBarHeight = useBottomTabBarHeight();
   const theme = useAppTheme();
+  const { fontScale } = useFontScalePreference();
 
   const [providerAvailable, setProviderAvailable] = useState(false);
   const [providerLoading, setProviderLoading] = useState(false);
@@ -267,6 +269,24 @@ export default function DonationsScreen() {
   const [pixResult, setPixResult] = useState<GatewayPixPaymentResponse | null>(null);
   const [gatewayPaymentId, setGatewayPaymentId] = useState<string | null>(null);
   const isTitheIntent = intent === 'TITHE';
+  const scaled = useMemo(
+    () => ({
+      title: scaleFont(21, fontScale),
+      subtitle: scaleFont(13, fontScale),
+      subtitleLineHeight: scaleFont(20, fontScale),
+      infoLabel: scaleFont(12, fontScale),
+      infoText: scaleFont(14, fontScale),
+      infoTextLineHeight: scaleFont(21, fontScale),
+      chipText: scaleFont(13, fontScale),
+      input: scaleFont(15, fontScale),
+      textArea: scaleFont(14, fontScale),
+      buttonText: scaleFont(14, fontScale),
+      pixCopyCodeLabel: scaleFont(11, fontScale),
+      pixCopyCodeValue: scaleFont(13, fontScale),
+      pixCopyCodeLineHeight: scaleFont(18, fontScale),
+    }),
+    [fontScale],
+  );
 
   const socialRaw = org.branding?.socialLinks ?? {};
   const socialLinks = [
@@ -590,12 +610,12 @@ export default function DonationsScreen() {
         }
       >
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-          <Text style={[styles.title, { color: theme.primary }]}>Doações</Text>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}> 
+          <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Doações</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}> 
             Contribua com {org.displayName}. Pagamentos via Mercado Pago com PIX dinâmico e cartão.
           </Text>
           {!isAuthenticated && (
-            <Text style={[styles.infoText, { color: theme.textSoft }]}> 
+            <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}> 
               Você pode doar de forma anônima ou preencher seu nome e e-mail para identificação.
             </Text>
           )}
@@ -603,15 +623,15 @@ export default function DonationsScreen() {
 
         {!providerLoading && !providerAvailable && (
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-            <Text style={[styles.title, { color: theme.primary }]}>Pagamento online indisponível</Text>
-            <Text style={[styles.infoText, { color: theme.textSoft }]}> 
+            <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Pagamento online indisponível</Text>
+            <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}> 
               {providerError || 'A organização ainda não conectou o Mercado Pago para receber doações online.'}
             </Text>
           </View>
         )}
 
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-          <Text style={[styles.infoLabel, { color: theme.secondary }]}>Forma de pagamento</Text>
+          <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Forma de pagamento</Text>
           <View style={styles.row}>
             <Pressable
               style={[
@@ -622,7 +642,7 @@ export default function DonationsScreen() {
               onPress={() => setMethod('PIX')}
             >
               <MaterialCommunityIcons name="qrcode-scan" size={16} color={theme.secondary} />
-              <Text style={{ color: theme.secondary, fontWeight: '700' }}>PIX</Text>
+              <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>PIX</Text>
             </Pressable>
             <Pressable
               style={[
@@ -633,11 +653,11 @@ export default function DonationsScreen() {
               onPress={() => setMethod('CARD')}
             >
               <MaterialCommunityIcons name="credit-card-outline" size={16} color={theme.secondary} />
-              <Text style={{ color: theme.secondary, fontWeight: '700' }}>Cartão</Text>
+              <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>Cartão</Text>
             </Pressable>
           </View>
 
-          <Text style={[styles.infoLabel, { color: theme.secondary }]}>Motivo</Text>
+          <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Motivo</Text>
           <View style={styles.chipWrap}>
             {INTENT_OPTIONS.map((option) => {
               const selected = intent === option.value;
@@ -651,7 +671,7 @@ export default function DonationsScreen() {
                   ]}
                   onPress={() => setIntent(option.value)}
                 >
-                  <Text style={{ color: selected ? theme.secondary : theme.textSoft, fontWeight: selected ? '700' : '500' }}>
+                  <Text style={{ color: selected ? theme.secondary : theme.textSoft, fontWeight: selected ? '700' : '500', fontSize: scaled.buttonText }}>
                     {option.label}
                   </Text>
                 </Pressable>
@@ -659,21 +679,21 @@ export default function DonationsScreen() {
             })}
           </View>
 
-          <Text style={[styles.infoLabel, { color: theme.secondary }]}>Valor (R$)</Text>
+          <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Valor (R$)</Text>
           <TextInput
             value={amountInput}
             onChangeText={(text) => setAmountInput(toMoneyInput(text))}
             placeholder="50,00"
             keyboardType="numeric"
-            style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+            style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg, fontSize: scaled.input }]}
             placeholderTextColor={theme.textSoft}
           />
 
-          <Text style={[styles.infoLabel, { color: theme.secondary }]}>Mensagem (opcional)</Text>
+          <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Mensagem (opcional)</Text>
           <TextInput
             value={description}
             onChangeText={setDescription}
-            style={[styles.textArea, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+            style={[styles.textArea, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg, fontSize: scaled.textArea }]}
             placeholder="Ex.: contribuição para ação social"
             placeholderTextColor={theme.textSoft}
             multiline
@@ -694,7 +714,7 @@ export default function DonationsScreen() {
               size={20}
               color={theme.secondary}
             />
-            <Text style={{ color: theme.text }}>
+            <Text style={{ color: theme.text, fontSize: scaled.infoText }}>
               {isTitheIntent
                 ? 'Dízimo exige identificação do fiel'
                 : 'Contribuição anônima'}
@@ -702,34 +722,34 @@ export default function DonationsScreen() {
           </Pressable>
 
           {isTitheIntent && (
-            <Text style={[styles.infoText, { color: theme.textSoft }]}> 
+            <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}> 
               Para doar dízimo, é obrigatório estar autenticado e cadastrado como dizimista ativo nesta organização.
             </Text>
           )}
 
           {method === 'CARD' && (
-            <Text style={[styles.infoText, { color: theme.textSoft }]}> 
+            <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}> 
               No checkout do Mercado Pago, Google Pay/Apple Pay podem aparecer automaticamente quando suportados.
             </Text>
           )}
 
           {!anonymous && (
             <>
-              <Text style={[styles.infoLabel, { color: theme.secondary }]}>Nome do doador</Text>
+              <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Nome do doador</Text>
               <TextInput
                 value={donorName}
                 onChangeText={setDonorName}
-                style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+                style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg, fontSize: scaled.input }]}
                 placeholder="Seu nome"
                 placeholderTextColor={theme.textSoft}
                 maxLength={120}
               />
 
-              <Text style={[styles.infoLabel, { color: theme.secondary }]}>E-mail do doador</Text>
+              <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>E-mail do doador</Text>
               <TextInput
                 value={donorEmail}
                 onChangeText={(text) => setDonorEmail(text.trim().toLowerCase())}
-                style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+                style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg, fontSize: scaled.input }]}
                 placeholder="voce@email.com"
                 placeholderTextColor={theme.textSoft}
                 autoCapitalize="none"
@@ -747,7 +767,7 @@ export default function DonationsScreen() {
             disabled={isSubmitting || providerLoading || !providerAvailable}
           >
             {isSubmitting ? <ActivityIndicator size="small" color={theme.secondary} /> : null}
-            <Text style={{ color: theme.secondary, fontWeight: '700' }}>
+            <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>
               {isSubmitting
                 ? 'Processando...'
                 : method === 'PIX'
@@ -759,20 +779,20 @@ export default function DonationsScreen() {
 
         {pixResult && (
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-            <Text style={[styles.title, { color: theme.primary }]}>PIX dinâmico</Text>
-            <Text style={[styles.infoText, { color: theme.secondary }]}> 
+            <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>PIX dinâmico</Text>
+            <Text style={[styles.infoText, { color: theme.secondary, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}> 
               Valor: R$ {pixResult.amount.toFixed(2)}
             </Text>
             {!!pixResult.pixExpiresAt && (
-              <Text style={[styles.infoText, { color: theme.textSoft }]}> 
+              <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}> 
                 Expira em: {new Date(pixResult.pixExpiresAt).toLocaleString('pt-BR')}
               </Text>
             )}
             {!!pixQrSrc && <Image source={{ uri: pixQrSrc }} style={styles.qrImage} resizeMode="contain" />}
 
             <View style={[styles.pixCopyCodeBox, { borderColor: theme.border, backgroundColor: theme.bg }]}> 
-              <Text style={[styles.pixCopyCodeLabel, { color: theme.secondary }]}>PIX copia e cola</Text>
-              <Text selectable style={[styles.pixCopyCodeValue, { color: theme.text }]}> 
+              <Text style={[styles.pixCopyCodeLabel, { color: theme.secondary, fontSize: scaled.pixCopyCodeLabel }]}>PIX copia e cola</Text>
+              <Text selectable style={[styles.pixCopyCodeValue, { color: theme.text, fontSize: scaled.pixCopyCodeValue, lineHeight: scaled.pixCopyCodeLineHeight }]}> 
                 {pixResult.pixCopyPaste || 'Código não disponível'}
               </Text>
             </View>
@@ -782,14 +802,14 @@ export default function DonationsScreen() {
               onPress={copyPixCode}
               disabled={!pixResult.pixCopyPaste}
             >
-              <Text style={{ color: theme.secondary, fontWeight: '700' }}>Copiar PIX copia e cola</Text>
+              <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>Copiar PIX copia e cola</Text>
             </Pressable>
           </View>
         )}
 
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-          <Text style={[styles.title, { color: theme.primary }]}>Localização</Text>
-          <Text style={[styles.infoText, { color: theme.textSoft }]}> 
+          <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Localização</Text>
+          <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}> 
             {addressText || 'Endereço ainda não configurado.'}
           </Text>
           {!!mapsUrl && (
@@ -799,14 +819,14 @@ export default function DonationsScreen() {
                 void Linking.openURL(mapsUrl);
               }}
             >
-              <Text style={{ color: theme.secondary, fontWeight: '700' }}>Abrir no Google Maps</Text>
+              <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>Abrir no Google Maps</Text>
             </Pressable>
           )}
         </View>
 
         {socialLinks.length > 0 && (
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
-            <Text style={[styles.title, { color: theme.primary }]}>Redes sociais</Text>
+            <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Redes sociais</Text>
             <View style={styles.socialRow}>
               {socialLinks.map((social) => (
                 <Pressable
@@ -829,7 +849,7 @@ export default function DonationsScreen() {
                     size={14}
                     color={theme.secondary}
                   />
-                  <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: 12 }}>{social.label}</Text>
+                  <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>{social.label}</Text>
                 </Pressable>
               ))}
             </View>

@@ -14,6 +14,7 @@ import { DayKeyPicker } from '../../mobile/components/day-key-picker';
 import { formatDateLabel } from '../../mobile/date';
 import { useDailyLiturgy } from '../../mobile/hooks/use-daily-liturgy';
 import { useAppTheme } from '../../mobile/theme';
+import { scaleFont, useFontScalePreference } from '../../mobile/font-scale-preference';
 import { presentAppAlert } from '../../mobile/app-alert';
 
 const styles = StyleSheet.create({
@@ -81,6 +82,19 @@ export default function LiturgyScreen() {
   const liturgy = useDailyLiturgy();
   const tabBarHeight = useBottomTabBarHeight();
   const theme = useAppTheme();
+  const { fontScale } = useFontScalePreference();
+  const scaled = useMemo(
+    () => ({
+      title: scaleFont(20, fontScale),
+      subtitle: scaleFont(13, fontScale),
+      sectionTitle: scaleFont(16, fontScale),
+      text: scaleFont(14, fontScale),
+      textLineHeight: scaleFont(21, fontScale),
+      reference: scaleFont(13, fontScale),
+      buttonText: scaleFont(14, fontScale),
+    }),
+    [fontScale],
+  );
 
   useEffect(() => {
     if (!liturgy.dateMismatch) {
@@ -114,7 +128,9 @@ export default function LiturgyScreen() {
         style={[styles.screen, { backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }]}
       >
         <ActivityIndicator size="large" color={theme.secondary} />
-        <Text style={{ marginTop: 10, color: theme.textSoft }}>Carregando liturgia diária...</Text>
+        <Text style={{ marginTop: 10, color: theme.textSoft, fontSize: scaled.text }}>
+          Carregando liturgia diária...
+        </Text>
       </SafeAreaView>
     );
   }
@@ -146,36 +162,38 @@ export default function LiturgyScreen() {
           <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <View style={styles.loadingRow}>
               <ActivityIndicator size="small" color={theme.secondary} />
-              <Text style={[styles.text, { color: theme.textSoft }]}>Carregando a data selecionada...</Text>
+              <Text style={[styles.text, { color: theme.textSoft, fontSize: scaled.text, lineHeight: scaled.textLineHeight }]}>
+                Carregando a data selecionada...
+              </Text>
             </View>
           </View>
         )}
 
         <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.title, { color: theme.primary }]}>{liturgy.liturgy?.liturgia ?? 'Liturgia diária'}</Text>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+          <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>{liturgy.liturgy?.liturgia ?? 'Liturgia diária'}</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
             {liturgy.liturgy?.data ?? 'Sem data'} • {liturgy.liturgy?.cor ?? 'Cor não informada'}
           </Text>
           <Pressable
             style={[styles.refreshButton, { borderColor: theme.secondary }]}
             onPress={liturgy.refresh}
           >
-            <Text style={{ color: theme.secondary, fontWeight: '700' }}>Atualizar agora</Text>
+            <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>Atualizar agora</Text>
           </Pressable>
           {!!liturgy.error && <Text style={{ color: '#FCA5A5' }}>{liturgy.error}</Text>}
         </View>
 
         {!!liturgy.liturgy?.oracoes?.coleta && (
           <View style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.sectionTitle, { color: theme.primary }]}>Orações</Text>
+            <Text style={[styles.sectionTitle, { color: theme.primary, fontSize: scaled.sectionTitle }]}>Orações</Text>
             {!!liturgy.liturgy.oracoes?.coleta && (
-              <Text style={[styles.text, { color: theme.text }]}>Coleta: {liturgy.liturgy.oracoes.coleta}</Text>
+              <Text style={[styles.text, { color: theme.text, fontSize: scaled.text, lineHeight: scaled.textLineHeight }]}>Coleta: {liturgy.liturgy.oracoes.coleta}</Text>
             )}
             {!!liturgy.liturgy.oracoes?.oferendas && (
-              <Text style={[styles.text, { color: theme.text }]}>Oferendas: {liturgy.liturgy.oracoes.oferendas}</Text>
+              <Text style={[styles.text, { color: theme.text, fontSize: scaled.text, lineHeight: scaled.textLineHeight }]}>Oferendas: {liturgy.liturgy.oracoes.oferendas}</Text>
             )}
             {!!liturgy.liturgy.oracoes?.comunhao && (
-              <Text style={[styles.text, { color: theme.text }]}>Comunhão: {liturgy.liturgy.oracoes.comunhao}</Text>
+              <Text style={[styles.text, { color: theme.text, fontSize: scaled.text, lineHeight: scaled.textLineHeight }]}>Comunhão: {liturgy.liturgy.oracoes.comunhao}</Text>
             )}
           </View>
         )}
@@ -188,12 +206,12 @@ export default function LiturgyScreen() {
 
           return (
             <View key={section.key} style={[styles.block, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.sectionTitle, { color: theme.primary }]}>{section.title}</Text>
+              <Text style={[styles.sectionTitle, { color: theme.primary, fontSize: scaled.sectionTitle }]}>{section.title}</Text>
               {items.map((item, index) => (
                 <View key={`${section.key}-${index}`} style={{ gap: 6 }}>
-                  <Text style={[styles.reference, { color: theme.secondary }]}>{item.titulo} ({item.referencia})</Text>
-                  <Text style={[styles.text, { color: theme.text }]}>{item.texto}</Text>
-                  {!!item.refrao && <Text style={[styles.text, { color: theme.textSoft }]}>R: {item.refrao}</Text>}
+                  <Text style={[styles.reference, { color: theme.secondary, fontSize: scaled.reference }]}>{item.titulo} ({item.referencia})</Text>
+                  <Text style={[styles.text, { color: theme.text, fontSize: scaled.text, lineHeight: scaled.textLineHeight }]}>{item.texto}</Text>
+                  {!!item.refrao && <Text style={[styles.text, { color: theme.textSoft, fontSize: scaled.text, lineHeight: scaled.textLineHeight }]}>R: {item.refrao}</Text>}
                 </View>
               ))}
             </View>

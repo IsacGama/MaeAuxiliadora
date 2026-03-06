@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppTheme, getTextColorForBackground, withAlpha } from '../theme';
+import { scaleFont, useFontScalePreference } from '../font-scale-preference';
 
 export type AppAlertDialogVariant = 'danger' | 'info' | 'success';
 
@@ -99,6 +100,7 @@ export const AppAlertDialog = ({
   onCancel,
   onDismiss,
 }: AppAlertDialogProps) => {
+  const { fontScale } = useFontScalePreference();
   const variantColor = colorByVariant(variant, theme);
   const confirmTextColor = getTextColorForBackground(variantColor);
   const dismissHandler = onDismiss ?? onCancel;
@@ -141,11 +143,30 @@ export const AppAlertDialog = ({
                 color={variantColor}
               />
             </View>
-            <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+            <Text
+              style={[
+                styles.title,
+                {
+                  color: theme.text,
+                  fontSize: scaleFont(17, fontScale),
+                },
+              ]}
+            >
+              {title}
+            </Text>
           </View>
 
           {!!description && (
-            <Text style={[styles.description, { color: theme.textSoft }]}>
+            <Text
+              style={[
+                styles.description,
+                {
+                  color: theme.textSoft,
+                  fontSize: scaleFont(14, fontScale),
+                  lineHeight: scaleFont(21, fontScale),
+                },
+              ]}
+            >
               {description}
             </Text>
           )}
@@ -162,7 +183,12 @@ export const AppAlertDialog = ({
                 }}
                 disabled={confirmLoading}
               >
-                <Text style={[styles.actionText, { color: theme.textSoft }]}>
+                <Text
+                  style={[
+                    styles.actionText,
+                    { color: theme.textSoft, fontSize: scaleFont(14, fontScale) },
+                  ]}
+                >
                   {cancelLabel}
                 </Text>
               </Pressable>
@@ -187,7 +213,12 @@ export const AppAlertDialog = ({
                     size={16}
                     color={confirmTextColor}
                   />
-                  <Text style={[styles.actionText, { color: confirmTextColor }]}>
+                  <Text
+                    style={[
+                      styles.actionText,
+                      { color: confirmTextColor, fontSize: scaleFont(14, fontScale) },
+                    ]}
+                  >
                     {confirmLabel}
                   </Text>
                 </>

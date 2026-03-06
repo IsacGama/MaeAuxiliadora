@@ -17,6 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useAppTheme, getTextColorForBackground, withAlpha } from '../../mobile/theme';
+import { scaleFont, useFontScalePreference } from '../../mobile/font-scale-preference';
 import { getMediaUrl } from '../../mobile/media';
 import { useDailyLiturgy } from '../../mobile/hooks/use-daily-liturgy';
 import { useAuth } from '../../mobile/auth-context';
@@ -160,6 +161,7 @@ export default function HomeScreen() {
   const { isAuthenticated } = useAuth();
   const tabBarHeight = useBottomTabBarHeight();
   const theme = useAppTheme();
+  const { fontScale } = useFontScalePreference();
 
   const isRefreshing = org.isRefreshing || liturgy.isRefreshing;
 
@@ -242,6 +244,26 @@ export default function HomeScreen() {
     await Promise.all([org.refresh(), liturgy.refresh()]);
   };
 
+  const scaled = useMemo(
+    () => ({
+      title: scaleFont(24, fontScale),
+      subtitle: scaleFont(14, fontScale),
+      subtitleSmall: scaleFont(13, fontScale),
+      subtitleLineHeight: scaleFont(20, fontScale),
+      subtitleSmallLineHeight: scaleFont(18, fontScale),
+      actionTitle: scaleFont(14, fontScale),
+      actionDescription: scaleFont(12, fontScale),
+      actionBadge: scaleFont(11, fontScale),
+      sectionTitle: scaleFont(17, fontScale),
+      paragraph: scaleFont(14, fontScale),
+      paragraphLineHeight: scaleFont(21, fontScale),
+      pixKey: scaleFont(15, fontScale),
+      socialText: scaleFont(12, fontScale),
+      loadingText: scaleFont(14, fontScale),
+    }),
+    [fontScale],
+  );
+
   if (org.isLoading && !org.entity) {
     return (
       <SafeAreaView
@@ -249,7 +271,9 @@ export default function HomeScreen() {
         style={[styles.screen, { backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }]}
       >
         <ActivityIndicator size="large" color={theme.secondary} />
-        <Text style={{ marginTop: 12, color: theme.textSoft }}>Carregando comunidade...</Text>
+        <Text style={{ marginTop: 12, color: theme.textSoft, fontSize: scaled.loadingText }}>
+          Carregando comunidade...
+        </Text>
       </SafeAreaView>
     );
   }
@@ -278,15 +302,30 @@ export default function HomeScreen() {
                     <View style={[styles.logo, { backgroundColor: withAlpha(theme.text, 0.2), borderColor: withAlpha(theme.text, 0.4) }]} />
                   )}
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.title, { color: heroTitleColor }]}>{heroTitle}</Text>
+                    <Text style={[styles.title, { color: heroTitleColor, fontSize: scaled.title }]}>{heroTitle}</Text>
                   </View>
                 </View>
 
-                <Text style={[styles.subtitle, { color: heroTitleColor }]}>
+                <Text
+                  style={[
+                    styles.subtitle,
+                    { color: heroTitleColor, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight },
+                  ]}
+                >
                   {heroWelcomeText}
                 </Text>
                 {shouldShowHeroSlogan && (
-                  <Text style={[styles.subtitle, { color: heroTitleColor, fontSize: 13, opacity: 0.84 }]}>
+                  <Text
+                    style={[
+                      styles.subtitle,
+                      {
+                        color: heroTitleColor,
+                        fontSize: scaled.subtitleSmall,
+                        lineHeight: scaled.subtitleSmallLineHeight,
+                        opacity: 0.84,
+                      },
+                    ]}
+                  >
                     {heroSlogan}
                   </Text>
                 )}
@@ -301,15 +340,30 @@ export default function HomeScreen() {
                   <View style={[styles.logo, { backgroundColor: withAlpha(theme.text, 0.2), borderColor: withAlpha(theme.text, 0.4) }]} />
                 )}
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.title, { color: heroTitleColor }]}>{heroTitle}</Text>
+                  <Text style={[styles.title, { color: heroTitleColor, fontSize: scaled.title }]}>{heroTitle}</Text>
                 </View>
               </View>
 
-              <Text style={[styles.subtitle, { color: heroTitleColor }]}>
+              <Text
+                style={[
+                  styles.subtitle,
+                  { color: heroTitleColor, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight },
+                ]}
+              >
                 {heroWelcomeText}
               </Text>
               {shouldShowHeroSlogan && (
-                <Text style={[styles.subtitle, { color: heroTitleColor, fontSize: 13, opacity: 0.84 }]}>
+                <Text
+                  style={[
+                    styles.subtitle,
+                    {
+                      color: heroTitleColor,
+                      fontSize: scaled.subtitleSmall,
+                      lineHeight: scaled.subtitleSmallLineHeight,
+                      opacity: 0.84,
+                    },
+                  ]}
+                >
                   {heroSlogan}
                 </Text>
               )}
@@ -322,24 +376,24 @@ export default function HomeScreen() {
             style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
             onPress={() => router.push('/liturgia')}
           >
-            <Text style={[styles.actionTitle, { color: theme.primary }]}>Liturgia do Dia</Text>
-            <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Leitura com cache diário</Text>
+            <Text style={[styles.actionTitle, { color: theme.primary, fontSize: scaled.actionTitle }]}>Liturgia do Dia</Text>
+            <Text style={[styles.actionDescription, { color: theme.textSoft, fontSize: scaled.actionDescription }]}>Leitura com cache diário</Text>
           </Pressable>
 
           <Pressable
             style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
             onPress={() => router.push('/biblia')}
           >
-            <Text style={[styles.actionTitle, { color: theme.primary }]}>Bíblia Offline</Text>
-            <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Conteúdo local completo</Text>
+            <Text style={[styles.actionTitle, { color: theme.primary, fontSize: scaled.actionTitle }]}>Bíblia Offline</Text>
+            <Text style={[styles.actionDescription, { color: theme.textSoft, fontSize: scaled.actionDescription }]}>Conteúdo local completo</Text>
           </Pressable>
 
           <Pressable
             style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
             onPress={() => router.push('/oracoes' as never)}
           >
-            <Text style={[styles.actionTitle, { color: theme.primary }]}>Orações</Text>
-            <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Biblioteca com textos em português e latim</Text>
+            <Text style={[styles.actionTitle, { color: theme.primary, fontSize: scaled.actionTitle }]}>Orações</Text>
+            <Text style={[styles.actionDescription, { color: theme.textSoft, fontSize: scaled.actionDescription }]}>Biblioteca com textos em português e latim</Text>
           </Pressable>
 
           <Pressable
@@ -348,14 +402,15 @@ export default function HomeScreen() {
               router.push({ pathname: '/rosario', params: { preset: 'today' } } as never)
             }
           >
-            <Text style={[styles.actionTitle, { color: theme.primary }]}>Terço de hoje</Text>
-            <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Abre direto nos mistérios do dia</Text>
+            <Text style={[styles.actionTitle, { color: theme.primary, fontSize: scaled.actionTitle }]}>Terço de hoje</Text>
+            <Text style={[styles.actionDescription, { color: theme.textSoft, fontSize: scaled.actionDescription }]}>Abre direto nos mistérios do dia</Text>
             <Text
               style={[
                 styles.actionBadge,
                 {
                   color: getTextColorForBackground(theme.secondary),
                   backgroundColor: theme.secondary,
+                  fontSize: scaled.actionBadge,
                 },
               ]}
             >
@@ -367,16 +422,16 @@ export default function HomeScreen() {
             style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
             onPress={() => router.push({ pathname: '/rosario', params: { preset: 'rosario' } } as never)}
           >
-            <Text style={[styles.actionTitle, { color: theme.primary }]}>Rosário Guiado</Text>
-            <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Passo a passo com progresso salvo</Text>
+            <Text style={[styles.actionTitle, { color: theme.primary, fontSize: scaled.actionTitle }]}>Rosário Guiado</Text>
+            <Text style={[styles.actionDescription, { color: theme.textSoft, fontSize: scaled.actionDescription }]}>Passo a passo com progresso salvo</Text>
           </Pressable>
 
           <Pressable
             style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
             onPress={() => router.push('/(tabs)/doacoes' as never)}
           >
-            <Text style={[styles.actionTitle, { color: theme.primary }]}>Doações</Text>
-            <Text style={[styles.actionDescription, { color: theme.textSoft }]}>PIX, dados bancários e localização</Text>
+            <Text style={[styles.actionTitle, { color: theme.primary, fontSize: scaled.actionTitle }]}>Doações</Text>
+            <Text style={[styles.actionDescription, { color: theme.textSoft, fontSize: scaled.actionDescription }]}>PIX, dados bancários e localização</Text>
           </Pressable>
 
           {isAuthenticated && (
@@ -384,8 +439,8 @@ export default function HomeScreen() {
               style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
               onPress={() => router.push('/eventos' as never)}
             >
-              <Text style={[styles.actionTitle, { color: theme.primary }]}>Eventos</Text>
-              <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Confirme presença e acompanhe a agenda</Text>
+              <Text style={[styles.actionTitle, { color: theme.primary, fontSize: scaled.actionTitle }]}>Eventos</Text>
+              <Text style={[styles.actionDescription, { color: theme.textSoft, fontSize: scaled.actionDescription }]}>Confirme presença e acompanhe a agenda</Text>
             </Pressable>
           )}
 
@@ -394,31 +449,31 @@ export default function HomeScreen() {
               style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
               onPress={() => router.push('/noticias')}
             >
-              <Text style={[styles.actionTitle, { color: theme.primary }]}>Notícias</Text>
-              <Text style={[styles.actionDescription, { color: theme.textSoft }]}>Veja os avisos e comunicados</Text>
+              <Text style={[styles.actionTitle, { color: theme.primary, fontSize: scaled.actionTitle }]}>Notícias</Text>
+              <Text style={[styles.actionDescription, { color: theme.textSoft, fontSize: scaled.actionDescription }]}>Veja os avisos e comunicados</Text>
             </Pressable>
           )}
         </View>
 
         <View style={[styles.sectionCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-          <Text style={[styles.sectionTitle, { color: theme.primary }]}>Liturgia em destaque</Text>
-          <Text style={[styles.paragraph, { color: theme.text }]}>{liturgyExcerpt}</Text>
+          <Text style={[styles.sectionTitle, { color: theme.primary, fontSize: scaled.sectionTitle }]}>Liturgia em destaque</Text>
+          <Text style={[styles.paragraph, { color: theme.text, fontSize: scaled.paragraph, lineHeight: scaled.paragraphLineHeight }]}>{liturgyExcerpt}</Text>
           {!!liturgy.error && <Text style={{ color: theme.accent }}>{liturgy.error}</Text>}
         </View>
 
         {!isAuthenticated && (
           <View style={[styles.sectionCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-            <Text style={[styles.sectionTitle, { color: theme.primary }]}>Acesso da sua comunidade</Text>
-            <Text style={[styles.paragraph, { color: theme.textSoft }]}>
+            <Text style={[styles.sectionTitle, { color: theme.primary, fontSize: scaled.sectionTitle }]}>Acesso da sua comunidade</Text>
+            <Text style={[styles.paragraph, { color: theme.textSoft, fontSize: scaled.paragraph, lineHeight: scaled.paragraphLineHeight }]}>
               Faça login ou cadastre-se para ver notícias, informações da sua paróquia/capela e seu painel de dízimo.
             </Text>
             <Pressable
               style={[styles.ctaButton, { borderColor: theme.secondary, backgroundColor: withAlpha(theme.secondary, 0.16) }]}
               onPress={() => router.push('/conta')}
             >
-              <Text style={[styles.actionTitle, { color: theme.secondary }]}>Ir para login/cadastro</Text>
+              <Text style={[styles.actionTitle, { color: theme.secondary, fontSize: scaled.actionTitle }]}>Ir para login/cadastro</Text>
             </Pressable>
-            <Text style={[styles.paragraph, { color: theme.textSoft }]}>
+            <Text style={[styles.paragraph, { color: theme.textSoft, fontSize: scaled.paragraph, lineHeight: scaled.paragraphLineHeight }]}>
               Não encontrou sua paróquia ou capela? Fale com o pároco ou com a secretaria da sua comunidade para ativar o aplicativo.
             </Text>
           </View>
@@ -426,10 +481,10 @@ export default function HomeScreen() {
 
         {!!pixKey && isAuthenticated && (
           <View style={[styles.sectionCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-            <Text style={[styles.sectionTitle, { color: theme.primary }]}>Doações via PIX</Text>
-            <Text style={[styles.pixKeyText, { color: theme.secondary }]}>{pixKey}</Text>
+            <Text style={[styles.sectionTitle, { color: theme.primary, fontSize: scaled.sectionTitle }]}>Doações via PIX</Text>
+            <Text style={[styles.pixKeyText, { color: theme.secondary, fontSize: scaled.pixKey }]}>{pixKey}</Text>
             {!!pixQrUrl && <Image source={{ uri: pixQrUrl }} style={styles.qrImage} resizeMode="contain" />}
-            <Text style={[styles.paragraph, { color: theme.textSoft }]}>
+            <Text style={[styles.paragraph, { color: theme.textSoft, fontSize: scaled.paragraph, lineHeight: scaled.paragraphLineHeight }]}>
               Escaneie o QR Code no seu banco ou use a chave PIX acima.
             </Text>
           </View>
@@ -437,7 +492,7 @@ export default function HomeScreen() {
 
         {socialLinks.length > 0 && isAuthenticated && (
           <View style={[styles.sectionCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-            <Text style={[styles.sectionTitle, { color: theme.primary }]}>Redes sociais</Text>
+            <Text style={[styles.sectionTitle, { color: theme.primary, fontSize: scaled.sectionTitle }]}>Redes sociais</Text>
             <View style={styles.socialRow}>
               {socialLinks.map((social) => (
                 <Pressable
@@ -460,7 +515,7 @@ export default function HomeScreen() {
                     size={14}
                     color={theme.secondary}
                   />
-                  <Text style={[styles.socialText, { color: theme.secondary }]}>{social.label}</Text>
+                  <Text style={[styles.socialText, { color: theme.secondary, fontSize: scaled.socialText }]}>{social.label}</Text>
                 </Pressable>
               ))}
             </View>

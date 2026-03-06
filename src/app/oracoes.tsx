@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useOrgContext } from '../mobile/hooks/use-org-context';
 import { useSpeech, speechRateLabels, type SpeechRate } from '../mobile/hooks/use-speech';
 import { useAppTheme, withAlpha } from '../mobile/theme';
+import { scaleFont, useFontScalePreference } from '../mobile/font-scale-preference';
 import {
   devotionLanguageLabels,
   getPrayerTextByLanguage,
@@ -191,6 +192,7 @@ const iconByPrayer = (prayer: PrayerRecord): keyof typeof MaterialCommunityIcons
 export default function PrayersScreen() {
   const org = useOrgContext();
   const theme = useAppTheme();
+  const { fontScale } = useFontScalePreference();
 
   const [query, setQuery] = useState('');
   const [language, setLanguage] = useState<DevotionLanguage>('pt');
@@ -205,6 +207,25 @@ export default function PrayersScreen() {
 
   // Active prayer being read aloud (only one at a time)
   const [speakingPrayerId, setSpeakingPrayerId] = useState<string | null>(null);
+  const scaled = useMemo(
+    () => ({
+      title: scaleFont(22, fontScale),
+      subtitle: scaleFont(13, fontScale),
+      subtitleLineHeight: scaleFont(20, fontScale),
+      input: scaleFont(14, fontScale),
+      languageButtonText: scaleFont(12, fontScale),
+      cardTitle: scaleFont(17, fontScale),
+      prayerText: scaleFont(14, fontScale),
+      prayerLineHeight: scaleFont(22, fontScale),
+      playButtonText: scaleFont(13, fontScale),
+      rateChipText: scaleFont(12, fontScale),
+      emptyText: scaleFont(14, fontScale),
+      downloadButtonText: scaleFont(12, fontScale),
+      downloadMetaText: scaleFont(12, fontScale),
+      downloadMetaLineHeight: scaleFont(18, fontScale),
+    }),
+    [fontScale],
+  );
 
   // Latin TTS: use Italian (closest phonetically to ecclesiastical Latin)
   const languageCode = language === 'pt' ? 'pt-BR' : 'it-IT';
@@ -337,11 +358,11 @@ export default function PrayersScreen() {
           <View style={[styles.headerCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
             <Pressable style={[styles.backButton, { borderColor: theme.border }]} onPress={() => router.back()}>
               <MaterialCommunityIcons name="arrow-left" size={16} color={theme.secondary} />
-              <Text style={{ color: theme.secondary, fontWeight: '700' }}>Voltar</Text>
+              <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.playButtonText }}>Voltar</Text>
             </Pressable>
 
-            <Text style={[styles.title, { color: theme.primary }]}>Orações</Text>
-            <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+            <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Orações</Text>
+            <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
               Busque e reze no idioma de sua preferência. Toque no título para expandir.
             </Text>
 
@@ -350,7 +371,7 @@ export default function PrayersScreen() {
               onChangeText={setQuery}
               placeholder="Buscar oração"
               placeholderTextColor={theme.textSoft}
-              style={[styles.searchInput, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg }]}
+              style={[styles.searchInput, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg, fontSize: scaled.input }]}
             />
 
             {/* Language selector — controls both display and TTS language */}
@@ -376,7 +397,7 @@ export default function PrayersScreen() {
                     <Text
                       style={[
                         styles.languageButtonText,
-                        { color: isSelected ? theme.secondary : theme.textSoft },
+                        { color: isSelected ? theme.secondary : theme.textSoft, fontSize: scaled.languageButtonText },
                       ]}
                     >
                       {devotionLanguageLabels[nextLanguage]}
@@ -402,7 +423,7 @@ export default function PrayersScreen() {
                 disabled={downloadBusy}
               >
                 <MaterialCommunityIcons name="download-outline" size={16} color={theme.secondary} />
-                <Text style={[styles.downloadButtonText, { color: theme.secondary }]}>
+                <Text style={[styles.downloadButtonText, { color: theme.secondary, fontSize: scaled.downloadButtonText }]}>
                   Baixar offline ({devotionLanguageLabels[language]})
                 </Text>
               </Pressable>
@@ -422,24 +443,24 @@ export default function PrayersScreen() {
                 disabled={downloadBusy}
               >
                 <MaterialCommunityIcons name="delete-outline" size={16} color={theme.textSoft} />
-                <Text style={[styles.downloadButtonText, { color: theme.textSoft }]}>
+                <Text style={[styles.downloadButtonText, { color: theme.textSoft, fontSize: scaled.downloadButtonText }]}>
                   Limpar offline
                 </Text>
               </Pressable>
             </View>
 
-            <Text style={[styles.downloadMetaText, { color: theme.textSoft }]}>
+            <Text style={[styles.downloadMetaText, { color: theme.textSoft, fontSize: scaled.downloadMetaText, lineHeight: scaled.downloadMetaLineHeight }]}>
               Offline salvo: {downloadMeta.count} arquivos ({formatBytes(downloadMeta.bytes)}).
             </Text>
             {downloadMessage ? (
-              <Text style={[styles.downloadMetaText, { color: theme.secondary }]}>
+              <Text style={[styles.downloadMetaText, { color: theme.secondary, fontSize: scaled.downloadMetaText, lineHeight: scaled.downloadMetaLineHeight }]}>
                 {downloadMessage}
               </Text>
             ) : null}
           </View>
         }
         ListEmptyComponent={
-          <Text style={[styles.emptyText, { color: theme.textSoft }]}>Nenhuma oração encontrada para a busca.</Text>
+          <Text style={[styles.emptyText, { color: theme.textSoft, fontSize: scaled.emptyText }]}>Nenhuma oração encontrada para a busca.</Text>
         }
         renderItem={({ item }) => {
           const prayerText = getPrayerTextByLanguage(item, language);
@@ -463,7 +484,7 @@ export default function PrayersScreen() {
               <Pressable style={styles.cardTitleRow} onPress={() => togglePrayer(item.id)}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
                   <MaterialCommunityIcons name={iconByPrayer(item)} size={18} color={theme.secondary} />
-                  <Text style={[styles.cardTitle, { color: theme.primary }]}>{item.title}</Text>
+                  <Text style={[styles.cardTitle, { color: theme.primary, fontSize: scaled.cardTitle }]}>{item.title}</Text>
                 </View>
                 <MaterialCommunityIcons
                   name={isExpanded ? 'chevron-up' : 'chevron-down'}
@@ -473,7 +494,12 @@ export default function PrayersScreen() {
               </Pressable>
 
               {/* Prayer text */}
-              <Text style={[isExpanded ? styles.prayerText : styles.compactText, { color: theme.text }]}>
+              <Text
+                style={[
+                  isExpanded ? styles.prayerText : styles.compactText,
+                  { color: theme.text, fontSize: scaled.prayerText, lineHeight: scaled.prayerLineHeight },
+                ]}
+              >
                 {isExpanded ? prayerText : compactText}
               </Text>
 
@@ -500,7 +526,7 @@ export default function PrayersScreen() {
                       size={17}
                       color={theme.secondary}
                     />
-                    <Text style={[styles.playButtonText, { color: theme.secondary }]}>
+                    <Text style={[styles.playButtonText, { color: theme.secondary, fontSize: scaled.playButtonText }]}>
                       {isThisSpeaking ? 'Parar' : 'Rezar comigo'}
                     </Text>
                   </Pressable>
@@ -523,7 +549,7 @@ export default function PrayersScreen() {
                         ]}
                         onPress={() => setRate(r)}
                       >
-                        <Text style={[styles.rateChipText, { color: isSelected ? theme.secondary : theme.textSoft }]}>
+                        <Text style={[styles.rateChipText, { color: isSelected ? theme.secondary : theme.textSoft, fontSize: scaled.rateChipText }]}>
                           {speechRateLabels[r]}
                         </Text>
                       </Pressable>

@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { usePublicPosts } from '../../mobile/hooks/use-public-posts';
 import { useAppTheme } from '../../mobile/theme';
+import { scaleFont, useFontScalePreference } from '../../mobile/font-scale-preference';
 import { useAuth } from '../../mobile/auth-context';
 
 const styles = StyleSheet.create({
@@ -99,6 +100,22 @@ export default function NewsScreen() {
   const { isAuthenticated } = useAuth();
   const org = useOrgContext();
   const theme = useAppTheme();
+  const { fontScale } = useFontScalePreference();
+  const scaled = useMemo(
+    () => ({
+      title: scaleFont(22, fontScale),
+      subtitle: scaleFont(13, fontScale),
+      subtitleLineHeight: scaleFont(19, fontScale),
+      cardTitle: scaleFont(17, fontScale),
+      cardTitleLineHeight: scaleFont(24, fontScale),
+      cardSummary: scaleFont(14, fontScale),
+      cardSummaryLineHeight: scaleFont(21, fontScale),
+      date: scaleFont(12, fontScale),
+      buttonText: scaleFont(13, fontScale),
+      loadingText: scaleFont(14, fontScale),
+    }),
+    [fontScale],
+  );
 
   const orgId = org.entity?.orgUnitId ?? null;
   const posts = usePublicPosts(orgId);
@@ -113,10 +130,10 @@ export default function NewsScreen() {
               onPress={() => router.replace('/conta')}
             >
               <MaterialCommunityIcons name="account-circle-outline" size={16} color={theme.secondary} />
-              <Text style={{ color: theme.secondary, fontWeight: '700' }}>Ir para conta</Text>
+              <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>Ir para conta</Text>
             </Pressable>
-            <Text style={[styles.title, { color: theme.text }]}>Notícias da comunidade</Text>
-            <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+            <Text style={[styles.title, { color: theme.text, fontSize: scaled.title }]}>Notícias da comunidade</Text>
+            <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
               Faça login ou cadastre-se para acessar as notícias da sua paróquia/capela.
             </Text>
           </View>
@@ -132,7 +149,7 @@ export default function NewsScreen() {
         style={[styles.screen, { backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' }]}
       >
         <ActivityIndicator size="large" color={theme.secondary} />
-        <Text style={{ marginTop: 10, color: theme.textSoft }}>Carregando notícias...</Text>
+        <Text style={{ marginTop: 10, color: theme.textSoft, fontSize: scaled.loadingText }}>Carregando notícias...</Text>
       </SafeAreaView>
     );
   }
@@ -165,18 +182,18 @@ export default function NewsScreen() {
               onPress={() => router.back()}
             >
               <MaterialCommunityIcons name="arrow-left" size={16} color={theme.secondary} />
-              <Text style={{ color: theme.secondary, fontWeight: '700' }}>Voltar</Text>
+              <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>Voltar</Text>
             </Pressable>
-            <Text style={[styles.title, { color: theme.text }]}>Notícias</Text>
-            <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+            <Text style={[styles.title, { color: theme.text, fontSize: scaled.title }]}>Notícias</Text>
+            <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
               Comunicados e conteúdos publicados pela sua comunidade.
             </Text>
           </View>
         }
         ListEmptyComponent={
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.cardTitle, { color: theme.text }]}>Nenhuma notícia publicada</Text>
-            <Text style={[styles.cardSummary, { color: theme.textSoft }]}>
+            <Text style={[styles.cardTitle, { color: theme.text, fontSize: scaled.cardTitle, lineHeight: scaled.cardTitleLineHeight }]}>Nenhuma notícia publicada</Text>
+            <Text style={[styles.cardSummary, { color: theme.textSoft, fontSize: scaled.cardSummary, lineHeight: scaled.cardSummaryLineHeight }]}>
               Assim que houver novidades, elas aparecerão aqui.
             </Text>
           </View>
@@ -185,7 +202,7 @@ export default function NewsScreen() {
           <>
             {!!posts.error && (
               <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                <Text style={[styles.cardSummary, { color: '#FCA5A5' }]}>{posts.error}</Text>
+                <Text style={[styles.cardSummary, { color: '#FCA5A5', fontSize: scaled.cardSummary, lineHeight: scaled.cardSummaryLineHeight }]}>{posts.error}</Text>
               </View>
             )}
             {posts.isLoadingMore && (
@@ -208,11 +225,11 @@ export default function NewsScreen() {
                 } as never)
               }
             >
-              <Text style={[styles.cardTitle, { color: theme.text }]}>{post.title}</Text>
-              <Text style={[styles.date, { color: theme.textSoft }]}>
+              <Text style={[styles.cardTitle, { color: theme.text, fontSize: scaled.cardTitle, lineHeight: scaled.cardTitleLineHeight }]}>{post.title}</Text>
+              <Text style={[styles.date, { color: theme.textSoft, fontSize: scaled.date }]}>
                 {formatDate(post.publishedAt ?? post.createdAt)}
               </Text>
-              <Text style={[styles.cardSummary, { color: theme.textSoft }]}>{summary}</Text>
+              <Text style={[styles.cardSummary, { color: theme.textSoft, fontSize: scaled.cardSummary, lineHeight: scaled.cardSummaryLineHeight }]}>{summary}</Text>
             </Pressable>
           );
         }}

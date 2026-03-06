@@ -17,6 +17,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { publicApi } from '../../mobile/api';
+import { scaleFont, useFontScalePreference } from '../../mobile/font-scale-preference';
 import { getMediaUrl } from '../../mobile/media';
 import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useAppTheme, type AppTheme } from '../../mobile/theme';
@@ -358,6 +359,7 @@ export default function PostDetailScreen() {
   const { slug } = useLocalSearchParams<{ slug?: string }>();
   const org = useOrgContext();
   const theme = useAppTheme();
+  const { fontScale } = useFontScalePreference();
   const { width: screenWidth } = useWindowDimensions();
 
   const orgId = org.entity?.orgUnitId ?? undefined;
@@ -396,6 +398,24 @@ export default function PostDetailScreen() {
 
   const latestVersion = post?.versions?.[0];
   const blocks = (latestVersion?.blocks ?? []).slice().sort((a, b) => a.order - b.order);
+  const scaled = useMemo(
+    () => ({
+      title: scaleFont(24, fontScale),
+      titleLineHeight: scaleFont(30, fontScale),
+      subtitle: scaleFont(14, fontScale),
+      subtitleLineHeight: scaleFont(20, fontScale),
+      meta: scaleFont(12, fontScale),
+      body: scaleFont(15, fontScale),
+      bodyLineHeight: scaleFont(23, fontScale),
+      heading: scaleFont(22, fontScale),
+      headingLineHeight: scaleFont(29, fontScale),
+      quote: scaleFont(15, fontScale),
+      quoteLineHeight: scaleFont(23, fontScale),
+      action: scaleFont(13, fontScale),
+      columnHeading: scaleFont(17, fontScale),
+    }),
+    [fontScale],
+  );
 
   // Inner content width (matches imageWidth in GalleryCarousel)
   const contentWidth = screenWidth - 60;
@@ -411,15 +431,15 @@ export default function PostDetailScreen() {
             onPress={() => router.back()}
           >
             <MaterialCommunityIcons name="arrow-left" size={16} color={theme.secondary} />
-            <Text style={{ color: theme.secondary, fontWeight: '700' }}>Voltar</Text>
+            <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaleFont(14, fontScale) }}>Voltar</Text>
           </Pressable>
 
-          <Text style={[styles.title, { color: theme.text }]}>
+          <Text style={[styles.title, { color: theme.text, fontSize: scaled.title, lineHeight: scaled.titleLineHeight }]}>
             {post?.title ?? 'Notícia'}
           </Text>
 
           {!!post?.publishedAt && (
-            <Text style={[styles.meta, { color: theme.textSoft }]}>
+            <Text style={[styles.meta, { color: theme.textSoft, fontSize: scaled.meta }]}>
               Publicado em {formatDateTime(post.publishedAt)}
             </Text>
           )}
@@ -431,7 +451,7 @@ export default function PostDetailScreen() {
             style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, alignItems: 'center' }]}
           >
             <ActivityIndicator size="large" color={theme.secondary} />
-            <Text style={{ color: theme.textSoft }}>Carregando conteúdo...</Text>
+            <Text style={{ color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }}>Carregando conteúdo...</Text>
           </View>
         )}
 
@@ -445,7 +465,7 @@ export default function PostDetailScreen() {
         {/* Summary */}
         {!!latestVersion?.summary && !isLoading && (
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+            <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
               {stripHtml(latestVersion.summary ?? '')}
             </Text>
           </View>
@@ -454,7 +474,7 @@ export default function PostDetailScreen() {
         {/* Empty blocks */}
         {!isLoading && !!post && blocks.length === 0 && (
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-            <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+            <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
               Este post ainda não possui blocos de conteúdo no aplicativo.
             </Text>
           </View>
@@ -553,7 +573,7 @@ export default function PostDetailScreen() {
                     style={[styles.actionButton, { borderColor: theme.secondary }]}
                     onPress={() => { void Linking.openURL(url).catch(() => undefined); }}
                   >
-                    <Text style={[styles.actionButtonText, { color: theme.secondary }]}>
+                    <Text style={[styles.actionButtonText, { color: theme.secondary, fontSize: scaled.action }]}>
                       {label}
                     </Text>
                   </Pressable>
@@ -574,17 +594,17 @@ export default function PostDetailScreen() {
                   {columns.map((column, columnIndex) => (
                     <View key={`${key}-col-${columnIndex}`} style={{ gap: 4 }}>
                       {!!asString(column.title) && (
-                        <Text style={[styles.headingBlock, { color: theme.text, fontSize: 17 }]}>
+                        <Text style={[styles.headingBlock, { color: theme.text, fontSize: scaled.columnHeading, lineHeight: scaleFont(24, fontScale) }]}>
                           {asString(column.title)}
                         </Text>
                       )}
                       {!!asString(column.text) && (
-                        <Text style={[styles.blockText, { color: theme.text }]}>
+                        <Text style={[styles.blockText, { color: theme.text, fontSize: scaled.body, lineHeight: scaled.bodyLineHeight }]}>
                           {asString(column.text)}
                         </Text>
                       )}
                       {!!asString(column.html) && (
-                        <Text style={[styles.blockText, { color: theme.text }]}>
+                        <Text style={[styles.blockText, { color: theme.text, fontSize: scaled.body, lineHeight: scaled.bodyLineHeight }]}>
                           {stripHtml(asString(column.html))}
                         </Text>
                       )}
@@ -612,6 +632,18 @@ export default function PostDetailScreen() {
                     {
                       color: theme.text,
                       borderLeftColor: block.type === 'QUOTE' ? theme.secondary : undefined,
+                      fontSize:
+                        block.type === 'HEADING'
+                          ? scaled.heading
+                          : block.type === 'QUOTE'
+                            ? scaled.quote
+                            : scaled.body,
+                      lineHeight:
+                        block.type === 'HEADING'
+                          ? scaled.headingLineHeight
+                          : block.type === 'QUOTE'
+                            ? scaled.quoteLineHeight
+                            : scaled.bodyLineHeight,
                     },
                   ]}
                 >

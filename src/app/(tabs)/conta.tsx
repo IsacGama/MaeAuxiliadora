@@ -21,6 +21,7 @@ import { useAppTheme, withAlpha } from '../../mobile/theme';
 import { authApi, publicApi } from '../../mobile/api';
 import { ChapelPublic, ParishPublic } from '../../mobile/types';
 import { ThemePreference, useThemePreference } from '../../mobile/theme-preference';
+import { FontScalePreference, scaleFont, useFontScalePreference } from '../../mobile/font-scale-preference';
 import { AppAlertDialog } from '../../mobile/components/app-alert-dialog';
 
 const styles = StyleSheet.create({
@@ -83,6 +84,7 @@ const styles = StyleSheet.create({
   toggleRow: {
     flexDirection: 'row',
     gap: 8,
+    flexWrap: 'wrap',
   },
   toggleButton: {
     flex: 1,
@@ -198,7 +200,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   themeOptionButton: {
-    flex: 1,
+    flexGrow: 1,
+    minWidth: '47%',
     borderRadius: 10,
     borderWidth: 1,
     paddingVertical: 10,
@@ -292,6 +295,11 @@ export default function AccountScreen() {
   const dashboard = useMemberDashboard();
   const org = useOrgContext();
   const { preference, resolvedMode, setPreference } = useThemePreference();
+  const {
+    preference: fontScalePreference,
+    fontScale,
+    setPreference: setFontScalePreference,
+  } = useFontScalePreference();
   const tabBarHeight = useBottomTabBarHeight();
   const theme = useAppTheme();
 
@@ -655,6 +663,33 @@ export default function AccountScreen() {
     { value: 'LIGHT', label: 'Claro' },
     { value: 'DARK', label: 'Escuro' },
   ];
+  const fontScaleOptions: Array<{ value: FontScalePreference; label: string }> = [
+    { value: 'DEFAULT', label: 'Padrão' },
+    { value: 'MEDIUM', label: 'Média' },
+    { value: 'LARGE', label: 'Grande' },
+    { value: 'EXTRA_LARGE', label: 'Extra grande' },
+  ];
+  const scaled = useMemo(
+    () => ({
+      title: scaleFont(20, fontScale),
+      subtitle: scaleFont(13, fontScale),
+      input: scaleFont(15, fontScale),
+      buttonText: scaleFont(14, fontScale),
+      statLabel: scaleFont(12, fontScale),
+      statValue: scaleFont(18, fontScale),
+      genderOptionText: scaleFont(12, fontScale),
+      selectTriggerLabel: scaleFont(15, fontScale),
+      selectTriggerHint: scaleFont(12, fontScale),
+      modalHeaderTitle: scaleFont(17, fontScale),
+      modalSearchInput: scaleFont(14, fontScale),
+      modalOptionTitle: scaleFont(14, fontScale),
+      modalOptionSubtitle: scaleFont(12, fontScale),
+      streakText: scaleFont(13, fontScale),
+      themeOptionText: scaleFont(13, fontScale),
+      noticeText: scaleFont(13, fontScale),
+    }),
+    [fontScale],
+  );
 
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
@@ -681,7 +716,7 @@ export default function AccountScreen() {
               },
             ]}
           >
-            <Text style={[styles.noticeText, { color: theme.secondary }]}>
+            <Text style={[styles.noticeText, { color: theme.secondary, fontSize: scaled.noticeText }]}>
               {postLogoutNotice}
             </Text>
           </View>
@@ -697,7 +732,7 @@ export default function AccountScreen() {
               },
             ]}
           >
-            <Text style={[styles.noticeText, { color: theme.secondary }]}>
+            <Text style={[styles.noticeText, { color: theme.secondary, fontSize: scaled.noticeText }]}>
               {accountSetupNotice}
             </Text>
             {!!queuedAccessEmail && (
@@ -715,7 +750,7 @@ export default function AccountScreen() {
                 }}
                 disabled={resendingAccessEmail}
               >
-                <Text style={[styles.buttonText, { color: theme.secondary }]}>
+                <Text style={[styles.buttonText, { color: theme.secondary, fontSize: scaled.buttonText }]}>
                   {resendingAccessEmail ? 'Reenviando...' : 'Reenviar e-mail de acesso'}
                 </Text>
               </Pressable>
@@ -739,7 +774,7 @@ export default function AccountScreen() {
                   setSubmitError(null);
                 }}
               >
-                <Text style={[styles.buttonText, { color: mode === 'login' ? theme.secondary : theme.textSoft }]}>
+                <Text style={[styles.buttonText, { color: mode === 'login' ? theme.secondary : theme.textSoft, fontSize: scaled.buttonText }]}>
                   Entrar
                 </Text>
               </Pressable>
@@ -756,7 +791,7 @@ export default function AccountScreen() {
                   setSubmitError(null);
                 }}
               >
-                <Text style={[styles.buttonText, { color: mode === 'register' ? theme.secondary : theme.textSoft }]}>
+                <Text style={[styles.buttonText, { color: mode === 'register' ? theme.secondary : theme.textSoft, fontSize: scaled.buttonText }]}>
                   Cadastrar
                 </Text>
               </Pressable>
@@ -764,8 +799,8 @@ export default function AccountScreen() {
 
             {mode === 'login' ? (
               <>
-                <Text style={[styles.title, { color: theme.primary }]}>Entrar como fiel</Text>
-                <Text style={[styles.subtitle, { color: theme.textSoft }]}>Acesse seu perfil para acompanhar seu dízimo.</Text>
+                <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Entrar como fiel</Text>
+                <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>Acesse seu perfil para acompanhar seu dízimo.</Text>
 
                 <TextInput
                   value={email}
@@ -774,7 +809,7 @@ export default function AccountScreen() {
                   autoCapitalize="none"
                   placeholder="seuemail@exemplo.com"
                   placeholderTextColor={theme.textSoft}
-                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
                 <TextInput
                   value={password}
@@ -782,7 +817,7 @@ export default function AccountScreen() {
                   secureTextEntry
                   placeholder="Senha"
                   placeholderTextColor={theme.textSoft}
-                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
 
                 <Pressable
@@ -790,7 +825,7 @@ export default function AccountScreen() {
                   onPress={onLogin}
                   disabled={submitting}
                 >
-                  <Text style={[styles.buttonText, { color: theme.secondary }]}>
+                  <Text style={[styles.buttonText, { color: theme.secondary, fontSize: scaled.buttonText }]}>
                     {submitting ? 'Entrando...' : 'Entrar'}
                   </Text>
                 </Pressable>
@@ -801,15 +836,15 @@ export default function AccountScreen() {
                   }}
                   disabled={requestingPasswordReset}
                 >
-                  <Text style={[styles.buttonText, { color: theme.textSoft }]}>
+                  <Text style={[styles.buttonText, { color: theme.textSoft, fontSize: scaled.buttonText }]}>
                     {requestingPasswordReset ? 'Enviando link...' : 'Esqueci minha senha'}
                   </Text>
                 </Pressable>
               </>
             ) : (
               <>
-                <Text style={[styles.title, { color: theme.primary }]}>Criar conta de fiel</Text>
-                <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+                <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Criar conta de fiel</Text>
+                <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
                   Escolha sua paróquia e, se for o caso, sua capela. O acesso inicial será enviado por e-mail.
                 </Text>
 
@@ -818,7 +853,7 @@ export default function AccountScreen() {
                   onChangeText={setRegisterName}
                   placeholder="Nome completo"
                   placeholderTextColor={theme.textSoft}
-                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
                 <TextInput
                   value={registerEmail}
@@ -827,7 +862,7 @@ export default function AccountScreen() {
                   autoCapitalize="none"
                   placeholder="seuemail@exemplo.com"
                   placeholderTextColor={theme.textSoft}
-                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
                 <TextInput
                   value={registerPhone}
@@ -835,7 +870,7 @@ export default function AccountScreen() {
                   keyboardType="phone-pad"
                   placeholder="Telefone (88) 99999-9999"
                   placeholderTextColor={theme.textSoft}
-                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
                 <TextInput
                   value={registerCpf}
@@ -843,10 +878,10 @@ export default function AccountScreen() {
                   keyboardType="number-pad"
                   placeholder="CPF 000.000.000-00"
                   placeholderTextColor={theme.textSoft}
-                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
 
-                <Text style={[styles.statLabel, { color: theme.textSoft }]}>Gênero</Text>
+                <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>Gênero</Text>
                 <View style={styles.genderRow}>
                   {[
                     { value: 'MALE', label: 'Masculino' },
@@ -877,6 +912,7 @@ export default function AccountScreen() {
                               registerGender === option.value
                                 ? theme.secondary
                                 : theme.textSoft,
+                            fontSize: scaled.genderOptionText,
                           },
                         ]}
                       >
@@ -886,7 +922,7 @@ export default function AccountScreen() {
                   ))}
                 </View>
 
-                <Text style={[styles.statLabel, { color: theme.textSoft }]}>Paróquia</Text>
+                <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>Paróquia</Text>
                 {loadingParishes ? (
                   <ActivityIndicator size="small" color={theme.secondary} />
                 ) : parishes.length ? (
@@ -898,10 +934,10 @@ export default function AccountScreen() {
                     }}
                   >
                     <View style={styles.selectTriggerTextWrap}>
-                      <Text style={[styles.selectTriggerLabel, { color: theme.text }]} numberOfLines={1}>
+                      <Text style={[styles.selectTriggerLabel, { color: theme.text, fontSize: scaled.selectTriggerLabel }]} numberOfLines={1}>
                         {selectedParish?.name ?? 'Escolher paróquia'}
                       </Text>
-                      <Text style={[styles.selectTriggerHint, { color: theme.textSoft }]} numberOfLines={1}>
+                      <Text style={[styles.selectTriggerHint, { color: theme.textSoft, fontSize: scaled.selectTriggerHint }]} numberOfLines={1}>
                         {selectedParish?.diocese?.name ??
                           `${parishes.length} ${parishes.length === 1 ? 'paróquia disponível' : 'paróquias disponíveis'
                           }`}
@@ -915,7 +951,7 @@ export default function AccountScreen() {
 
                 {!!selectedParishId && (
                   <>
-                    <Text style={[styles.statLabel, { color: theme.textSoft }]}>
+                    <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>
                       Capela (opcional - se não escolher, fica na paróquia)
                     </Text>
                     {loadingChapels ? (
@@ -929,10 +965,10 @@ export default function AccountScreen() {
                         }}
                       >
                         <View style={styles.selectTriggerTextWrap}>
-                          <Text style={[styles.selectTriggerLabel, { color: theme.text }]} numberOfLines={1}>
+                          <Text style={[styles.selectTriggerLabel, { color: theme.text, fontSize: scaled.selectTriggerLabel }]} numberOfLines={1}>
                             {selectedChapel?.name ?? 'Sem capela (usar paróquia)'}
                           </Text>
-                          <Text style={[styles.selectTriggerHint, { color: theme.textSoft }]} numberOfLines={1}>
+                          <Text style={[styles.selectTriggerHint, { color: theme.textSoft, fontSize: scaled.selectTriggerHint }]} numberOfLines={1}>
                             {selectedChapel
                               ? 'Conta vinculada à capela selecionada'
                               : 'Conta vinculada direto à paróquia'}
@@ -948,7 +984,7 @@ export default function AccountScreen() {
                   </>
                 )}
 
-                <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+                <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
                   Não encontrou sua paróquia ou capela? Fale com o pároco ou com a secretaria da sua comunidade para
                   verificarem a ativação do app.
                 </Text>
@@ -958,7 +994,7 @@ export default function AccountScreen() {
                   onPress={onRegister}
                   disabled={submitting || loadingParishes}
                 >
-                  <Text style={[styles.buttonText, { color: theme.secondary }]}>
+                  <Text style={[styles.buttonText, { color: theme.secondary, fontSize: scaled.buttonText }]}>
                     {submitting ? 'Enviando acesso...' : 'Criar conta'}
                   </Text>
                 </Pressable>
@@ -975,7 +1011,7 @@ export default function AccountScreen() {
                 <Pressable style={StyleSheet.absoluteFill} onPress={() => setParishPickerOpen(false)} />
                 <View style={[styles.modalPanel, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                   <View style={styles.modalHeader}>
-                    <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>Escolher paróquia</Text>
+                    <Text style={[styles.modalHeaderTitle, { color: theme.text, fontSize: scaled.modalHeaderTitle }]}>Escolher paróquia</Text>
                     <Pressable
                       style={[styles.modalCloseButton, { borderColor: theme.border }]}
                       onPress={() => setParishPickerOpen(false)}
@@ -991,7 +1027,7 @@ export default function AccountScreen() {
                       onChangeText={setParishQuery}
                       placeholder="Buscar por nome da paróquia ou diocese"
                       placeholderTextColor={theme.textSoft}
-                      style={[styles.modalSearchInput, { color: theme.text }]}
+                      style={[styles.modalSearchInput, { color: theme.text, fontSize: scaled.modalSearchInput }]}
                     />
                   </View>
 
@@ -1018,21 +1054,21 @@ export default function AccountScreen() {
                           <Text
                             style={[
                               styles.modalOptionTitle,
-                              { color: theme.text, fontWeight: selectedParishId === parish.id ? '800' : '700' },
+                              { color: theme.text, fontWeight: selectedParishId === parish.id ? '800' : '700', fontSize: scaled.modalOptionTitle },
                             ]}
                             numberOfLines={1}
                           >
                             {parish.name}
                           </Text>
                           {!!parish.diocese?.name && (
-                            <Text style={[styles.modalOptionSubtitle, { color: theme.textSoft }]} numberOfLines={1}>
+                            <Text style={[styles.modalOptionSubtitle, { color: theme.textSoft, fontSize: scaled.modalOptionSubtitle }]} numberOfLines={1}>
                               {parish.diocese.name}
                             </Text>
                           )}
                         </Pressable>
                       ))
                     ) : (
-                      <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+                      <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
                         Nenhuma paróquia encontrada para "{parishQuery.trim()}".
                       </Text>
                     )}
@@ -1051,7 +1087,7 @@ export default function AccountScreen() {
                 <Pressable style={StyleSheet.absoluteFill} onPress={() => setChapelPickerOpen(false)} />
                 <View style={[styles.modalPanel, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                   <View style={styles.modalHeader}>
-                    <Text style={[styles.modalHeaderTitle, { color: theme.text }]}>Escolher capela</Text>
+                    <Text style={[styles.modalHeaderTitle, { color: theme.text, fontSize: scaled.modalHeaderTitle }]}>Escolher capela</Text>
                     <Pressable
                       style={[styles.modalCloseButton, { borderColor: theme.border }]}
                       onPress={() => setChapelPickerOpen(false)}
@@ -1067,7 +1103,7 @@ export default function AccountScreen() {
                       onChangeText={setChapelQuery}
                       placeholder="Buscar capela"
                       placeholderTextColor={theme.textSoft}
-                      style={[styles.modalSearchInput, { color: theme.text }]}
+                      style={[styles.modalSearchInput, { color: theme.text, fontSize: scaled.modalSearchInput }]}
                     />
                   </View>
 
@@ -1089,12 +1125,12 @@ export default function AccountScreen() {
                       <Text
                         style={[
                           styles.modalOptionTitle,
-                          { color: theme.text, fontWeight: selectedChapelId ? '700' : '800' },
+                          { color: theme.text, fontWeight: selectedChapelId ? '700' : '800', fontSize: scaled.modalOptionTitle },
                         ]}
                       >
                         Sem capela (usar paróquia)
                       </Text>
-                      <Text style={[styles.modalOptionSubtitle, { color: theme.textSoft }]}>
+                      <Text style={[styles.modalOptionSubtitle, { color: theme.textSoft, fontSize: scaled.modalOptionSubtitle }]}>
                         Recomendado para quem participa direto na matriz
                       </Text>
                     </Pressable>
@@ -1120,7 +1156,7 @@ export default function AccountScreen() {
                           <Text
                             style={[
                               styles.modalOptionTitle,
-                              { color: theme.text, fontWeight: selectedChapelId === chapel.id ? '800' : '700' },
+                              { color: theme.text, fontWeight: selectedChapelId === chapel.id ? '800' : '700', fontSize: scaled.modalOptionTitle },
                             ]}
                             numberOfLines={1}
                           >
@@ -1129,7 +1165,7 @@ export default function AccountScreen() {
                         </Pressable>
                       ))
                     ) : chapelQuery.trim() ? (
-                      <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+                      <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
                         Nenhuma capela encontrada para "{chapelQuery.trim()}".
                       </Text>
                     ) : null}
@@ -1143,12 +1179,12 @@ export default function AccountScreen() {
         ) : (
           <>
             <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-              <Text style={[styles.title, { color: theme.primary }]}>Minha conta</Text>
-              <Text style={[styles.subtitle, { color: theme.textSoft }]}>{session?.user.name}</Text>
-              <Text style={[styles.subtitle, { color: theme.textSoft }]}>{session?.user.email}</Text>
+              <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Minha conta</Text>
+              <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>{session?.user.name}</Text>
+              <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>{session?.user.email}</Text>
 
               {mustChangePassword ? (
-                <Text style={[styles.subtitle, { color: theme.secondary }]}>
+                <Text style={[styles.subtitle, { color: theme.secondary, fontSize: scaled.subtitle }]}>
                   Atualize sua senha agora para liberar o restante das áreas privadas.
                 </Text>
               ) : (
@@ -1162,7 +1198,7 @@ export default function AccountScreen() {
                   ]}
                   onPress={() => router.push('/mensagens' as never)}
                 >
-                  <Text style={[styles.buttonText, { color: theme.secondary }]}>
+                  <Text style={[styles.buttonText, { color: theme.secondary, fontSize: scaled.buttonText }]}>
                     Ver mensagens recebidas
                   </Text>
                 </Pressable>
@@ -1172,14 +1208,14 @@ export default function AccountScreen() {
                 style={[styles.button, { borderColor: theme.destructive, backgroundColor: withAlpha(theme.destructive, 0.14) }]}
                 onPress={() => setLogoutDialogOpen(true)}
               >
-                <Text style={[styles.buttonText, { color: theme.destructive }]}>Sair</Text>
+                <Text style={[styles.buttonText, { color: theme.destructive, fontSize: scaled.buttonText }]}>Sair</Text>
               </Pressable>
             </View>
 
             {mustChangePassword ? (
               <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                <Text style={[styles.title, { color: theme.primary }]}>Atualize sua senha</Text>
-                <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+                <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Atualize sua senha</Text>
+                <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
                   Por segurança, seu primeiro acesso só é concluído depois que você trocar a senha.
                 </Text>
 
@@ -1189,7 +1225,7 @@ export default function AccountScreen() {
                   secureTextEntry
                   placeholder="Senha atual"
                   placeholderTextColor={theme.textSoft}
-                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
                 <TextInput
                   value={newPasswordInput}
@@ -1197,7 +1233,7 @@ export default function AccountScreen() {
                   secureTextEntry
                   placeholder="Nova senha"
                   placeholderTextColor={theme.textSoft}
-                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
                 <TextInput
                   value={confirmPasswordInput}
@@ -1205,7 +1241,7 @@ export default function AccountScreen() {
                   secureTextEntry
                   placeholder="Confirmar nova senha"
                   placeholderTextColor={theme.textSoft}
-                  style={[styles.input, { borderColor: theme.border, color: theme.text }]}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
 
                 <Pressable
@@ -1221,7 +1257,7 @@ export default function AccountScreen() {
                   }}
                   disabled={passwordChangeSubmitting}
                 >
-                  <Text style={[styles.buttonText, { color: theme.secondary }]}>
+                  <Text style={[styles.buttonText, { color: theme.secondary, fontSize: scaled.buttonText }]}>
                     {passwordChangeSubmitting ? 'Atualizando...' : 'Atualizar senha'}
                   </Text>
                 </Pressable>
@@ -1236,36 +1272,36 @@ export default function AccountScreen() {
             ) : dashboard.isLoading && !dashboard.dashboard ? (
               <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border, alignItems: 'center' }]}>
                 <ActivityIndicator size="large" color={theme.secondary} />
-                <Text style={{ color: theme.textSoft }}>Carregando seu painel...</Text>
+                <Text style={{ color: theme.textSoft, fontSize: scaled.subtitle }}>Carregando seu painel...</Text>
               </View>
             ) : (
               <>
                 <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                  <Text style={[styles.title, { color: theme.primary }]}>Resumo do dízimo</Text>
+                  <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Resumo do dízimo</Text>
                   <View style={styles.statRow}>
                     <View style={[styles.statItem, { borderColor: theme.border }]}>
-                      <Text style={[styles.statLabel, { color: theme.textSoft }]}>Total</Text>
-                      <Text style={[styles.statValue, { color: theme.text }]}>
+                      <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>Total</Text>
+                      <Text style={[styles.statValue, { color: theme.text, fontSize: scaled.statValue }]}>
                         {money(dashboard.dashboard?.titheSummary.totalTithed ?? 0)}
                       </Text>
                     </View>
                     <View style={[styles.statItem, { borderColor: theme.border }]}>
-                      <Text style={[styles.statLabel, { color: theme.textSoft }]}>Contribuições</Text>
-                      <Text style={[styles.statValue, { color: theme.text }]}>
+                      <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>Contribuições</Text>
+                      <Text style={[styles.statValue, { color: theme.text, fontSize: scaled.statValue }]}>
                         {dashboard.dashboard?.titheSummary.titheCount ?? 0}
                       </Text>
                     </View>
                   </View>
 
                   <View style={[styles.statItem, { borderColor: theme.border }]}>
-                    <Text style={[styles.statLabel, { color: theme.textSoft }]}>Total em contribuições</Text>
-                    <Text style={[styles.statValue, { color: theme.text }]}>
+                    <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>Total em contribuições</Text>
+                    <Text style={[styles.statValue, { color: theme.text, fontSize: scaled.statValue }]}>
                       {money(dashboard.dashboard?.contributionSummary?.totalContributed ?? 0)}
                     </Text>
                   </View>
 
                   <View style={[styles.statItem, { borderColor: theme.border }]}>
-                    <Text style={[styles.statLabel, { color: theme.textSoft }]}>Sequência no dízimo</Text>
+                    <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>Sequência no dízimo</Text>
                     <View style={styles.streakRow}>
                       {fireCount ? (
                         Array.from({ length: fireCount }).map((_, index) => (
@@ -1274,7 +1310,7 @@ export default function AccountScreen() {
                       ) : (
                         <MaterialCommunityIcons name="fire-off" size={20} color={theme.textSoft} />
                       )}
-                      <Text style={[styles.streakText, { color: theme.text }]}>
+                      <Text style={[styles.streakText, { color: theme.text, fontSize: scaled.streakText }]}>
                         {streak} {streak === 1 ? 'mês seguido' : 'meses seguidos'}
                       </Text>
                     </View>
@@ -1282,12 +1318,12 @@ export default function AccountScreen() {
                 </View>
 
                 <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                  <Text style={[styles.title, { color: theme.primary }]}>Status dizimista</Text>
+                  <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Status dizimista</Text>
                   {dashboard.dashboard?.titherProfiles?.length ? (
                     dashboard.dashboard.titherProfiles.map((profile) => (
                       <View key={profile.id} style={[styles.statItem, { borderColor: theme.border }]}>
-                        <Text style={[styles.statLabel, { color: theme.textSoft }]}>Envelope</Text>
-                        <Text style={[styles.statValue, { color: theme.text }]}>{profile.envelopeCode ?? 'Sem código'}</Text>
+                        <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>Envelope</Text>
+                        <Text style={[styles.statValue, { color: theme.text, fontSize: scaled.statValue }]}>{profile.envelopeCode ?? 'Sem código'}</Text>
                         <Text style={{ color: profile.status === 'ACTIVE' ? '#4ADE80' : '#FCA5A5', fontWeight: '700' }}>
                           {profile.status === 'ACTIVE' ? 'Ativo' : 'Inativo'}
                         </Text>
@@ -1311,7 +1347,7 @@ export default function AccountScreen() {
                     <Text
                       style={[
                         styles.buttonText,
-                        { color: activeTither ? theme.destructive : theme.secondary },
+                        { color: activeTither ? theme.destructive : theme.secondary, fontSize: scaled.buttonText },
                       ]}
                     >
                       {titherSubmitting
@@ -1330,8 +1366,8 @@ export default function AccountScreen() {
         )}
 
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-          <Text style={[styles.title, { color: theme.primary }]}>Aparência</Text>
-          <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+          <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Aparência</Text>
+          <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
             Tema atual: {resolvedMode === 'dark' ? 'Escuro' : 'Claro'}
           </Text>
           <View style={styles.toggleRow}>
@@ -1351,7 +1387,34 @@ export default function AccountScreen() {
                     void setPreference(option.value);
                   }}
                 >
-                  <Text style={[styles.themeOptionText, { color: active ? theme.secondary : theme.textSoft }]}>
+                  <Text style={[styles.themeOptionText, { color: active ? theme.secondary : theme.textSoft, fontSize: scaled.themeOptionText }]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
+            Tamanho do texto: {fontScaleOptions.find((option) => option.value === fontScalePreference)?.label ?? 'Padrão'}
+          </Text>
+          <View style={styles.toggleRow}>
+            {fontScaleOptions.map((option) => {
+              const active = fontScalePreference === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  style={[
+                    styles.themeOptionButton,
+                    {
+                      borderColor: active ? theme.secondary : theme.border,
+                      backgroundColor: active ? 'rgba(218, 139, 60, 0.16)' : 'transparent',
+                    },
+                  ]}
+                  onPress={() => {
+                    void setFontScalePreference(option.value);
+                  }}
+                >
+                  <Text style={[styles.themeOptionText, { color: active ? theme.secondary : theme.textSoft, fontSize: scaled.themeOptionText }]}>
                     {option.label}
                   </Text>
                 </Pressable>

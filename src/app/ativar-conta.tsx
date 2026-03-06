@@ -15,6 +15,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { authApi } from '../mobile/api';
+import { scaleFont, useFontScalePreference } from '../mobile/font-scale-preference';
 import { useAppTheme, withAlpha } from '../mobile/theme';
 
 const styles = StyleSheet.create({
@@ -109,6 +110,7 @@ const styles = StyleSheet.create({
 export default function AccountSetupScreen() {
   const { token } = useLocalSearchParams<{ token?: string }>();
   const theme = useAppTheme();
+  const { fontScale } = useFontScalePreference();
   const tokenValue = useMemo(
     () => (Array.isArray(token) ? token[0] : token)?.trim() ?? '',
     [token],
@@ -128,6 +130,22 @@ export default function AccountSetupScreen() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
+  const scaled = useMemo(
+    () => ({
+      title: scaleFont(24, fontScale),
+      subtitle: scaleFont(14, fontScale),
+      subtitleLineHeight: scaleFont(20, fontScale),
+      infoName: scaleFont(16, fontScale),
+      infoMeta: scaleFont(13, fontScale),
+      label: scaleFont(13, fontScale),
+      input: scaleFont(15, fontScale),
+      button: scaleFont(14, fontScale),
+      textButton: scaleFont(13, fontScale),
+      notice: scaleFont(13, fontScale),
+      noticeLineHeight: scaleFont(19, fontScale),
+    }),
+    [fontScale],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -258,10 +276,10 @@ export default function AccountSetupScreen() {
                   color={theme.primary}
                 />
               </View>
-              <Text style={[styles.title, { color: theme.text }]}>
+              <Text style={[styles.title, { color: theme.text, fontSize: scaled.title }]}>
                 Ativar conta
               </Text>
-              <Text style={[styles.subtitle, { color: theme.textSoft }]}>
+              <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
                 Defina sua senha inicial e conclua o acesso com segurança dentro do app.
               </Text>
             </View>
@@ -281,20 +299,20 @@ export default function AccountSetupScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.infoName, { color: theme.text }]}>
+                  <Text style={[styles.infoName, { color: theme.text, fontSize: scaled.infoName }]}>
                     {preview.name}
                   </Text>
-                  <Text style={[styles.infoMeta, { color: theme.textSoft }]}>
+                  <Text style={[styles.infoMeta, { color: theme.textSoft, fontSize: scaled.infoMeta }]}>
                     {preview.email}
                   </Text>
-                  <Text style={[styles.infoMeta, { color: theme.textSoft }]}>
+                  <Text style={[styles.infoMeta, { color: theme.textSoft, fontSize: scaled.infoMeta }]}>
                     Link válido até{' '}
                     {new Date(preview.expiresAt).toLocaleString('pt-BR')}
                   </Text>
                 </View>
 
                 <View style={{ gap: 8 }}>
-                  <Text style={[styles.label, { color: theme.text }]}>Senha inicial</Text>
+                  <Text style={[styles.label, { color: theme.text, fontSize: scaled.label }]}>Senha inicial</Text>
                   <TextInput
                     value={password}
                     onChangeText={setPassword}
@@ -306,6 +324,7 @@ export default function AccountSetupScreen() {
                         borderColor: theme.border,
                         backgroundColor: theme.surfaceOpaque,
                         color: theme.text,
+                        fontSize: scaled.input,
                       },
                     ]}
                     placeholder="Mínimo 8 caracteres"
@@ -314,7 +333,7 @@ export default function AccountSetupScreen() {
                 </View>
 
                 <View style={{ gap: 8 }}>
-                  <Text style={[styles.label, { color: theme.text }]}>
+                  <Text style={[styles.label, { color: theme.text, fontSize: scaled.label }]}>
                     Confirmar senha
                   </Text>
                   <TextInput
@@ -328,6 +347,7 @@ export default function AccountSetupScreen() {
                         borderColor: theme.border,
                         backgroundColor: theme.surfaceOpaque,
                         color: theme.text,
+                        fontSize: scaled.input,
                       },
                     ]}
                     placeholder="Repita a senha"
@@ -345,7 +365,7 @@ export default function AccountSetupScreen() {
                       },
                     ]}
                   >
-                    <Text style={[styles.noticeText, { color: theme.secondary }]}>
+                    <Text style={[styles.noticeText, { color: theme.secondary, fontSize: scaled.notice, lineHeight: scaled.noticeLineHeight }]}>
                       {notice}
                     </Text>
                   </View>
@@ -361,13 +381,13 @@ export default function AccountSetupScreen() {
                       },
                     ]}
                   >
-                    <Text style={[styles.noticeText, { color: theme.destructive }]}>
+                    <Text style={[styles.noticeText, { color: theme.destructive, fontSize: scaled.notice, lineHeight: scaled.noticeLineHeight }]}>
                       {error}
                     </Text>
                   </View>
                 )}
 
-                <Text style={[styles.noticeText, { color: theme.textSoft }]}>
+                <Text style={[styles.noticeText, { color: theme.textSoft, fontSize: scaled.notice, lineHeight: scaled.noticeLineHeight }]}>
                   No primeiro login o sistema ainda poderá pedir uma nova troca de senha.
                 </Text>
 
@@ -385,7 +405,7 @@ export default function AccountSetupScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.buttonText, { color: theme.primaryForeground }]}>
+                  <Text style={[styles.buttonText, { color: theme.primaryForeground, fontSize: scaled.button }]}>
                     {submitting ? 'Concluindo...' : 'Concluir ativação'}
                   </Text>
                 </Pressable>
@@ -401,13 +421,13 @@ export default function AccountSetupScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.noticeText, { color: theme.accent }]}>
-                    {previewError ?? 'Link inválido ou expirado.'}
-                  </Text>
+                    <Text style={[styles.noticeText, { color: theme.accent, fontSize: scaled.notice, lineHeight: scaled.noticeLineHeight }]}>
+                      {previewError ?? 'Link inválido ou expirado.'}
+                    </Text>
                 </View>
 
                 <View style={{ gap: 8 }}>
-                  <Text style={[styles.label, { color: theme.text }]}>Reenviar por e-mail</Text>
+                  <Text style={[styles.label, { color: theme.text, fontSize: scaled.label }]}>Reenviar por e-mail</Text>
                   <TextInput
                     value={requestEmail}
                     onChangeText={setRequestEmail}
@@ -419,6 +439,7 @@ export default function AccountSetupScreen() {
                         borderColor: theme.border,
                         backgroundColor: theme.surfaceOpaque,
                         color: theme.text,
+                        fontSize: scaled.input,
                       },
                     ]}
                     placeholder="seuemail@exemplo.com"
@@ -436,7 +457,7 @@ export default function AccountSetupScreen() {
                       },
                     ]}
                   >
-                    <Text style={[styles.noticeText, { color: theme.secondary }]}>
+                    <Text style={[styles.noticeText, { color: theme.secondary, fontSize: scaled.notice, lineHeight: scaled.noticeLineHeight }]}>
                       {notice}
                     </Text>
                   </View>
@@ -452,7 +473,7 @@ export default function AccountSetupScreen() {
                       },
                     ]}
                   >
-                    <Text style={[styles.noticeText, { color: theme.destructive }]}>
+                    <Text style={[styles.noticeText, { color: theme.destructive, fontSize: scaled.notice, lineHeight: scaled.noticeLineHeight }]}>
                       {error}
                     </Text>
                   </View>
@@ -472,7 +493,7 @@ export default function AccountSetupScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.buttonText, { color: theme.secondaryForeground }]}>
+                  <Text style={[styles.buttonText, { color: theme.secondaryForeground, fontSize: scaled.button }]}>
                     {resending ? 'Reenviando...' : 'Enviar novo link'}
                   </Text>
                 </Pressable>
@@ -483,7 +504,7 @@ export default function AccountSetupScreen() {
               onPress={() => router.replace('/(tabs)/conta')}
               style={styles.textButton}
             >
-              <Text style={[styles.textButtonLabel, { color: theme.primary }]}>
+              <Text style={[styles.textButtonLabel, { color: theme.primary, fontSize: scaled.textButton }]}>
                 Voltar para a conta
               </Text>
             </Pressable>

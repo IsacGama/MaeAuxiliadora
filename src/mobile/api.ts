@@ -398,6 +398,12 @@ export const authApi = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     }),
+  requestPasswordReset: (email: string) =>
+    fetchJson<AuthQueuedActionResponse>(api('/auth/password/forgot'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    }),
   login: (email: string, password: string) =>
     fetchJson<AuthResponse>(api('/auth/login'), {
       method: 'POST',

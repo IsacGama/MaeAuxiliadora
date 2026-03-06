@@ -327,6 +327,7 @@ export default function AccountScreen() {
   const [queuedAccessEmail, setQueuedAccessEmail] = useState<string | null>(null);
   const [accountSetupNotice, setAccountSetupNotice] = useState<string | null>(null);
   const [resendingAccessEmail, setResendingAccessEmail] = useState(false);
+  const [requestingPasswordReset, setRequestingPasswordReset] = useState(false);
   const [currentPasswordInput, setCurrentPasswordInput] = useState('');
   const [newPasswordInput, setNewPasswordInput] = useState('');
   const [confirmPasswordInput, setConfirmPasswordInput] = useState('');
@@ -543,6 +544,29 @@ export default function AccountScreen() {
       setSubmitError(message);
     } finally {
       setResendingAccessEmail(false);
+    }
+  };
+
+  const onRequestPasswordReset = async () => {
+    const targetEmail = email.trim().toLowerCase();
+    if (!targetEmail) {
+      setSubmitError('Informe o e-mail da conta para recuperar a senha.');
+      return;
+    }
+
+    setRequestingPasswordReset(true);
+    setSubmitError(null);
+
+    try {
+      const result = await authApi.requestPasswordReset(targetEmail);
+      setAccountSetupNotice(result.message);
+      setQueuedAccessEmail(result.email);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Não foi possível solicitar a recuperação de senha.';
+      setSubmitError(message);
+    } finally {
+      setRequestingPasswordReset(false);
     }
   };
 
@@ -768,6 +792,17 @@ export default function AccountScreen() {
                 >
                   <Text style={[styles.buttonText, { color: theme.secondary }]}>
                     {submitting ? 'Entrando...' : 'Entrar'}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.button, { borderColor: theme.border, backgroundColor: 'transparent' }]}
+                  onPress={() => {
+                    void onRequestPasswordReset();
+                  }}
+                  disabled={requestingPasswordReset}
+                >
+                  <Text style={[styles.buttonText, { color: theme.textSoft }]}>
+                    {requestingPasswordReset ? 'Enviando link...' : 'Esqueci minha senha'}
                   </Text>
                 </Pressable>
               </>

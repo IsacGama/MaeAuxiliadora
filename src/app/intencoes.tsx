@@ -27,6 +27,7 @@ import type {
   DevotionalRequestPixResponse,
   DevotionalRequestSettings,
   DevotionalRequestType,
+  PublicSchedule,
 } from '../mobile/types';
 import { useAppTheme } from '../mobile/theme';
 
@@ -88,6 +89,7 @@ const TYPE_OPTIONS: Array<{ value: DevotionalRequestType; label: string }> = [
   { value: 'MASS_INTENTION', label: 'Intenção de missa' },
   { value: 'PRAYER_REQUEST', label: 'Pedido de oração' },
 ];
+const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'] as const;
 
 type PaymentMethod = 'PIX' | 'CARD';
 
@@ -110,6 +112,7 @@ export default function DevotionalRequestsScreen() {
   const [providerLoading, setProviderLoading] = useState(false);
   const [providerError, setProviderError] = useState<string | null>(null);
   const [settings, setSettings] = useState<DevotionalRequestSettings | null>(null);
+  const [schedules, setSchedules] = useState<PublicSchedule[]>([]);
   const [type, setType] = useState<DevotionalRequestType>('MASS_INTENTION');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
   const [requesterName, setRequesterName] = useState('');
@@ -117,6 +120,7 @@ export default function DevotionalRequestsScreen() {
   const [requesterPhone, setRequesterPhone] = useState('');
   const [intentionFor, setIntentionFor] = useState('');
   const [requestedForDate, setRequestedForDate] = useState('');
+  const [scheduleId, setScheduleId] = useState('');
   const [intentionText, setIntentionText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [pixResult, setPixResult] = useState<DevotionalRequestPixResponse | null>(null);
@@ -151,6 +155,11 @@ export default function DevotionalRequestsScreen() {
     return type === 'MASS_INTENTION' ? settings.massIntentionEnabled : settings.prayerRequestEnabled;
   }, [settings, type]);
 
+  const massSchedules = useMemo(
+    () => schedules.filter((item) => item.category === 'MASS' && item.isActive),
+    [schedules],
+  );
+
   const pixQrSrc = useMemo(() => {
     if (!pixResult?.pixQrBase64) return null;
     return pixResult.pixQrBase64.startsWith('data:')
@@ -169,22 +178,26 @@ export default function DevotionalRequestsScreen() {
       setProviderAvailable(false);
       setProviderError('Organização não identificada.');
       setSettings(null);
+      setSchedules([]);
       return;
     }
 
     setProviderLoading(true);
     try {
-      const [provider, config] = await Promise.all([
+      const [provider, config, publicSchedules] = await Promise.all([
         publicApi.fetchGatewayProviderStatus(orgUnitId),
         publicApi.fetchDevotionalRequestSettings(orgUnitId),
+        publicApi.fetchPublicSchedules(orgUnitId),
       ]);
       setProviderAvailable(provider.available === true);
       setProviderError(null);
       setSettings(config);
+      setSchedules(publicSchedules);
     } catch (error) {
       setProviderAvailable(false);
       setProviderError(messageFromError(error, 'Não foi possível carregar pagamentos e configurações.'));
       setSettings(null);
+      setSchedules([]);
     } finally {
       setProviderLoading(false);
     }
@@ -289,6 +302,7 @@ export default function DevotionalRequestsScreen() {
       intentionFor: intentionFor.trim() || undefined,
       intentionText: intentionText.trim(),
       requestedForDate: type === 'MASS_INTENTION' ? requestedForDate.trim() || undefined : undefined,
+      scheduleId: type === 'MASS_INTENTION' ? scheduleId || undefined : undefined,
       personId: session?.user?.personId ?? undefined,
     };
 
@@ -334,6 +348,7 @@ export default function DevotionalRequestsScreen() {
     paymentMethod,
     providerAvailable,
     requestedForDate,
+    scheduleId,
     requesterEmail,
     requesterName,
     requesterPhone,
@@ -465,6 +480,46 @@ export default function DevotionalRequestsScreen() {
 
           {type === 'MASS_INTENTION' && (
             <>
+              <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Horário da missa</Text>
+              {!!massSchedules.length ? (
+                <View style={styles.chipWrap}>
+                  <Pressable
+                    style={[
+                      styles.chip,
+                      { borderColor: theme.border, backgroundColor: theme.bg },
+                      !scheduleId ? selectedStyle : null,
+                    ]}
+                    onPress={() => setScheduleId('')}
+                  >
+                    <Text style={{ color: !scheduleId ? theme.secondary : theme.textSoft, fontWeight: !scheduleId ? '700' : '500', fontSize: scaled.infoText }}>
+                      Definir depois
+                    </Text>
+                  </Pressable>
+                  {massSchedules.map((schedule) => {
+                    const selected = scheduleId === schedule.id;
+                    return (
+                      <Pressable
+                        key={schedule.id}
+                        style={[
+                          styles.chip,
+                          { borderColor: theme.border, backgroundColor: theme.bg },
+                          selected ? selectedStyle : null,
+                        ]}
+                        onPress={() => setScheduleId(schedule.id)}
+                      >
+                        <Text style={{ color: selected ? theme.secondary : theme.textSoft, fontWeight: selected ? '700' : '500', fontSize: scaled.infoText }}>
+                          {schedule.label || 'Missa'} · {WEEKDAY_LABELS[schedule.dayOfWeek] || '-'} · {schedule.startTime}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : (
+                <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}>
+                  Nenhum horário de missa ativo cadastrado. Você ainda pode enviar a intenção e a secretaria define o horário depois.
+                </Text>
+              )}
+
               <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Data desejada</Text>
               <TextInput
                 value={requestedForDate}
@@ -544,6 +599,12 @@ export default function DevotionalRequestsScreen() {
             <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}>
               Pagamento: {requestStatus.gatewayPaymentStatus || 'N/D'}
             </Text>
+            {!!requestStatus.schedule && (
+              <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}>
+                Missa vinculada: {requestStatus.schedule.label || 'Missa'} · {WEEKDAY_LABELS[requestStatus.schedule.dayOfWeek] || '-'} · {requestStatus.schedule.startTime}
+                {requestStatus.schedule.location ? ` · ${requestStatus.schedule.location}` : ''}
+              </Text>
+            )}
             {!!requestStatus.reviewNotes && (
               <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}>
                 Observação: {requestStatus.reviewNotes}

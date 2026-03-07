@@ -27,6 +27,7 @@ import {
   GatewayPublicProviderStatusResponse,
   OrgBranding,
   ParishPublic,
+  PublicSchedule,
   PublicPost,
   PublicPostPaginatedResponse,
   PublicPostDetail,
@@ -318,6 +319,10 @@ export const publicApi = {
     fetchJson<DevotionalRequestSettings>(
       api(`/public/org-units/${encodeURIComponent(orgUnitId)}/devotional-requests/settings`),
     ),
+  fetchPublicSchedules: (orgUnitId: string) =>
+    fetchJson<PublicSchedule[]>(
+      api(`/public/schedules?orgUnitId=${encodeURIComponent(orgUnitId)}`),
+    ),
   createDevotionalRequestPix: (
     orgUnitId: string,
     payload: {
@@ -328,6 +333,7 @@ export const publicApi = {
       intentionFor?: string;
       intentionText: string;
       requestedForDate?: string;
+      scheduleId?: string;
       personId?: string;
     },
   ) =>
@@ -349,6 +355,7 @@ export const publicApi = {
       intentionFor?: string;
       intentionText: string;
       requestedForDate?: string;
+      scheduleId?: string;
       personId?: string;
     },
   ) =>

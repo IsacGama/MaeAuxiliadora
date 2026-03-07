@@ -9,6 +9,19 @@ export type DevotionalRequestStatus =
   | 'REJECTED'
   | 'CANCELED';
 export type GatewayPaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELED' | 'REFUNDED';
+export type ScheduleCategory = 'MASS' | 'CONFESSION' | 'ADORATION' | 'OFFICE_HOURS' | 'CATECHESIS' | 'OTHER';
+
+export type PublicSchedule = {
+  id: string;
+  orgUnitId: string;
+  category: ScheduleCategory;
+  dayOfWeek: number;
+  startTime: string;
+  endTime?: string | null;
+  label?: string | null;
+  location?: string | null;
+  isActive: boolean;
+};
 
 export type MediaAsset = {
   id: string;
@@ -409,6 +422,15 @@ export type DevotionalRequest = {
   intentionFor?: string | null;
   intentionText: string;
   requestedForDate?: string | null;
+  scheduleId?: string | null;
+  schedule?: {
+    id: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime?: string | null;
+    label?: string | null;
+    location?: string | null;
+  } | null;
   amount: number;
   gatewayPaymentId?: string | null;
   gatewayPaymentStatus?: GatewayPaymentStatus | null;

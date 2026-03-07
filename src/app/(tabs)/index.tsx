@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -23,6 +23,7 @@ import { useDailyLiturgy } from '../../mobile/hooks/use-daily-liturgy';
 import { useAuth } from '../../mobile/auth-context';
 import { buildPixPayload, buildPixQrImageUrl } from '../../mobile/pix';
 import { getRosaryMysteryByDate, rosaryMysteryLabels } from '../../mobile/devotions';
+import { publicApi } from '../../mobile/api';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -162,6 +163,7 @@ export default function HomeScreen() {
   const tabBarHeight = useBottomTabBarHeight();
   const theme = useAppTheme();
   const { fontScale } = useFontScalePreference();
+  const [intentionsAvailable, setIntentionsAvailable] = useState(false);
 
   const isRefreshing = org.isRefreshing || liturgy.isRefreshing;
 
@@ -185,6 +187,36 @@ export default function HomeScreen() {
     () => rosaryMysteryLabels[getRosaryMysteryByDate(new Date())],
     [],
   );
+
+  useEffect(() => {
+    let active = true;
+    const loadIntentionsAvailability = async () => {
+      const orgUnitId = org.entity?.orgUnitId;
+      if (!orgUnitId) {
+        if (active) setIntentionsAvailable(false);
+        return;
+      }
+
+      try {
+        const [provider, settings] = await Promise.all([
+          publicApi.fetchGatewayProviderStatus(orgUnitId),
+          publicApi.fetchDevotionalRequestSettings(orgUnitId),
+        ]);
+        if (!active) return;
+        setIntentionsAvailable(
+          provider.available === true &&
+          (settings.massIntentionEnabled || settings.prayerRequestEnabled),
+        );
+      } catch {
+        if (active) setIntentionsAvailable(false);
+      }
+    };
+
+    void loadIntentionsAvailability();
+    return () => {
+      active = false;
+    };
+  }, [org.entity?.orgUnitId]);
 
   const normalizeExternalUrl = (url?: string | null) => {
     if (!url) return null;
@@ -434,13 +466,15 @@ export default function HomeScreen() {
             <Text style={[styles.actionDescription, { color: theme.textSoft, fontSize: scaled.actionDescription }]}>PIX, dados bancários e localização</Text>
           </Pressable>
 
-          <Pressable
-            style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
-            onPress={() => router.push('/intencoes' as never)}
-          >
-            <Text style={[styles.actionTitle, { color: theme.primary, fontSize: scaled.actionTitle }]}>Intenções</Text>
-            <Text style={[styles.actionDescription, { color: theme.textSoft, fontSize: scaled.actionDescription }]}>Missa e pedidos de oração</Text>
-          </Pressable>
+          {intentionsAvailable && (
+            <Pressable
+              style={[styles.actionButton, { borderColor: theme.border, backgroundColor: theme.surface }]}
+              onPress={() => router.push('/intencoes' as never)}
+            >
+              <Text style={[styles.actionTitle, { color: theme.primary, fontSize: scaled.actionTitle }]}>Intenções</Text>
+              <Text style={[styles.actionDescription, { color: theme.textSoft, fontSize: scaled.actionDescription }]}>Missa e pedidos de oração</Text>
+            </Pressable>
+          )}
 
           {isAuthenticated && (
             <Pressable

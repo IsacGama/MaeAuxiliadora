@@ -258,6 +258,7 @@ export default function DonationsScreen() {
   const [providerAvailable, setProviderAvailable] = useState(false);
   const [providerLoading, setProviderLoading] = useState(false);
   const [providerError, setProviderError] = useState<string | null>(null);
+  const [devotionalAvailable, setDevotionalAvailable] = useState(false);
 
   const [method, setMethod] = useState<DonationMethod>('PIX');
   const [intent, setIntent] = useState<GatewayDonationIntent>('DONATION');
@@ -341,11 +342,19 @@ export default function DonationsScreen() {
 
     setProviderLoading(true);
     try {
-      const status = await publicApi.fetchGatewayProviderStatus(orgUnitId);
+      const [status, devotionalSettings] = await Promise.all([
+        publicApi.fetchGatewayProviderStatus(orgUnitId),
+        publicApi.fetchDevotionalRequestSettings(orgUnitId),
+      ]);
       setProviderAvailable(status.available === true);
+      setDevotionalAvailable(
+        status.available === true &&
+        (devotionalSettings.massIntentionEnabled || devotionalSettings.prayerRequestEnabled),
+      );
       setProviderError(null);
     } catch (error) {
       setProviderAvailable(false);
+      setDevotionalAvailable(false);
       setProviderError(messageFromError(error, 'Não foi possível verificar pagamentos online.'));
     } finally {
       setProviderLoading(false);
@@ -616,14 +625,16 @@ export default function DonationsScreen() {
           <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}> 
             Contribua com {org.displayName}. Pagamentos via Mercado Pago com PIX dinâmico e cartão.
           </Text>
-          <Pressable
-            style={[styles.button, { borderColor: theme.secondary, backgroundColor: theme.bg }]}
-            onPress={() => router.push('/intencoes' as never)}
-          >
-            <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>
-              Ir para intenções de missa e oração
-            </Text>
-          </Pressable>
+          {devotionalAvailable && (
+            <Pressable
+              style={[styles.button, { borderColor: theme.secondary, backgroundColor: theme.bg }]}
+              onPress={() => router.push('/intencoes' as never)}
+            >
+              <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>
+                Ir para intenções de missa e oração
+              </Text>
+            </Pressable>
+          )}
           {!isAuthenticated && (
             <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}> 
               Você pode doar de forma anônima ou preencher seu nome e e-mail para identificação.

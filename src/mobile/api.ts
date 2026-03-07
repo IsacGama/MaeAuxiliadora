@@ -327,14 +327,16 @@ export const publicApi = {
     orgUnitId: string,
     payload: {
       type: 'MASS_INTENTION' | 'PRAYER_REQUEST';
-      requesterName: string;
-      requesterEmail: string;
+      requesterName?: string;
+      requesterEmail?: string;
       requesterPhone?: string;
       intentionFor?: string;
       intentionText: string;
       requestedForDate?: string;
       scheduleId?: string;
       personId?: string;
+      isAnonymous?: boolean;
+      amount?: number;
     },
   ) =>
     fetchJson<DevotionalRequestPixResponse>(
@@ -349,14 +351,16 @@ export const publicApi = {
     orgUnitId: string,
     payload: {
       type: 'MASS_INTENTION' | 'PRAYER_REQUEST';
-      requesterName: string;
-      requesterEmail: string;
+      requesterName?: string;
+      requesterEmail?: string;
       requesterPhone?: string;
       intentionFor?: string;
       intentionText: string;
       requestedForDate?: string;
       scheduleId?: string;
       personId?: string;
+      isAnonymous?: boolean;
+      amount?: number;
     },
   ) =>
     fetchJson<DevotionalRequestCardCheckoutResponse>(

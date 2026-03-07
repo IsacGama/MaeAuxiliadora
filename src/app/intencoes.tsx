@@ -12,16 +12,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 
 import { publicApi } from '../mobile/api';
 import { useAuth } from '../mobile/auth-context';
 import { notifyAppAlert } from '../mobile/app-alert';
+import { DayKeyPicker } from '../mobile/components/day-key-picker';
+import { parseDayKey } from '../mobile/date';
 import { scaleFont, useFontScalePreference } from '../mobile/font-scale-preference';
 import { HttpError } from '../mobile/http';
 import { useOrgContext } from '../mobile/hooks/use-org-context';
+import { useMemberDashboard } from '../mobile/hooks/use-member-dashboard';
 import type {
   DevotionalRequest,
   DevotionalRequestPixResponse,
@@ -94,6 +96,25 @@ const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'] as cons
 type PaymentMethod = 'PIX' | 'CARD';
 
 const isValidEmail = (value: string) => /\S+@\S+\.\S+/.test(value.trim());
+const onlyDigits = (value: string) => value.replace(/\D/g, '');
+const toMoneyInput = (raw: string) => {
+  const digits = onlyDigits(raw);
+  if (!digits) return '';
+  const normalized = (Number(digits) / 100).toFixed(2).replace('.', ',');
+  const [integer, decimal] = normalized.split(',');
+  const formattedInteger = integer.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return `${formattedInteger},${decimal}`;
+};
+const moneyFromNumber = (value: number) =>
+  Number(value || 0).toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+const parseMoneyInput = (value: string) => {
+  const normalized = value.replace(/\./g, '').replace(',', '.');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 const messageFromError = (error: unknown, fallback: string) => {
   if (error instanceof HttpError) return error.message || fallback;
@@ -104,9 +125,10 @@ const messageFromError = (error: unknown, fallback: string) => {
 export default function DevotionalRequestsScreen() {
   const org = useOrgContext();
   const { session, isAuthenticated } = useAuth();
+  const memberDashboard = useMemberDashboard();
   const theme = useAppTheme();
   const { fontScale } = useFontScalePreference();
-  const tabBarHeight = useBottomTabBarHeight();
+  const insets = useSafeAreaInsets();
 
   const [providerAvailable, setProviderAvailable] = useState(false);
   const [providerLoading, setProviderLoading] = useState(false);
@@ -115,6 +137,8 @@ export default function DevotionalRequestsScreen() {
   const [schedules, setSchedules] = useState<PublicSchedule[]>([]);
   const [type, setType] = useState<DevotionalRequestType>('MASS_INTENTION');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('PIX');
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [amountInput, setAmountInput] = useState('');
   const [requesterName, setRequesterName] = useState('');
   const [requesterEmail, setRequesterEmail] = useState('');
   const [requesterPhone, setRequesterPhone] = useState('');
@@ -145,10 +169,15 @@ export default function DevotionalRequestsScreen() {
     [fontScale],
   );
 
-  const amount = useMemo(() => {
+  const minimumAmount = useMemo(() => {
     if (!settings) return 5;
     return type === 'MASS_INTENTION' ? settings.massIntentionAmount : settings.prayerRequestAmount;
   }, [settings, type]);
+  const amount = useMemo(() => {
+    const parsed = parseMoneyInput(amountInput);
+    if (parsed <= 0) return minimumAmount;
+    return parsed;
+  }, [amountInput, minimumAmount]);
 
   const enabled = useMemo(() => {
     if (!settings) return false;
@@ -158,6 +187,19 @@ export default function DevotionalRequestsScreen() {
   const massSchedules = useMemo(
     () => schedules.filter((item) => item.category === 'MASS' && item.isActive),
     [schedules],
+  );
+  const requestedWeekday = useMemo(() => {
+    if (!requestedForDate) return null;
+    const parsed = parseDayKey(requestedForDate);
+    return parsed ? parsed.getDay() : null;
+  }, [requestedForDate]);
+  const filteredMassSchedules = useMemo(() => {
+    if (requestedWeekday === null) return [];
+    return massSchedules.filter((item) => item.dayOfWeek === requestedWeekday);
+  }, [massSchedules, requestedWeekday]);
+  const devotionalEnabled = useMemo(
+    () => Boolean(settings?.massIntentionEnabled || settings?.prayerRequestEnabled),
+    [settings?.massIntentionEnabled, settings?.prayerRequestEnabled],
   );
 
   const pixQrSrc = useMemo(() => {
@@ -225,6 +267,33 @@ export default function DevotionalRequestsScreen() {
   }, [isAuthenticated, requesterEmail, requesterName, session?.user?.email, session?.user?.name]);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+    if (requesterPhone.trim()) return;
+    const phone = memberDashboard.dashboard?.person?.primaryPhone?.trim();
+    if (phone) {
+      setRequesterPhone(phone);
+    }
+  }, [isAuthenticated, memberDashboard.dashboard?.person?.primaryPhone, requesterPhone]);
+
+  useEffect(() => {
+    if (!minimumAmount) return;
+    setAmountInput((current) => {
+      const parsed = parseMoneyInput(current);
+      if (!current || parsed < minimumAmount) {
+        return moneyFromNumber(minimumAmount);
+      }
+      return current;
+    });
+  }, [minimumAmount, type]);
+
+  useEffect(() => {
+    if (!scheduleId) return;
+    if (!filteredMassSchedules.some((schedule) => schedule.id === scheduleId)) {
+      setScheduleId('');
+    }
+  }, [filteredMassSchedules, scheduleId]);
+
+  useEffect(() => {
     if (!activeRequestId || !org.entity?.orgUnitId) return;
 
     const poll = async () => {
@@ -281,11 +350,19 @@ export default function DevotionalRequestsScreen() {
       void notifyAppAlert('Solicitação indisponível', 'Este tipo está desabilitado para a organização.', 'danger');
       return;
     }
-    if (requesterName.trim().length < 3) {
+    if (amount < minimumAmount) {
+      void notifyAppAlert(
+        'Valor inválido',
+        `Informe um valor igual ou maior que R$ ${minimumAmount.toFixed(2)}.`,
+        'danger',
+      );
+      return;
+    }
+    if (!isAnonymous && requesterName.trim().length < 3) {
       void notifyAppAlert('Nome inválido', 'Informe o nome do solicitante.', 'danger');
       return;
     }
-    if (!isValidEmail(requesterEmail)) {
+    if (!isAnonymous && !isValidEmail(requesterEmail)) {
       void notifyAppAlert('E-mail inválido', 'Informe um e-mail válido.', 'danger');
       return;
     }
@@ -296,14 +373,16 @@ export default function DevotionalRequestsScreen() {
 
     const payload = {
       type,
-      requesterName: requesterName.trim(),
-      requesterEmail: requesterEmail.trim().toLowerCase(),
+      requesterName: isAnonymous ? undefined : requesterName.trim(),
+      requesterEmail: isAnonymous ? undefined : requesterEmail.trim().toLowerCase(),
       requesterPhone: requesterPhone.trim() || undefined,
       intentionFor: intentionFor.trim() || undefined,
       intentionText: intentionText.trim(),
       requestedForDate: type === 'MASS_INTENTION' ? requestedForDate.trim() || undefined : undefined,
       scheduleId: type === 'MASS_INTENTION' ? scheduleId || undefined : undefined,
       personId: session?.user?.personId ?? undefined,
+      isAnonymous,
+      amount: Number(amount.toFixed(2)),
     };
 
     setSubmitting(true);
@@ -344,6 +423,8 @@ export default function DevotionalRequestsScreen() {
     enabled,
     intentionFor,
     intentionText,
+    isAnonymous,
+    minimumAmount,
     org.entity?.orgUnitId,
     paymentMethod,
     providerAvailable,
@@ -359,7 +440,7 @@ export default function DevotionalRequestsScreen() {
   return (
     <SafeAreaView edges={['top']} style={[styles.screen, { backgroundColor: theme.bg }]}>
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: 28 + tabBarHeight }]}
+        contentContainerStyle={[styles.content, { paddingBottom: 28 + insets.bottom }]}
         refreshControl={
           <RefreshControl
             refreshing={org.isRefreshing || providerLoading}
@@ -385,6 +466,16 @@ export default function DevotionalRequestsScreen() {
           </View>
         )}
 
+        {!providerLoading && providerAvailable && !devotionalEnabled && (
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Intenções indisponíveis</Text>
+            <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}>
+              Esta organização desativou solicitações de intenção e pedidos de oração no painel administrativo.
+            </Text>
+          </View>
+        )}
+
+        {providerAvailable && devotionalEnabled && (
         <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Tipo de solicitação</Text>
           <View style={styles.chipWrap}>
@@ -408,8 +499,17 @@ export default function DevotionalRequestsScreen() {
             })}
           </View>
 
+          <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Valor da oferta (R$)</Text>
+          <TextInput
+            value={amountInput}
+            onChangeText={(text) => setAmountInput(toMoneyInput(text))}
+            placeholder="5,00"
+            keyboardType="numeric"
+            style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg, fontSize: scaled.input }]}
+            placeholderTextColor={theme.textSoft}
+          />
           <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}>
-            Valor configurado: R$ {amount.toFixed(2)}
+            Valor mínimo configurado: R$ {moneyFromNumber(minimumAmount)}
           </Text>
           {!!settings?.publicInstructions && (
             <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}>
@@ -439,10 +539,28 @@ export default function DevotionalRequestsScreen() {
             })}
           </View>
 
+          <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Identificação</Text>
+          <Pressable
+            style={[
+              styles.button,
+              { borderColor: theme.border, backgroundColor: theme.bg, justifyContent: 'space-between' },
+              isAnonymous ? selectedStyle : null,
+            ]}
+            onPress={() => setIsAnonymous((current) => !current)}
+          >
+            <Text style={{ color: isAnonymous ? theme.secondary : theme.textSoft, fontWeight: '700', fontSize: scaled.buttonText }}>
+              Enviar de forma anônima
+            </Text>
+            <Text style={{ color: isAnonymous ? theme.secondary : theme.textSoft, fontSize: scaled.buttonText }}>
+              {isAnonymous ? 'Ligado' : 'Desligado'}
+            </Text>
+          </Pressable>
+
           <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Nome do solicitante</Text>
           <TextInput
             value={requesterName}
             onChangeText={setRequesterName}
+            editable={!isAnonymous}
             style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg, fontSize: scaled.input }]}
             placeholder="Seu nome"
             placeholderTextColor={theme.textSoft}
@@ -452,6 +570,7 @@ export default function DevotionalRequestsScreen() {
           <TextInput
             value={requesterEmail}
             onChangeText={(text) => setRequesterEmail(text.trim().toLowerCase())}
+            editable={!isAnonymous}
             style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg, fontSize: scaled.input }]}
             placeholder="voce@email.com"
             placeholderTextColor={theme.textSoft}
@@ -480,8 +599,21 @@ export default function DevotionalRequestsScreen() {
 
           {type === 'MASS_INTENTION' && (
             <>
+              <DayKeyPicker
+                value={requestedForDate}
+                onChange={setRequestedForDate}
+                theme={theme}
+                label="Data desejada da missa"
+                hint="Escolha a data para filtrar os horários"
+                title="Selecionar data da missa"
+              />
+
               <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Horário da missa</Text>
-              {!!massSchedules.length ? (
+              {!requestedForDate ? (
+                <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}>
+                  Selecione primeiro a data desejada para listar os horários disponíveis nesse dia.
+                </Text>
+              ) : !!filteredMassSchedules.length ? (
                 <View style={styles.chipWrap}>
                   <Pressable
                     style={[
@@ -495,7 +627,7 @@ export default function DevotionalRequestsScreen() {
                       Definir depois
                     </Text>
                   </Pressable>
-                  {massSchedules.map((schedule) => {
+                  {filteredMassSchedules.map((schedule) => {
                     const selected = scheduleId === schedule.id;
                     return (
                       <Pressable
@@ -516,18 +648,9 @@ export default function DevotionalRequestsScreen() {
                 </View>
               ) : (
                 <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }]}>
-                  Nenhum horário de missa ativo cadastrado. Você ainda pode enviar a intenção e a secretaria define o horário depois.
+                  Não há missa cadastrada para o dia selecionado. Você ainda pode enviar a intenção e a secretaria define o horário depois.
                 </Text>
               )}
-
-              <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Data desejada</Text>
-              <TextInput
-                value={requestedForDate}
-                onChangeText={setRequestedForDate}
-                style={[styles.input, { borderColor: theme.border, color: theme.text, backgroundColor: theme.bg, fontSize: scaled.input }]}
-                placeholder="AAAA-MM-DD"
-                placeholderTextColor={theme.textSoft}
-              />
             </>
           )}
 
@@ -561,6 +684,7 @@ export default function DevotionalRequestsScreen() {
             </Text>
           </Pressable>
         </View>
+        )}
 
         {pixResult && (
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>

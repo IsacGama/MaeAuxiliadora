@@ -485,6 +485,15 @@ export const authApi = {
     cpf: string;
     gender: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
     consentLgpd?: boolean;
+    address?: {
+      street: string;
+      number: string;
+      complement?: string;
+      neighborhood: string;
+      city: string;
+      state: string;
+      zipCode: string;
+    };
   }) =>
     fetchJson<AuthQueuedActionResponse>(api('/auth/register'), {
       method: 'POST',

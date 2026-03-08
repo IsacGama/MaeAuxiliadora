@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -323,6 +323,50 @@ const isValidPhoneBR = (value: string) => {
   return len === 10 || len === 11;
 };
 
+const formatCep = (value: string) => {
+  const digits = onlyDigits(value).slice(0, 8);
+  if (digits.length <= 5) return digits;
+  return `${digits.slice(0, 5)}-${digits.slice(5)}`;
+};
+
+const isValidCep = (value: string) => onlyDigits(value).length === 8;
+
+const formatUf = (value: string) =>
+  value.replace(/[^a-zA-Z]/g, '').slice(0, 2).toUpperCase();
+
+const isValidUf = (value: string) => /^[A-Z]{2}$/.test(value.trim().toUpperCase());
+
+type CepAddress = {
+  street?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+};
+
+const fetchAddressByCep = async (cep: string): Promise<CepAddress | null> => {
+  const cleanCep = onlyDigits(cep);
+  if (cleanCep.length !== 8) return null;
+
+  const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+  if (!response.ok) return null;
+
+  const data = (await response.json()) as {
+    logradouro?: string;
+    bairro?: string;
+    localidade?: string;
+    uf?: string;
+    erro?: boolean;
+  };
+  if (data.erro) return null;
+
+  return {
+    street: data.logradouro || undefined,
+    neighborhood: data.bairro || undefined,
+    city: data.localidade || undefined,
+    state: data.uf || undefined,
+  };
+};
+
 const normalizeForSearch = (value: string) =>
   value
     .normalize('NFD')
@@ -396,6 +440,16 @@ export default function AccountScreen() {
   const [registerEmail, setRegisterEmail] = useState('');
   const [registerPhone, setRegisterPhone] = useState('');
   const [registerCpf, setRegisterCpf] = useState('');
+  const [registerZipCode, setRegisterZipCode] = useState('');
+  const [registerStreet, setRegisterStreet] = useState('');
+  const [registerNumber, setRegisterNumber] = useState('');
+  const [registerComplement, setRegisterComplement] = useState('');
+  const [registerNeighborhood, setRegisterNeighborhood] = useState('');
+  const [registerCity, setRegisterCity] = useState('');
+  const [registerState, setRegisterState] = useState('');
+  const [cepLookupLoading, setCepLookupLoading] = useState(false);
+  const [cepLookupError, setCepLookupError] = useState('');
+  const lastResolvedCepRef = useRef('');
   const [registerGender, setRegisterGender] = useState<
     'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED'
   >('UNDECLARED');
@@ -506,6 +560,44 @@ export default function AccountScreen() {
     return () => clearTimeout(timer);
   }, [chapelQuery]);
 
+  useEffect(() => {
+    const cepDigits = onlyDigits(registerZipCode);
+    if (cepDigits.length !== 8) {
+      setCepLookupError('');
+      return;
+    }
+
+    if (lastResolvedCepRef.current === cepDigits) {
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        setCepLookupLoading(true);
+        setCepLookupError('');
+        const result = await fetchAddressByCep(cepDigits);
+        if (!result) {
+          setCepLookupError('CEP não encontrado. Preencha o endereço manualmente.');
+          return;
+        }
+
+        setRegisterStreet((current) => current || result.street || '');
+        setRegisterNeighborhood((current) => current || result.neighborhood || '');
+        setRegisterCity((current) => current || result.city || '');
+        setRegisterState((current) =>
+          current || (result.state ? formatUf(result.state) : ''),
+        );
+        lastResolvedCepRef.current = cepDigits;
+      } catch {
+        setCepLookupError('Não foi possível consultar o CEP agora.');
+      } finally {
+        setCepLookupLoading(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [registerZipCode]);
+
   const filteredParishes = useMemo(() => {
     const normalizedQuery = normalizeForSearch(debouncedParishQuery);
     if (!normalizedQuery) {
@@ -576,6 +668,30 @@ export default function AccountScreen() {
       setSubmitError('CPF inválido.');
       return;
     }
+    if (!isValidCep(registerZipCode)) {
+      setSubmitError('Informe um CEP válido.');
+      return;
+    }
+    if (!registerStreet.trim()) {
+      setSubmitError('Informe a rua.');
+      return;
+    }
+    if (!registerNumber.trim()) {
+      setSubmitError('Informe o número.');
+      return;
+    }
+    if (!registerNeighborhood.trim()) {
+      setSubmitError('Informe o bairro.');
+      return;
+    }
+    if (!registerCity.trim()) {
+      setSubmitError('Informe a cidade.');
+      return;
+    }
+    if (!isValidUf(registerState)) {
+      setSubmitError('Informe uma UF válida.');
+      return;
+    }
     if (!selectedParishId) {
       setSubmitError('Selecione a paróquia.');
       return;
@@ -605,6 +721,15 @@ export default function AccountScreen() {
         cpf: onlyDigits(registerCpf),
         gender: registerGender,
         consentLgpd: true,
+        address: {
+          zipCode: onlyDigits(registerZipCode).slice(0, 8),
+          street: registerStreet.trim(),
+          number: registerNumber.trim(),
+          complement: registerComplement.trim() || undefined,
+          neighborhood: registerNeighborhood.trim(),
+          city: registerCity.trim(),
+          state: formatUf(registerState),
+        },
       });
       setAccountSetupNotice(result.message);
       setQueuedAccessEmail(result.email);
@@ -613,6 +738,16 @@ export default function AccountScreen() {
       setRegisterEmail('');
       setRegisterPhone('');
       setRegisterCpf('');
+      setRegisterZipCode('');
+      setRegisterStreet('');
+      setRegisterNumber('');
+      setRegisterComplement('');
+      setRegisterNeighborhood('');
+      setRegisterCity('');
+      setRegisterState('');
+      setCepLookupError('');
+      setCepLookupLoading(false);
+      lastResolvedCepRef.current = '';
       setRegisterGender('UNDECLARED');
       setRegisterConsentLgpd(false);
       setPassword('');
@@ -971,6 +1106,86 @@ export default function AccountScreen() {
                   onChangeText={(value) => setRegisterCpf(formatCpf(value))}
                   keyboardType="number-pad"
                   placeholder="CPF 000.000.000-00"
+                  placeholderTextColor={theme.textSoft}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
+                />
+                <TextInput
+                  value={registerZipCode}
+                  onChangeText={(value) => setRegisterZipCode(formatCep(value))}
+                  keyboardType="number-pad"
+                  placeholder="CEP 00000-000"
+                  placeholderTextColor={theme.textSoft}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
+                />
+                {cepLookupLoading ? (
+                  <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
+                    Buscando endereço pelo CEP...
+                  </Text>
+                ) : null}
+                {!cepLookupLoading && cepLookupError ? (
+                  <Text style={[styles.subtitle, { color: theme.destructive, fontSize: scaled.subtitle }]}>
+                    {cepLookupError}
+                  </Text>
+                ) : null}
+                <TextInput
+                  value={registerStreet}
+                  onChangeText={setRegisterStreet}
+                  placeholder="Rua / Logradouro"
+                  placeholderTextColor={theme.textSoft}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
+                />
+                <View style={styles.statRow}>
+                  <TextInput
+                    value={registerNumber}
+                    onChangeText={setRegisterNumber}
+                    placeholder="Número"
+                    placeholderTextColor={theme.textSoft}
+                    style={[
+                      styles.input,
+                      {
+                        flex: 1,
+                        borderColor: theme.border,
+                        color: theme.text,
+                        fontSize: scaled.input,
+                      },
+                    ]}
+                  />
+                  <TextInput
+                    value={registerState}
+                    onChangeText={(value) => setRegisterState(formatUf(value))}
+                    placeholder="UF"
+                    placeholderTextColor={theme.textSoft}
+                    maxLength={2}
+                    autoCapitalize="characters"
+                    style={[
+                      styles.input,
+                      {
+                        width: 88,
+                        borderColor: theme.border,
+                        color: theme.text,
+                        fontSize: scaled.input,
+                      },
+                    ]}
+                  />
+                </View>
+                <TextInput
+                  value={registerNeighborhood}
+                  onChangeText={setRegisterNeighborhood}
+                  placeholder="Bairro"
+                  placeholderTextColor={theme.textSoft}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
+                />
+                <TextInput
+                  value={registerCity}
+                  onChangeText={setRegisterCity}
+                  placeholder="Cidade"
+                  placeholderTextColor={theme.textSoft}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
+                />
+                <TextInput
+                  value={registerComplement}
+                  onChangeText={setRegisterComplement}
+                  placeholder="Complemento (opcional)"
                   placeholderTextColor={theme.textSoft}
                   style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />

@@ -8,9 +8,7 @@ const parseIntSafe = (value: string | undefined, fallback: number) => {
 export const appConfig = {
   apiUrl: trimTrailingSlash(process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3000'),
   publicWebUrl: trimTrailingSlash(
-    process.env.EXPO_PUBLIC_WEB_URL ??
-      process.env.EXPO_PUBLIC_API_URL ??
-      'http://localhost:3000',
+    process.env.EXPO_PUBLIC_WEB_URL ?? 'https://eclesialhub.isacgama.tech',
   ),
   devotionAudioBaseUrl: trimTrailingSlash(
     process.env.EXPO_PUBLIC_DEVOTION_AUDIO_BASE_URL ??

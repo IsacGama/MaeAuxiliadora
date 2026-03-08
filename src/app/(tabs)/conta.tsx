@@ -19,7 +19,7 @@ import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useMemberDashboard } from '../../mobile/hooks/use-member-dashboard';
 import { useAppTheme, withAlpha } from '../../mobile/theme';
 import { authApi, publicApi } from '../../mobile/api';
-import { ChapelPublic, ParishPublic, TitherStatus } from '../../mobile/types';
+import { PublicRegisterOrganization, TitherStatus } from '../../mobile/types';
 import { ThemePreference, useThemePreference } from '../../mobile/theme-preference';
 import { FontScalePreference, scaleFont, useFontScalePreference } from '../../mobile/font-scale-preference';
 import { AppAlertDialog } from '../../mobile/components/app-alert-dialog';
@@ -374,6 +374,18 @@ const normalizeForSearch = (value: string) =>
     .trim()
     .toLowerCase();
 
+const normalizeInlineText = (value: string) =>
+  value.replace(/\s{2,}/g, ' ').replace(/^\s+/, '');
+
+const normalizeInlineEmail = (value: string) =>
+  value.toLowerCase().replace(/\s+/g, '');
+
+const formatOrgTypeShort = (type: PublicRegisterOrganization['type']) => {
+  if (type === 'DIOCESE') return 'Diocese';
+  if (type === 'PARISH') return 'Paróquia';
+  return 'Capela';
+};
+
 const formatCompetenceMonth = (value?: string | null) => {
   if (!value) return '—';
   const parsed = new Date(`${value}-01T00:00:00`);
@@ -438,6 +450,8 @@ export default function AccountScreen() {
 
   const [registerName, setRegisterName] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
   const [registerPhone, setRegisterPhone] = useState('');
   const [registerCpf, setRegisterCpf] = useState('');
   const [registerZipCode, setRegisterZipCode] = useState('');
@@ -453,19 +467,14 @@ export default function AccountScreen() {
   const [registerGender, setRegisterGender] = useState<
     'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED'
   >('UNDECLARED');
-  const [selectedParishId, setSelectedParishId] = useState<string>('');
-  const [selectedChapelId, setSelectedChapelId] = useState<string>('');
-  const [parishPickerOpen, setParishPickerOpen] = useState(false);
-  const [chapelPickerOpen, setChapelPickerOpen] = useState(false);
-  const [parishQuery, setParishQuery] = useState('');
-  const [chapelQuery, setChapelQuery] = useState('');
-  const [debouncedParishQuery, setDebouncedParishQuery] = useState('');
-  const [debouncedChapelQuery, setDebouncedChapelQuery] = useState('');
-
-  const [parishes, setParishes] = useState<ParishPublic[]>([]);
-  const [chapels, setChapels] = useState<ChapelPublic[]>([]);
-  const [loadingParishes, setLoadingParishes] = useState(false);
-  const [loadingChapels, setLoadingChapels] = useState(false);
+  const [selectedRegisterOrgUnitId, setSelectedRegisterOrgUnitId] = useState<string>('');
+  const [organizationPickerOpen, setOrganizationPickerOpen] = useState(false);
+  const [organizationQuery, setOrganizationQuery] = useState('');
+  const [debouncedOrganizationQuery, setDebouncedOrganizationQuery] = useState('');
+  const [registerOrganizations, setRegisterOrganizations] = useState<
+    PublicRegisterOrganization[]
+  >([]);
+  const [loadingRegisterOrganizations, setLoadingRegisterOrganizations] = useState(false);
 
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -484,81 +493,38 @@ export default function AccountScreen() {
   const [postLogoutNotice, setPostLogoutNotice] = useState<string | null>(null);
   const [registerConsentLgpd, setRegisterConsentLgpd] = useState(false);
 
-  const setChapelsIfNeeded = (next: ChapelPublic[]) => {
-    setChapels(next);
-    if (selectedChapelId && !next.some((chapel) => chapel.id === selectedChapelId)) {
-      setSelectedChapelId('');
-    }
-  };
-
   useEffect(() => {
     if (isAuthenticated) return;
 
-    const loadParishes = async () => {
-      setLoadingParishes(true);
+    const loadRegisterOrganizations = async () => {
+      setLoadingRegisterOrganizations(true);
       try {
-        const result = await publicApi.fetchPublicParishes();
-        setParishes(result);
-        if (!selectedParishId && result.length === 1) {
-          setSelectedParishId(result[0].id);
+        const result = await publicApi.fetchPublicRegisterOrganizations();
+        setRegisterOrganizations(result);
+        if (!selectedRegisterOrgUnitId && result.length === 1) {
+          setSelectedRegisterOrgUnitId(result[0].orgUnitId);
         }
       } catch (error) {
-        setSubmitError(error instanceof Error ? error.message : 'Não foi possível carregar as paróquias.');
+        setSubmitError(
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível carregar as organizações para cadastro.',
+        );
       } finally {
-        setLoadingParishes(false);
+        setLoadingRegisterOrganizations(false);
       }
     };
 
-    void loadParishes();
-  }, [isAuthenticated, selectedParishId]);
-
-  useEffect(() => {
-    if (!selectedParishId || isAuthenticated) {
-      setChapelsIfNeeded([]);
-      return;
-    }
-
-    const loadChapels = async () => {
-      const selectedParish = parishes.find((parish) => parish.id === selectedParishId);
-      const parishOrgId = selectedParish?.orgUnit?.id;
-      if (!parishOrgId) {
-        setChapelsIfNeeded([]);
-        return;
-      }
-      setLoadingChapels(true);
-      try {
-        const result = await publicApi.fetchPublicChapels(parishOrgId);
-        setChapelsIfNeeded(result);
-      } catch (error) {
-        setSubmitError(error instanceof Error ? error.message : 'Não foi possível carregar as capelas.');
-      } finally {
-        setLoadingChapels(false);
-      }
-    };
-
-    void loadChapels();
-  }, [isAuthenticated, parishes, selectedParishId]);
-
-  useEffect(() => {
-    setChapelPickerOpen(false);
-    setChapelQuery('');
-  }, [selectedParishId]);
+    void loadRegisterOrganizations();
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedParishQuery(parishQuery);
+      setDebouncedOrganizationQuery(organizationQuery);
     }, SEARCH_DEBOUNCE_MS);
 
     return () => clearTimeout(timer);
-  }, [parishQuery]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedChapelQuery(chapelQuery);
-    }, SEARCH_DEBOUNCE_MS);
-
-    return () => clearTimeout(timer);
-  }, [chapelQuery]);
+  }, [organizationQuery]);
 
   useEffect(() => {
     const cepDigits = onlyDigits(registerZipCode);
@@ -598,25 +564,17 @@ export default function AccountScreen() {
     return () => clearTimeout(timer);
   }, [registerZipCode]);
 
-  const filteredParishes = useMemo(() => {
-    const normalizedQuery = normalizeForSearch(debouncedParishQuery);
+  const filteredRegisterOrganizations = useMemo(() => {
+    const normalizedQuery = normalizeForSearch(debouncedOrganizationQuery);
     if (!normalizedQuery) {
-      return parishes;
+      return registerOrganizations;
     }
-    return parishes.filter((parish) => {
-      const name = normalizeForSearch(parish.name);
-      const dioceseName = normalizeForSearch(parish.diocese?.name ?? '');
-      return name.includes(normalizedQuery) || dioceseName.includes(normalizedQuery);
-    });
-  }, [debouncedParishQuery, parishes]);
-
-  const filteredChapels = useMemo(() => {
-    const normalizedQuery = normalizeForSearch(debouncedChapelQuery);
-    if (!normalizedQuery) {
-      return chapels;
-    }
-    return chapels.filter((chapel) => normalizeForSearch(chapel.name).includes(normalizedQuery));
-  }, [chapels, debouncedChapelQuery]);
+    return registerOrganizations.filter((option) =>
+      normalizeForSearch(
+        `${option.label} ${option.name} ${option.parentName ?? ''} ${option.type}`,
+      ).includes(normalizedQuery),
+    );
+  }, [debouncedOrganizationQuery, registerOrganizations]);
 
   const onLogin = async () => {
     if (!email.trim() || !password.trim()) {
@@ -650,6 +608,18 @@ export default function AccountScreen() {
   const onRegister = async () => {
     if (!registerName.trim() || !registerEmail.trim()) {
       setSubmitError('Preencha nome e e-mail.');
+      return;
+    }
+    if (!registerPassword.trim()) {
+      setSubmitError('Informe uma senha.');
+      return;
+    }
+    if (registerPassword.trim().length < 12) {
+      setSubmitError('A senha deve ter no mínimo 12 caracteres.');
+      return;
+    }
+    if (registerPassword !== registerConfirmPassword) {
+      setSubmitError('A confirmação da senha não confere.');
       return;
     }
     if (!registerPhone.trim()) {
@@ -692,20 +662,12 @@ export default function AccountScreen() {
       setSubmitError('Informe uma UF válida.');
       return;
     }
-    if (!selectedParishId) {
-      setSubmitError('Selecione a paróquia.');
+    if (!selectedRegisterOrgUnitId) {
+      setSubmitError('Selecione a organização.');
       return;
     }
     if (!registerConsentLgpd) {
       setSubmitError('Aceite a Política de Privacidade e os Termos de Uso para continuar.');
-      return;
-    }
-
-    const selectedParish = parishes.find((parish) => parish.id === selectedParishId);
-    const selectedChapel = chapels.find((chapel) => chapel.id === selectedChapelId);
-    const targetOrgId = selectedChapel?.orgUnit?.id ?? selectedParish?.orgUnit?.id;
-    if (!targetOrgId) {
-      setSubmitError('Não foi possível identificar a organização para cadastro.');
       return;
     }
 
@@ -716,7 +678,8 @@ export default function AccountScreen() {
       const result = await register({
         name: registerName.trim(),
         email: registerEmail.trim().toLowerCase(),
-        orgId: targetOrgId,
+        password: registerPassword,
+        orgId: selectedRegisterOrgUnitId,
         primaryPhone: onlyDigits(registerPhone),
         cpf: onlyDigits(registerCpf),
         gender: registerGender,
@@ -736,6 +699,8 @@ export default function AccountScreen() {
       setMode('login');
       setRegisterName('');
       setRegisterEmail('');
+      setRegisterPassword('');
+      setRegisterConfirmPassword('');
       setRegisterPhone('');
       setRegisterCpf('');
       setRegisterZipCode('');
@@ -749,6 +714,7 @@ export default function AccountScreen() {
       setCepLookupLoading(false);
       lastResolvedCepRef.current = '';
       setRegisterGender('UNDECLARED');
+      setSelectedRegisterOrgUnitId('');
       setRegisterConsentLgpd(false);
       setPassword('');
     } catch (error) {
@@ -885,8 +851,18 @@ export default function AccountScreen() {
   const streak = dashboard.dashboard?.titheSummary.currentStreakMonths ?? 0;
   const fireCount = Math.min(Math.max(streak, 0), 12);
   const mustChangePassword = Boolean(session?.user.mustChangePassword);
-  const selectedParish = parishes.find((parish) => parish.id === selectedParishId);
-  const selectedChapel = chapels.find((chapel) => chapel.id === selectedChapelId);
+  const selectedRegisterOrganization = registerOrganizations.find(
+    (entry) => entry.orgUnitId === selectedRegisterOrgUnitId,
+  );
+  const selectedRegisterOrganizationHint = selectedRegisterOrganization
+    ? `${formatOrgTypeShort(selectedRegisterOrganization.type)}${
+        selectedRegisterOrganization.parentName
+          ? ` • ${selectedRegisterOrganization.parentName}`
+          : ''
+      }`
+    : `${registerOrganizations.length} ${
+        registerOrganizations.length === 1 ? 'opção disponível' : 'opções disponíveis'
+      }`;
   const themeOptions: Array<{ value: ThemePreference; label: string }> = [
     { value: 'SYSTEM', label: 'Sistema' },
     { value: 'LIGHT', label: 'Claro' },
@@ -1074,22 +1050,43 @@ export default function AccountScreen() {
               <>
                 <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Criar conta de fiel</Text>
                 <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
-                  Escolha sua paróquia e, se for o caso, sua capela. O acesso inicial será enviado por e-mail.
+                  Escolha a organização onde você participa e confirme seu e-mail para ativar o acesso.
+                </Text>
+                <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
+                  Campos com * são obrigatórios.
                 </Text>
 
                 <TextInput
                   value={registerName}
-                  onChangeText={setRegisterName}
-                  placeholder="Nome completo"
+                  onChangeText={(value) => setRegisterName(normalizeInlineText(value))}
+                  placeholder="Nome completo *"
                   placeholderTextColor={theme.textSoft}
                   style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
                 <TextInput
                   value={registerEmail}
-                  onChangeText={setRegisterEmail}
+                  onChangeText={(value) => setRegisterEmail(normalizeInlineEmail(value))}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  placeholder="seuemail@exemplo.com"
+                  placeholder="E-mail *"
+                  placeholderTextColor={theme.textSoft}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
+                />
+                <TextInput
+                  value={registerPassword}
+                  onChangeText={setRegisterPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  placeholder="Senha * (mín. 12)"
+                  placeholderTextColor={theme.textSoft}
+                  style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
+                />
+                <TextInput
+                  value={registerConfirmPassword}
+                  onChangeText={setRegisterConfirmPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  placeholder="Confirmar senha *"
                   placeholderTextColor={theme.textSoft}
                   style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
@@ -1097,7 +1094,7 @@ export default function AccountScreen() {
                   value={registerPhone}
                   onChangeText={(value) => setRegisterPhone(formatPhoneBR(value))}
                   keyboardType="phone-pad"
-                  placeholder="Telefone (88) 99999-9999"
+                  placeholder="Telefone *"
                   placeholderTextColor={theme.textSoft}
                   style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
@@ -1105,7 +1102,7 @@ export default function AccountScreen() {
                   value={registerCpf}
                   onChangeText={(value) => setRegisterCpf(formatCpf(value))}
                   keyboardType="number-pad"
-                  placeholder="CPF 000.000.000-00"
+                  placeholder="CPF *"
                   placeholderTextColor={theme.textSoft}
                   style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
@@ -1113,7 +1110,7 @@ export default function AccountScreen() {
                   value={registerZipCode}
                   onChangeText={(value) => setRegisterZipCode(formatCep(value))}
                   keyboardType="number-pad"
-                  placeholder="CEP 00000-000"
+                  placeholder="CEP *"
                   placeholderTextColor={theme.textSoft}
                   style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
@@ -1129,16 +1126,16 @@ export default function AccountScreen() {
                 ) : null}
                 <TextInput
                   value={registerStreet}
-                  onChangeText={setRegisterStreet}
-                  placeholder="Rua / Logradouro"
+                  onChangeText={(value) => setRegisterStreet(normalizeInlineText(value))}
+                  placeholder="Rua / Logradouro *"
                   placeholderTextColor={theme.textSoft}
                   style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
                 <View style={styles.statRow}>
                   <TextInput
                     value={registerNumber}
-                    onChangeText={setRegisterNumber}
-                    placeholder="Número"
+                    onChangeText={(value) => setRegisterNumber(normalizeInlineText(value))}
+                    placeholder="Número *"
                     placeholderTextColor={theme.textSoft}
                     style={[
                       styles.input,
@@ -1153,7 +1150,7 @@ export default function AccountScreen() {
                   <TextInput
                     value={registerState}
                     onChangeText={(value) => setRegisterState(formatUf(value))}
-                    placeholder="UF"
+                    placeholder="UF *"
                     placeholderTextColor={theme.textSoft}
                     maxLength={2}
                     autoCapitalize="characters"
@@ -1170,27 +1167,27 @@ export default function AccountScreen() {
                 </View>
                 <TextInput
                   value={registerNeighborhood}
-                  onChangeText={setRegisterNeighborhood}
-                  placeholder="Bairro"
+                  onChangeText={(value) => setRegisterNeighborhood(normalizeInlineText(value))}
+                  placeholder="Bairro *"
                   placeholderTextColor={theme.textSoft}
                   style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
                 <TextInput
                   value={registerCity}
-                  onChangeText={setRegisterCity}
-                  placeholder="Cidade"
+                  onChangeText={(value) => setRegisterCity(normalizeInlineText(value))}
+                  placeholder="Cidade *"
                   placeholderTextColor={theme.textSoft}
                   style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
                 <TextInput
                   value={registerComplement}
-                  onChangeText={setRegisterComplement}
+                  onChangeText={(value) => setRegisterComplement(normalizeInlineText(value))}
                   placeholder="Complemento (opcional)"
                   placeholderTextColor={theme.textSoft}
                   style={[styles.input, { borderColor: theme.border, color: theme.text, fontSize: scaled.input }]}
                 />
 
-                <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>Gênero</Text>
+                <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>Gênero *</Text>
                 <View style={styles.genderRow}>
                   {[
                     { value: 'MALE', label: 'Masculino' },
@@ -1231,71 +1228,45 @@ export default function AccountScreen() {
                   ))}
                 </View>
 
-                <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>Paróquia</Text>
-                {loadingParishes ? (
+                <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>Organização *</Text>
+                {loadingRegisterOrganizations ? (
                   <ActivityIndicator size="small" color={theme.secondary} />
-                ) : parishes.length ? (
+                ) : registerOrganizations.length ? (
                   <Pressable
                     style={[styles.selectTrigger, { borderColor: theme.border }]}
                     onPress={() => {
-                      setParishQuery('');
-                      setParishPickerOpen(true);
+                      setOrganizationQuery('');
+                      setOrganizationPickerOpen(true);
                     }}
                   >
                     <View style={styles.selectTriggerTextWrap}>
-                      <Text style={[styles.selectTriggerLabel, { color: theme.text, fontSize: scaled.selectTriggerLabel }]} numberOfLines={1}>
-                        {selectedParish?.name ?? 'Escolher paróquia'}
+                      <Text
+                        style={[
+                          styles.selectTriggerLabel,
+                          { color: theme.text, fontSize: scaled.selectTriggerLabel },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {selectedRegisterOrganization?.name ?? 'Escolher organização'}
                       </Text>
-                      <Text style={[styles.selectTriggerHint, { color: theme.textSoft, fontSize: scaled.selectTriggerHint }]} numberOfLines={1}>
-                        {selectedParish?.diocese?.name ??
-                          `${parishes.length} ${parishes.length === 1 ? 'paróquia disponível' : 'paróquias disponíveis'
-                          }`}
+                      <Text
+                        style={[
+                          styles.selectTriggerHint,
+                          { color: theme.textSoft, fontSize: scaled.selectTriggerHint },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {selectedRegisterOrganizationHint}
                       </Text>
                     </View>
                     <MaterialCommunityIcons name="chevron-down" size={20} color={theme.textSoft} />
                   </Pressable>
                 ) : (
-                  <Text style={{ color: theme.textSoft }}>Nenhuma paróquia disponível.</Text>
-                )}
-
-                {!!selectedParishId && (
-                  <>
-                    <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>
-                      Capela (opcional - se não escolher, fica na paróquia)
-                    </Text>
-                    {loadingChapels ? (
-                      <ActivityIndicator size="small" color={theme.secondary} />
-                    ) : chapels.length ? (
-                      <Pressable
-                        style={[styles.selectTrigger, { borderColor: theme.border }]}
-                        onPress={() => {
-                          setChapelQuery('');
-                          setChapelPickerOpen(true);
-                        }}
-                      >
-                        <View style={styles.selectTriggerTextWrap}>
-                          <Text style={[styles.selectTriggerLabel, { color: theme.text, fontSize: scaled.selectTriggerLabel }]} numberOfLines={1}>
-                            {selectedChapel?.name ?? 'Sem capela (usar paróquia)'}
-                          </Text>
-                          <Text style={[styles.selectTriggerHint, { color: theme.textSoft, fontSize: scaled.selectTriggerHint }]} numberOfLines={1}>
-                            {selectedChapel
-                              ? 'Conta vinculada à capela selecionada'
-                              : 'Conta vinculada direto à paróquia'}
-                          </Text>
-                        </View>
-                        <MaterialCommunityIcons name="chevron-down" size={20} color={theme.textSoft} />
-                      </Pressable>
-                    ) : (
-                      <Text style={{ color: theme.textSoft }}>
-                        {selectedParish ? `${selectedParish.name} não possui capelas cadastradas.` : 'Nenhuma capela disponível.'}
-                      </Text>
-                    )}
-                  </>
+                  <Text style={{ color: theme.textSoft }}>Nenhuma organização disponível para cadastro.</Text>
                 )}
 
                 <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
-                  Não encontrou sua paróquia ou capela? Fale com o pároco ou com a secretaria da sua comunidade para
-                  verificarem a ativação do app.
+                  Não encontrou sua organização? Fale com o responsável da comunidade para verificarem a ativação no sistema.
                 </Text>
 
                 <Pressable
@@ -1319,7 +1290,7 @@ export default function AccountScreen() {
                     !registerConsentLgpd && { opacity: 0.5 },
                   ]}
                   onPress={onRegister}
-                  disabled={submitting || loadingParishes || !registerConsentLgpd}
+                  disabled={submitting || loadingRegisterOrganizations || !registerConsentLgpd}
                 >
                   <Text style={[styles.buttonText, { color: theme.secondary, fontSize: scaled.buttonText }]}>
                     {submitting ? 'Enviando acesso...' : 'Criar conta'}
@@ -1329,19 +1300,24 @@ export default function AccountScreen() {
             )}
 
             <Modal
-              visible={parishPickerOpen}
+              visible={organizationPickerOpen}
               transparent
               animationType="fade"
-              onRequestClose={() => setParishPickerOpen(false)}
+              onRequestClose={() => setOrganizationPickerOpen(false)}
             >
               <View style={styles.modalBackdrop}>
-                <Pressable style={StyleSheet.absoluteFill} onPress={() => setParishPickerOpen(false)} />
+                <Pressable
+                  style={StyleSheet.absoluteFill}
+                  onPress={() => setOrganizationPickerOpen(false)}
+                />
                 <View style={[styles.modalPanel, { backgroundColor: theme.surface, borderColor: theme.border }]}>
                   <View style={styles.modalHeader}>
-                    <Text style={[styles.modalHeaderTitle, { color: theme.text, fontSize: scaled.modalHeaderTitle }]}>Escolher paróquia</Text>
+                    <Text style={[styles.modalHeaderTitle, { color: theme.text, fontSize: scaled.modalHeaderTitle }]}>
+                      Escolher organização
+                    </Text>
                     <Pressable
                       style={[styles.modalCloseButton, { borderColor: theme.border }]}
-                      onPress={() => setParishPickerOpen(false)}
+                      onPress={() => setOrganizationPickerOpen(false)}
                     >
                       <MaterialCommunityIcons name="close" size={18} color={theme.textSoft} />
                     </Pressable>
@@ -1350,152 +1326,65 @@ export default function AccountScreen() {
                   <View style={[styles.modalSearchRow, { borderColor: theme.border }]}>
                     <MaterialCommunityIcons name="magnify" size={18} color={theme.textSoft} />
                     <TextInput
-                      value={parishQuery}
-                      onChangeText={setParishQuery}
-                      placeholder="Buscar por nome da paróquia ou diocese"
+                      value={organizationQuery}
+                      onChangeText={setOrganizationQuery}
+                      placeholder="Buscar organização"
                       placeholderTextColor={theme.textSoft}
                       style={[styles.modalSearchInput, { color: theme.text, fontSize: scaled.modalSearchInput }]}
                     />
                   </View>
 
                   <ScrollView style={styles.modalList} keyboardShouldPersistTaps="handled">
-                    {filteredParishes.length ? (
-                      filteredParishes.map((parish) => (
+                    {filteredRegisterOrganizations.length ? (
+                      filteredRegisterOrganizations.map((entry) => (
                         <Pressable
-                          key={parish.id}
+                          key={entry.orgUnitId}
                           style={[
                             styles.modalOption,
                             {
                               borderColor: theme.border,
                               backgroundColor:
-                                selectedParishId === parish.id ? 'rgba(218, 139, 60, 0.16)' : 'transparent',
+                                selectedRegisterOrgUnitId === entry.orgUnitId
+                                  ? 'rgba(218, 139, 60, 0.16)'
+                                  : 'transparent',
                             },
                           ]}
                           onPress={() => {
-                            setSelectedParishId(parish.id);
-                            setSelectedChapelId('');
-                            setParishPickerOpen(false);
-                            setParishQuery('');
+                            setSelectedRegisterOrgUnitId(entry.orgUnitId);
+                            setOrganizationPickerOpen(false);
+                            setOrganizationQuery('');
                           }}
                         >
                           <Text
                             style={[
                               styles.modalOptionTitle,
-                              { color: theme.text, fontWeight: selectedParishId === parish.id ? '800' : '700', fontSize: scaled.modalOptionTitle },
+                              {
+                                color: theme.text,
+                                fontWeight:
+                                  selectedRegisterOrgUnitId === entry.orgUnitId ? '800' : '700',
+                                fontSize: scaled.modalOptionTitle,
+                              },
                             ]}
                             numberOfLines={1}
                           >
-                            {parish.name}
+                            {entry.name}
                           </Text>
-                          {!!parish.diocese?.name && (
-                            <Text style={[styles.modalOptionSubtitle, { color: theme.textSoft, fontSize: scaled.modalOptionSubtitle }]} numberOfLines={1}>
-                              {parish.diocese.name}
-                            </Text>
-                          )}
+                          <Text
+                            style={[
+                              styles.modalOptionSubtitle,
+                              { color: theme.textSoft, fontSize: scaled.modalOptionSubtitle },
+                            ]}
+                            numberOfLines={2}
+                          >
+                            {entry.label}
+                          </Text>
                         </Pressable>
                       ))
                     ) : (
                       <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
-                        Nenhuma paróquia encontrada para "{parishQuery.trim()}".
+                        Nenhuma organização encontrada para "{organizationQuery.trim()}".
                       </Text>
                     )}
-                  </ScrollView>
-                </View>
-              </View>
-            </Modal>
-
-            <Modal
-              visible={chapelPickerOpen}
-              transparent
-              animationType="fade"
-              onRequestClose={() => setChapelPickerOpen(false)}
-            >
-              <View style={styles.modalBackdrop}>
-                <Pressable style={StyleSheet.absoluteFill} onPress={() => setChapelPickerOpen(false)} />
-                <View style={[styles.modalPanel, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                  <View style={styles.modalHeader}>
-                    <Text style={[styles.modalHeaderTitle, { color: theme.text, fontSize: scaled.modalHeaderTitle }]}>Escolher capela</Text>
-                    <Pressable
-                      style={[styles.modalCloseButton, { borderColor: theme.border }]}
-                      onPress={() => setChapelPickerOpen(false)}
-                    >
-                      <MaterialCommunityIcons name="close" size={18} color={theme.textSoft} />
-                    </Pressable>
-                  </View>
-
-                  <View style={[styles.modalSearchRow, { borderColor: theme.border }]}>
-                    <MaterialCommunityIcons name="magnify" size={18} color={theme.textSoft} />
-                    <TextInput
-                      value={chapelQuery}
-                      onChangeText={setChapelQuery}
-                      placeholder="Buscar capela"
-                      placeholderTextColor={theme.textSoft}
-                      style={[styles.modalSearchInput, { color: theme.text, fontSize: scaled.modalSearchInput }]}
-                    />
-                  </View>
-
-                  <ScrollView style={styles.modalList} keyboardShouldPersistTaps="handled">
-                    <Pressable
-                      style={[
-                        styles.modalOption,
-                        {
-                          borderColor: theme.border,
-                          backgroundColor: selectedChapelId ? 'transparent' : 'rgba(218, 139, 60, 0.16)',
-                        },
-                      ]}
-                      onPress={() => {
-                        setSelectedChapelId('');
-                        setChapelPickerOpen(false);
-                        setChapelQuery('');
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.modalOptionTitle,
-                          { color: theme.text, fontWeight: selectedChapelId ? '700' : '800', fontSize: scaled.modalOptionTitle },
-                        ]}
-                      >
-                        Sem capela (usar paróquia)
-                      </Text>
-                      <Text style={[styles.modalOptionSubtitle, { color: theme.textSoft, fontSize: scaled.modalOptionSubtitle }]}>
-                        Recomendado para quem participa direto na matriz
-                      </Text>
-                    </Pressable>
-
-                    {filteredChapels.length ? (
-                      filteredChapels.map((chapel) => (
-                        <Pressable
-                          key={chapel.id}
-                          style={[
-                            styles.modalOption,
-                            {
-                              borderColor: theme.border,
-                              backgroundColor:
-                                selectedChapelId === chapel.id ? 'rgba(218, 139, 60, 0.16)' : 'transparent',
-                            },
-                          ]}
-                          onPress={() => {
-                            setSelectedChapelId(chapel.id);
-                            setChapelPickerOpen(false);
-                            setChapelQuery('');
-                          }}
-                        >
-                          <Text
-                            style={[
-                              styles.modalOptionTitle,
-                              { color: theme.text, fontWeight: selectedChapelId === chapel.id ? '800' : '700', fontSize: scaled.modalOptionTitle },
-                            ]}
-                            numberOfLines={1}
-                          >
-                            {chapel.name}
-                          </Text>
-                        </Pressable>
-                      ))
-                    ) : chapelQuery.trim() ? (
-                      <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle }]}>
-                        Nenhuma capela encontrada para "{chapelQuery.trim()}".
-                      </Text>
-                    ) : null}
                   </ScrollView>
                 </View>
               </View>

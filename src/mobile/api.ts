@@ -32,6 +32,7 @@ import {
   PublicPost,
   PublicPostPaginatedResponse,
   PublicPostDetail,
+  PublicRegisterOrganization,
   ResolvedOrgEntity,
   SaintOfDayPayload,
 } from './types';
@@ -262,6 +263,8 @@ const resolveEntityFromDomain = async (domain: string): Promise<ResolvedOrgEntit
 
 export const publicApi = {
   resolveEntityFromDomain,
+  fetchPublicRegisterOrganizations: () =>
+    fetchJson<PublicRegisterOrganization[]>(api('/public/register-organizations')),
   fetchPublicParishes: (dioceseId?: string) =>
     fetchJson<ParishPublic[]>(
       api(`/public/parishes${dioceseId ? `?dioceseId=${encodeURIComponent(dioceseId)}` : ''}`),
@@ -480,6 +483,7 @@ export const authApi = {
   register: (payload: {
     name: string;
     email: string;
+    password: string;
     orgId: string;
     primaryPhone: string;
     cpf: string;
@@ -510,7 +514,7 @@ export const authApi = {
     fetchJson<AuthAccountSetupPreviewResponse>(
       api(`/auth/account-setup/preview?token=${encodeURIComponent(token)}`),
     ),
-  completeAccountSetup: (payload: { token: string; password: string }) =>
+  completeAccountSetup: (payload: { token: string; password?: string }) =>
     fetchJson<{ message: string }>(api('/auth/account-setup/complete'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

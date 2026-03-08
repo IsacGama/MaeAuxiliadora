@@ -121,6 +121,7 @@ export default function AccountSetupScreen() {
     name: string;
     email: string;
     expiresAt: string;
+    passwordSetupRequired: boolean;
   } | null>(null);
   const [previewError, setPreviewError] = useState<string | null>(null);
   const [requestEmail, setRequestEmail] = useState('');
@@ -194,13 +195,15 @@ export default function AccountSetupScreen() {
       setError('Link de ativação inválido.');
       return;
     }
-    if (password.length < 8) {
-      setError('A senha deve ter pelo menos 8 caracteres.');
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('A confirmação da senha não confere.');
-      return;
+    if (preview?.passwordSetupRequired) {
+      if (password.length < 12) {
+        setError('A senha deve ter pelo menos 12 caracteres.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setError('A confirmação da senha não confere.');
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -209,7 +212,7 @@ export default function AccountSetupScreen() {
     try {
       const result = await authApi.completeAccountSetup({
         token: tokenValue,
-        password,
+        password: preview?.passwordSetupRequired ? password : undefined,
       });
       setNotice(result.message);
       setPassword('');
@@ -280,7 +283,7 @@ export default function AccountSetupScreen() {
                 Ativar conta
               </Text>
               <Text style={[styles.subtitle, { color: theme.textSoft, fontSize: scaled.subtitle, lineHeight: scaled.subtitleLineHeight }]}>
-                Defina sua senha inicial e conclua o acesso com segurança dentro do app.
+                Confirme seu e-mail para concluir o acesso com segurança dentro do app.
               </Text>
             </View>
 
@@ -311,49 +314,67 @@ export default function AccountSetupScreen() {
                   </Text>
                 </View>
 
-                <View style={{ gap: 8 }}>
-                  <Text style={[styles.label, { color: theme.text, fontSize: scaled.label }]}>Senha inicial</Text>
-                  <TextInput
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry
-                    autoCapitalize="none"
-                    style={[
-                      styles.input,
-                      {
-                        borderColor: theme.border,
-                        backgroundColor: theme.surfaceOpaque,
-                        color: theme.text,
-                        fontSize: scaled.input,
-                      },
-                    ]}
-                    placeholder="Mínimo 8 caracteres"
-                    placeholderTextColor={theme.textSoft}
-                  />
-                </View>
+                {preview.passwordSetupRequired ? (
+                  <>
+                    <View style={{ gap: 8 }}>
+                      <Text style={[styles.label, { color: theme.text, fontSize: scaled.label }]}>Senha inicial</Text>
+                      <TextInput
+                        value={password}
+                        onChangeText={setPassword}
+                        secureTextEntry
+                        autoCapitalize="none"
+                        style={[
+                          styles.input,
+                          {
+                            borderColor: theme.border,
+                            backgroundColor: theme.surfaceOpaque,
+                            color: theme.text,
+                            fontSize: scaled.input,
+                          },
+                        ]}
+                        placeholder="Mínimo 12 caracteres"
+                        placeholderTextColor={theme.textSoft}
+                      />
+                    </View>
 
-                <View style={{ gap: 8 }}>
-                  <Text style={[styles.label, { color: theme.text, fontSize: scaled.label }]}>
-                    Confirmar senha
-                  </Text>
-                  <TextInput
-                    value={confirmPassword}
-                    onChangeText={setConfirmPassword}
-                    secureTextEntry
-                    autoCapitalize="none"
+                    <View style={{ gap: 8 }}>
+                      <Text style={[styles.label, { color: theme.text, fontSize: scaled.label }]}>
+                        Confirmar senha
+                      </Text>
+                      <TextInput
+                        value={confirmPassword}
+                        onChangeText={setConfirmPassword}
+                        secureTextEntry
+                        autoCapitalize="none"
+                        style={[
+                          styles.input,
+                          {
+                            borderColor: theme.border,
+                            backgroundColor: theme.surfaceOpaque,
+                            color: theme.text,
+                            fontSize: scaled.input,
+                          },
+                        ]}
+                        placeholder="Repita a senha"
+                        placeholderTextColor={theme.textSoft}
+                      />
+                    </View>
+                  </>
+                ) : (
+                  <View
                     style={[
-                      styles.input,
+                      styles.notice,
                       {
                         borderColor: theme.border,
-                        backgroundColor: theme.surfaceOpaque,
-                        color: theme.text,
-                        fontSize: scaled.input,
+                        backgroundColor: withAlpha(theme.primary, 0.08),
                       },
                     ]}
-                    placeholder="Repita a senha"
-                    placeholderTextColor={theme.textSoft}
-                  />
-                </View>
+                  >
+                    <Text style={[styles.noticeText, { color: theme.textSoft, fontSize: scaled.notice, lineHeight: scaled.noticeLineHeight }]}>
+                      Sua senha já foi cadastrada. Clique em concluir para confirmar seu e-mail e ativar a conta.
+                    </Text>
+                  </View>
+                )}
 
                 {!!notice && (
                   <View
@@ -387,9 +408,11 @@ export default function AccountSetupScreen() {
                   </View>
                 )}
 
-                <Text style={[styles.noticeText, { color: theme.textSoft, fontSize: scaled.notice, lineHeight: scaled.noticeLineHeight }]}>
-                  No primeiro login o sistema ainda poderá pedir uma nova troca de senha.
-                </Text>
+                {preview.passwordSetupRequired ? (
+                  <Text style={[styles.noticeText, { color: theme.textSoft, fontSize: scaled.notice, lineHeight: scaled.noticeLineHeight }]}>
+                    No primeiro login o sistema ainda poderá pedir uma nova validação de segurança.
+                  </Text>
+                ) : null}
 
                 <Pressable
                   onPress={() => {
@@ -406,7 +429,11 @@ export default function AccountSetupScreen() {
                   ]}
                 >
                   <Text style={[styles.buttonText, { color: theme.primaryForeground, fontSize: scaled.button }]}>
-                    {submitting ? 'Concluindo...' : 'Concluir ativação'}
+                    {submitting
+                      ? 'Concluindo...'
+                      : preview.passwordSetupRequired
+                        ? 'Concluir ativação'
+                        : 'Confirmar e ativar conta'}
                   </Text>
                 </Pressable>
               </>

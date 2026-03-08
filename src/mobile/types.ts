@@ -192,7 +192,16 @@ export type AuthAccountSetupPreviewResponse = {
   name: string;
   email: string;
   expiresAt: string;
+  passwordSetupRequired: boolean;
   loginUrl?: string | null;
+};
+
+export type PublicRegisterOrganization = {
+  orgUnitId: string;
+  type: OrgEntityType;
+  name: string;
+  parentName?: string | null;
+  label: string;
 };
 
 export type MemberDashboard = {

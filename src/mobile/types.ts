@@ -23,6 +23,16 @@ export type PublicSchedule = {
   isActive: boolean;
 };
 
+export type DonationCampaign = {
+  id: string;
+  orgUnitId: string;
+  name: string;
+  description?: string | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  createdAt: string;
+};
+
 export type MediaAsset = {
   id: string;
   url: string;

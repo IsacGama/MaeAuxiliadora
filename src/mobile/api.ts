@@ -12,6 +12,7 @@ import {
   DevotionalRequestCardCheckoutResponse,
   DevotionalRequestPixResponse,
   DevotionalRequestSettings,
+  DonationCampaign,
   DiocesePublic,
   EventRsvpStatus,
   LiturgyPayload,
@@ -260,6 +261,10 @@ export const publicApi = {
     fetchJson<ChapelPublic[]>(
       api(`/public/chapels?orgId=${encodeURIComponent(orgId)}`),
     ),
+  fetchPublicCampaigns: (orgUnitId?: string) =>
+    fetchJson<DonationCampaign[]>(
+      api(`/public/campaigns${orgUnitId ? `?orgUnitId=${encodeURIComponent(orgUnitId)}` : ''}`),
+    ),
   fetchBranding: (orgUnitId: string) =>
     fetchJson<OrgBranding | null>(api(`/public/branding/${encodeURIComponent(orgUnitId)}`)),
   fetchGatewayProviderStatus: (orgUnitId: string) =>
@@ -271,6 +276,7 @@ export const publicApi = {
     payload: {
       amount: number;
       intent?: GatewayDonationIntent;
+      campaignId?: string;
       description?: string;
       anonymous?: boolean;
       donorName?: string;
@@ -294,6 +300,7 @@ export const publicApi = {
     payload: {
       amount: number;
       intent?: GatewayDonationIntent;
+      campaignId?: string;
       description?: string;
       anonymous?: boolean;
       donorName?: string;

@@ -22,7 +22,11 @@ import { useAuth } from '../../mobile/auth-context';
 import { useMemberDashboard } from '../../mobile/hooks/use-member-dashboard';
 import { publicApi } from '../../mobile/api';
 import { HttpError } from '../../mobile/http';
-import { GatewayDonationIntent, GatewayPixPaymentResponse } from '../../mobile/types';
+import {
+  DonationCampaign,
+  GatewayDonationIntent,
+  GatewayPixPaymentResponse,
+} from '../../mobile/types';
 import { useAppTheme } from '../../mobile/theme';
 import { scaleFont, useFontScalePreference } from '../../mobile/font-scale-preference';
 import { notifyAppAlert } from '../../mobile/app-alert';
@@ -161,7 +165,7 @@ type AddressInput = {
 
 type DonationMethod = 'PIX' | 'CARD';
 
-const INTENT_OPTIONS: Array<{ value: GatewayDonationIntent; label: string }> = [
+const BASE_INTENT_OPTIONS: Array<{ value: GatewayDonationIntent; label: string }> = [
   { value: 'TITHE', label: 'Dízimo' },
   { value: 'OFFERING', label: 'Oferta' },
   { value: 'DONATION', label: 'Doação' },
@@ -259,9 +263,11 @@ export default function DonationsScreen() {
   const [providerLoading, setProviderLoading] = useState(false);
   const [providerError, setProviderError] = useState<string | null>(null);
   const [devotionalAvailable, setDevotionalAvailable] = useState(false);
+  const [campaigns, setCampaigns] = useState<DonationCampaign[]>([]);
 
   const [method, setMethod] = useState<DonationMethod>('PIX');
   const [intent, setIntent] = useState<GatewayDonationIntent>('DONATION');
+  const [campaignId, setCampaignId] = useState('');
   const [amountInput, setAmountInput] = useState('20,00');
   const [description, setDescription] = useState('');
   const [anonymous, setAnonymous] = useState(true);
@@ -321,6 +327,24 @@ export default function DonationsScreen() {
   const addressText = formatAddress(address);
 
   const amount = useMemo(() => parseMoneyInput(amountInput), [amountInput]);
+  const activeCampaigns = useMemo(() => {
+    const now = Date.now();
+    return campaigns.filter((campaign) => {
+      const startsAt = campaign.startsAt ? new Date(campaign.startsAt).getTime() : null;
+      const endsAt = campaign.endsAt ? new Date(campaign.endsAt).getTime() : null;
+      if (startsAt && startsAt > now) return false;
+      if (endsAt && endsAt < now) return false;
+      return true;
+    });
+  }, [campaigns]);
+  const hasActiveCampaigns = activeCampaigns.length > 0;
+  const intentOptions = useMemo(
+    () =>
+      BASE_INTENT_OPTIONS.filter(
+        (option) => option.value !== 'EVENT' || hasActiveCampaigns,
+      ),
+    [hasActiveCampaigns],
+  );
   const isActiveTitherInOrg = useMemo(() => {
     const orgUnitId = org.entity?.orgUnitId;
     if (!orgUnitId) return false;
@@ -347,19 +371,22 @@ export default function DonationsScreen() {
 
     setProviderLoading(true);
     try {
-      const [status, devotionalSettings] = await Promise.all([
+      const [status, devotionalSettings, activePublicCampaigns] = await Promise.all([
         publicApi.fetchGatewayProviderStatus(orgUnitId),
         publicApi.fetchDevotionalRequestSettings(orgUnitId),
+        publicApi.fetchPublicCampaigns(orgUnitId),
       ]);
       setProviderAvailable(status.available === true);
       setDevotionalAvailable(
         status.available === true &&
         (devotionalSettings.massIntentionEnabled || devotionalSettings.prayerRequestEnabled),
       );
+      setCampaigns(activePublicCampaigns ?? []);
       setProviderError(null);
     } catch (error) {
       setProviderAvailable(false);
       setDevotionalAvailable(false);
+      setCampaigns([]);
       setProviderError(messageFromError(error, 'Não foi possível verificar pagamentos online.'));
     } finally {
       setProviderLoading(false);
@@ -418,6 +445,26 @@ export default function DonationsScreen() {
   }, [gatewayPaymentId, pollGatewayStatus]);
 
   useEffect(() => {
+    if (intent === 'EVENT' && !hasActiveCampaigns) {
+      setIntent('DONATION');
+      setCampaignId('');
+    }
+  }, [hasActiveCampaigns, intent]);
+
+  useEffect(() => {
+    if (intent !== 'EVENT' && campaignId) {
+      setCampaignId('');
+    }
+  }, [campaignId, intent]);
+
+  useEffect(() => {
+    if (!campaignId) return;
+    if (!activeCampaigns.some((campaign) => campaign.id === campaignId)) {
+      setCampaignId('');
+    }
+  }, [activeCampaigns, campaignId]);
+
+  useEffect(() => {
     if ((method === 'CARD' || isTitheIntent) && anonymous) {
       setAnonymous(false);
     }
@@ -459,6 +506,15 @@ export default function DonationsScreen() {
   const validateForm = () => {
     if (amount <= 0) {
       void notifyAppAlert('Valor inválido', 'Informe um valor maior que zero.', 'danger');
+      return false;
+    }
+
+    if (intent === 'EVENT' && !campaignId.trim()) {
+      void notifyAppAlert(
+        'Campanha obrigatória',
+        'Selecione uma campanha ativa para doação de evento.',
+        'danger',
+      );
       return false;
     }
 
@@ -532,6 +588,7 @@ export default function DonationsScreen() {
     const payloadBase = {
       amount,
       intent,
+      campaignId: intent === 'EVENT' ? campaignId.trim() || undefined : undefined,
       description: description.trim() || undefined,
       anonymous: isTitheIntent ? false : anonymous,
       donorName: isTitheIntent || !anonymous ? donorName.trim() : undefined,
@@ -596,6 +653,7 @@ export default function DonationsScreen() {
   }, [
     amount,
     anonymous,
+    campaignId,
     description,
     donorEmail,
     donorName,
@@ -687,7 +745,7 @@ export default function DonationsScreen() {
 
           <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Motivo</Text>
           <View style={styles.chipWrap}>
-            {INTENT_OPTIONS.map((option) => {
+            {intentOptions.map((option) => {
               const selected = intent === option.value;
               return (
                 <Pressable
@@ -706,6 +764,40 @@ export default function DonationsScreen() {
               );
             })}
           </View>
+
+          {intent === 'EVENT' && (
+            <>
+              <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>
+                Campanha ativa
+              </Text>
+              <View style={styles.chipWrap}>
+                {activeCampaigns.map((campaign) => {
+                  const selected = campaignId === campaign.id;
+                  return (
+                    <Pressable
+                      key={campaign.id}
+                      style={[
+                        styles.chip,
+                        { borderColor: theme.border, backgroundColor: theme.bg },
+                        selected ? methodSelectedStyle : null,
+                      ]}
+                      onPress={() => setCampaignId(campaign.id)}
+                    >
+                      <Text
+                        style={{
+                          color: selected ? theme.secondary : theme.textSoft,
+                          fontWeight: selected ? '700' : '500',
+                          fontSize: scaled.buttonText,
+                        }}
+                      >
+                        {campaign.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </>
+          )}
 
           <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Valor (R$)</Text>
           <TextInput
@@ -836,7 +928,7 @@ export default function DonationsScreen() {
             </Text>
             <Text style={{ color: '#166534', fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }}>
               Tipo: <Text style={{ fontWeight: '700' }}>
-                {INTENT_OPTIONS.find((o) => o.value === confirmedDonation.intent)?.label ?? confirmedDonation.intent}
+                {BASE_INTENT_OPTIONS.find((o) => o.value === confirmedDonation.intent)?.label ?? confirmedDonation.intent}
               </Text>
             </Text>
             <Text style={{ color: '#166534', fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }}>

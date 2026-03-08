@@ -19,7 +19,7 @@ import { useOrgContext } from '../../mobile/hooks/use-org-context';
 import { useMemberDashboard } from '../../mobile/hooks/use-member-dashboard';
 import { useAppTheme, withAlpha } from '../../mobile/theme';
 import { authApi, publicApi } from '../../mobile/api';
-import { ChapelPublic, ParishPublic } from '../../mobile/types';
+import { ChapelPublic, ParishPublic, TitherStatus } from '../../mobile/types';
 import { ThemePreference, useThemePreference } from '../../mobile/theme-preference';
 import { FontScalePreference, scaleFont, useFontScalePreference } from '../../mobile/font-scale-preference';
 import { AppAlertDialog } from '../../mobile/components/app-alert-dialog';
@@ -199,6 +199,55 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  infoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  infoItem: {
+    flexGrow: 1,
+    minWidth: '48%',
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    gap: 2,
+  },
+  infoItemLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+  },
+  infoItemValue: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  overdueList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  overdueBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  overdueBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
   themeOptionButton: {
     flexGrow: 1,
     minWidth: '47%',
@@ -280,6 +329,41 @@ const normalizeForSearch = (value: string) =>
     .replace(/[\u0300-\u036f]/g, '')
     .trim()
     .toLowerCase();
+
+const formatCompetenceMonth = (value?: string | null) => {
+  if (!value) return '—';
+  const parsed = new Date(`${value}-01T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString('pt-BR', {
+    month: '2-digit',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+};
+
+const formatDateOnly = (value?: string | Date | null) => {
+  if (!value) return 'não informado';
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return 'não informado';
+  return parsed.toLocaleDateString('pt-BR');
+};
+
+const getTitherStatusMeta = (status: TitherStatus) => {
+  switch (status) {
+    case 'ACTIVE':
+      return { label: 'Ativo', color: '#22C55E' };
+    case 'PAUSED':
+      return { label: 'Pausado', color: '#F59E0B' };
+    case 'SUSPENDED':
+      return { label: 'Suspenso', color: '#EF4444' };
+    case 'INACTIVE':
+    default:
+      return { label: 'Inativo', color: '#F87171' };
+  }
+};
+
+const isInactiveLikeTither = (status: TitherStatus) =>
+  status === 'INACTIVE' || status === 'PAUSED' || status === 'SUSPENDED';
 
 export default function AccountScreen() {
   const {
@@ -660,6 +744,9 @@ export default function AccountScreen() {
   }
 
   const activeTither = dashboard.dashboard?.titherProfiles?.find((profile) => profile.status === 'ACTIVE');
+  const inactiveTither = dashboard.dashboard?.titherProfiles?.find((profile) =>
+    isInactiveLikeTither(profile.status),
+  );
   const streak = dashboard.dashboard?.titheSummary.currentStreakMonths ?? 0;
   const fireCount = Math.min(Math.max(streak, 0), 12);
   const mustChangePassword = Boolean(session?.user.mustChangePassword);
@@ -1343,45 +1430,240 @@ export default function AccountScreen() {
                 </View>
 
                 <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-                  <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Status dizimista</Text>
-                  {dashboard.dashboard?.titherProfiles?.length ? (
-                    dashboard.dashboard.titherProfiles.map((profile) => (
-                      <View key={profile.id} style={[styles.statItem, { borderColor: theme.border }]}>
-                        <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>Envelope</Text>
-                        <Text style={[styles.statValue, { color: theme.text, fontSize: scaled.statValue }]}>{profile.envelopeCode ?? 'Sem código'}</Text>
-                        <Text style={{ color: profile.status === 'ACTIVE' ? '#4ADE80' : '#FCA5A5', fontWeight: '700' }}>
-                          {profile.status === 'ACTIVE' ? 'Ativo' : 'Inativo'}
-                        </Text>
-                      </View>
-                    ))
-                  ) : (
-                    <Text style={{ color: theme.textSoft }}>Nenhum cadastro de dizimista encontrado.</Text>
-                  )}
+                  <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Carteirinha do dizimista</Text>
+                  {activeTither ? (
+                    <>
+                      {(() => {
+                        const statusMeta = getTitherStatusMeta(activeTither.status);
+                        const envelopeCode = activeTither.currentEnvelopeCode ?? activeTither.envelopeCode;
+                        return (
+                          <>
+                            <View
+                              style={[
+                                styles.statusBadge,
+                                {
+                                  borderColor: withAlpha(statusMeta.color, 0.4),
+                                  backgroundColor: withAlpha(statusMeta.color, 0.15),
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.statusBadgeText,
+                                  {
+                                    color: statusMeta.color,
+                                    fontSize: scaled.statLabel,
+                                  },
+                                ]}
+                              >
+                                Dizimista {statusMeta.label.toLowerCase()}
+                              </Text>
+                            </View>
 
-                  <Pressable
-                    style={[
-                      styles.button,
-                      {
-                        borderColor: activeTither ? theme.destructive : theme.secondary,
-                        backgroundColor: activeTither ? withAlpha(theme.destructive, 0.14) : withAlpha(theme.secondary, 0.16),
-                      },
-                    ]}
-                    onPress={() => void onToggleTither(Boolean(activeTither))}
-                    disabled={titherSubmitting}
-                  >
-                    <Text
-                      style={[
-                        styles.buttonText,
-                        { color: activeTither ? theme.destructive : theme.secondary, fontSize: scaled.buttonText },
-                      ]}
-                    >
-                      {titherSubmitting
-                        ? 'Salvando...'
-                        : activeTither
-                          ? 'Desativar cadastro de dizimista'
-                          : 'Quero me cadastrar como dizimista'}
-                    </Text>
-                  </Pressable>
+                            <View style={styles.infoGrid}>
+                              <View style={[styles.infoItem, { borderColor: theme.border }]}>
+                                <Text style={[styles.infoItemLabel, { color: theme.textSoft }]}>Envelope do mês</Text>
+                                <Text style={[styles.infoItemValue, { color: theme.text }]}>
+                                  {envelopeCode ? `E${envelopeCode}` : '—'}
+                                </Text>
+                                <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>
+                                  {formatCompetenceMonth(activeTither.currentEnvelopeMonth)}
+                                </Text>
+                              </View>
+                              <View style={[styles.infoItem, { borderColor: theme.border }]}>
+                                <Text style={[styles.infoItemLabel, { color: theme.textSoft }]}>Início</Text>
+                                <Text style={[styles.infoItemValue, { color: theme.text }]}>
+                                  {formatDateOnly(activeTither.startedAt)}
+                                </Text>
+                              </View>
+                            </View>
+                          </>
+                        );
+                      })()}
+
+                      {activeTither.titheControl ? (
+                        <>
+                          <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>
+                            Regularidade do dízimo
+                          </Text>
+                          <View style={styles.infoGrid}>
+                            <View style={[styles.infoItem, { borderColor: theme.border }]}>
+                              <Text style={[styles.infoItemLabel, { color: theme.textSoft }]}>Pagos</Text>
+                              <Text style={[styles.infoItemValue, { color: theme.text }]}>
+                                {activeTither.titheControl.paidMonths ?? 0}
+                              </Text>
+                            </View>
+                            <View style={[styles.infoItem, { borderColor: theme.border }]}>
+                              <Text style={[styles.infoItemLabel, { color: theme.textSoft }]}>Esperados</Text>
+                              <Text style={[styles.infoItemValue, { color: theme.text }]}>
+                                {activeTither.titheControl.expectedMonths ?? 0}
+                              </Text>
+                            </View>
+                            <View style={[styles.infoItem, { borderColor: theme.border }]}>
+                              <Text style={[styles.infoItemLabel, { color: theme.textSoft }]}>Em atraso</Text>
+                              <Text
+                                style={[
+                                  styles.infoItemValue,
+                                  {
+                                    color:
+                                      (activeTither.titheControl.overdueMonths ?? 0) > 0
+                                        ? theme.destructive
+                                        : '#22C55E',
+                                  },
+                                ]}
+                              >
+                                {activeTither.titheControl.overdueMonths ?? 0}
+                              </Text>
+                            </View>
+                            <View style={[styles.infoItem, { borderColor: theme.border }]}>
+                              <Text style={[styles.infoItemLabel, { color: theme.textSoft }]}>Último mês pago</Text>
+                              <Text style={[styles.infoItemValue, { color: theme.text }]}>
+                                {formatCompetenceMonth(activeTither.titheControl.lastPaidMonth)}
+                              </Text>
+                            </View>
+                          </View>
+
+                          {(activeTither.titheControl.overdueCompetences?.length ?? 0) > 0 && (
+                            <>
+                              <Text style={[styles.statLabel, { color: theme.textSoft, fontSize: scaled.statLabel }]}>
+                                Competências em aberto
+                              </Text>
+                              <View style={styles.overdueList}>
+                                {(activeTither.titheControl.overdueCompetences ?? []).map((competence) => (
+                                  <View
+                                    key={competence}
+                                    style={[
+                                      styles.overdueBadge,
+                                      {
+                                        borderColor: withAlpha(theme.destructive, 0.35),
+                                        backgroundColor: withAlpha(theme.destructive, 0.12),
+                                      },
+                                    ]}
+                                  >
+                                    <Text style={[styles.overdueBadgeText, { color: theme.destructive }]}>
+                                      {competence}
+                                    </Text>
+                                  </View>
+                                ))}
+                              </View>
+                            </>
+                          )}
+                        </>
+                      ) : null}
+
+                      <Pressable
+                        style={[
+                          styles.button,
+                          {
+                            borderColor: theme.destructive,
+                            backgroundColor: withAlpha(theme.destructive, 0.14),
+                          },
+                        ]}
+                        onPress={() => void onToggleTither(true)}
+                        disabled={titherSubmitting}
+                      >
+                        <Text
+                          style={[
+                            styles.buttonText,
+                            { color: theme.destructive, fontSize: scaled.buttonText },
+                          ]}
+                        >
+                          {titherSubmitting ? 'Salvando...' : 'Desinscrever-me'}
+                        </Text>
+                      </Pressable>
+                    </>
+                  ) : inactiveTither ? (
+                    <>
+                      {(() => {
+                        const statusMeta = getTitherStatusMeta(inactiveTither.status);
+                        const envelopeCode = inactiveTither.currentEnvelopeCode ?? inactiveTither.envelopeCode;
+                        return (
+                          <>
+                            <View
+                              style={[
+                                styles.statusBadge,
+                                {
+                                  borderColor: withAlpha(statusMeta.color, 0.4),
+                                  backgroundColor: withAlpha(statusMeta.color, 0.15),
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.statusBadgeText,
+                                  {
+                                    color: statusMeta.color,
+                                    fontSize: scaled.statLabel,
+                                  },
+                                ]}
+                              >
+                                Dizimista {statusMeta.label.toLowerCase()}
+                              </Text>
+                            </View>
+                            <View style={styles.infoGrid}>
+                              <View style={[styles.infoItem, { borderColor: theme.border }]}>
+                                <Text style={[styles.infoItemLabel, { color: theme.textSoft }]}>Envelope atual</Text>
+                                <Text style={[styles.infoItemValue, { color: theme.text }]}>
+                                  {envelopeCode ? `E${envelopeCode}` : '—'}
+                                </Text>
+                              </View>
+                              <View style={[styles.infoItem, { borderColor: theme.border }]}>
+                                <Text style={[styles.infoItemLabel, { color: theme.textSoft }]}>Situação</Text>
+                                <Text style={[styles.infoItemValue, { color: statusMeta.color }]}>
+                                  {statusMeta.label}
+                                </Text>
+                              </View>
+                            </View>
+                          </>
+                        );
+                      })()}
+
+                      <Pressable
+                        style={[
+                          styles.button,
+                          {
+                            borderColor: theme.secondary,
+                            backgroundColor: withAlpha(theme.secondary, 0.16),
+                          },
+                        ]}
+                        onPress={() => void onToggleTither(false)}
+                        disabled={titherSubmitting}
+                      >
+                        <Text
+                          style={[
+                            styles.buttonText,
+                            { color: theme.secondary, fontSize: scaled.buttonText },
+                          ]}
+                        >
+                          {titherSubmitting ? 'Salvando...' : 'Reinscrever-me como dizimista'}
+                        </Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={{ color: theme.textSoft }}>Nenhum cadastro de dizimista encontrado.</Text>
+                      <Pressable
+                        style={[
+                          styles.button,
+                          {
+                            borderColor: theme.secondary,
+                            backgroundColor: withAlpha(theme.secondary, 0.16),
+                          },
+                        ]}
+                        onPress={() => void onToggleTither(false)}
+                        disabled={titherSubmitting}
+                      >
+                        <Text
+                          style={[
+                            styles.buttonText,
+                            { color: theme.secondary, fontSize: scaled.buttonText },
+                          ]}
+                        >
+                          {titherSubmitting ? 'Salvando...' : 'Quero me cadastrar como dizimista'}
+                        </Text>
+                      </Pressable>
+                    </>
+                  )}
                   {!!dashboard.error && <Text style={{ color: '#FCA5A5' }}>{dashboard.error}</Text>}
                   {!!submitError && <Text style={{ color: '#FCA5A5' }}>{submitError}</Text>}
                 </View>

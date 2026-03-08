@@ -10,6 +10,7 @@ export type DevotionalRequestStatus =
   | 'CANCELED';
 export type GatewayPaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'CANCELED' | 'REFUNDED';
 export type ScheduleCategory = 'MASS' | 'CONFESSION' | 'ADORATION' | 'OFFICE_HOURS' | 'CATECHESIS' | 'OTHER';
+export type TitherStatus = 'ACTIVE' | 'INACTIVE' | 'PAUSED' | 'SUSPENDED';
 
 export type PublicSchedule = {
   id: string;
@@ -213,9 +214,18 @@ export type MemberDashboard = {
   titherProfiles: Array<{
     id: string;
     orgId: string;
-    status: 'ACTIVE' | 'INACTIVE';
+    status: TitherStatus;
     envelopeCode?: string | null;
+    currentEnvelopeCode?: string | null;
+    currentEnvelopeMonth?: string | null;
     startedAt?: string | Date | null;
+    titheControl?: {
+      expectedMonths: number;
+      paidMonths: number;
+      overdueMonths: number;
+      lastPaidMonth?: string | null;
+      overdueCompetences?: string[];
+    } | null;
   }>;
   payments: Array<{
     id: string;

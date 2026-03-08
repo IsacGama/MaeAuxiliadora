@@ -271,6 +271,11 @@ export default function DonationsScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [pixResult, setPixResult] = useState<GatewayPixPaymentResponse | null>(null);
   const [gatewayPaymentId, setGatewayPaymentId] = useState<string | null>(null);
+  const [consentLgpd, setConsentLgpd] = useState(false);
+  const [confirmedDonation, setConfirmedDonation] = useState<{
+    amount: number;
+    intent: GatewayDonationIntent;
+  } | null>(null);
   const isTitheIntent = intent === 'TITHE';
   const scaled = useMemo(
     () => ({
@@ -369,6 +374,7 @@ export default function DonationsScreen() {
       const status = await publicApi.fetchGatewayPaymentStatus(orgUnitId, gatewayPaymentId);
       if (status.status !== 'PENDING') {
         if (status.status === 'PAID') {
+          setConfirmedDonation({ amount, intent });
           void notifyAppAlert(
             'Pagamento confirmado',
             'Recebemos sua contribuição com sucesso.',
@@ -386,7 +392,7 @@ export default function DonationsScreen() {
     } catch {
       // não bloqueia fluxo principal
     }
-  }, [gatewayPaymentId, org.entity?.orgUnitId]);
+  }, [amount, gatewayPaymentId, intent, org.entity?.orgUnitId]);
 
   useEffect(() => {
     void loadProviderStatus();
@@ -535,6 +541,7 @@ export default function DonationsScreen() {
           : undefined,
       personId:
         isTitheIntent || !anonymous ? (session?.user?.personId ?? undefined) : undefined,
+      consentLgpd: true,
     };
 
     setIsSubmitting(true);
@@ -781,11 +788,29 @@ export default function DonationsScreen() {
           )}
 
           <Pressable
-            style={[styles.button, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.16)' }]}
+            style={styles.toggleRow}
+            onPress={() => setConsentLgpd((prev) => !prev)}
+          >
+            <MaterialCommunityIcons
+              name={consentLgpd ? 'checkbox-marked' : 'checkbox-blank-outline'}
+              size={20}
+              color={theme.secondary}
+            />
+            <Text style={{ color: theme.textSoft, fontSize: scaled.infoText, flex: 1, lineHeight: scaled.infoTextLineHeight }}>
+              Ao prosseguir, você concorda com nossa Política de Privacidade e o uso dos seus dados para esta transação.
+            </Text>
+          </Pressable>
+
+          <Pressable
+            style={[
+              styles.button,
+              { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.16)' },
+              (!consentLgpd) && { opacity: 0.5 },
+            ]}
             onPress={() => {
               void submitDonation();
             }}
-            disabled={isSubmitting || providerLoading || !providerAvailable}
+            disabled={isSubmitting || providerLoading || !providerAvailable || !consentLgpd}
           >
             {isSubmitting ? <ActivityIndicator size="small" color={theme.secondary} /> : null}
             <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.buttonText }}>
@@ -797,6 +822,34 @@ export default function DonationsScreen() {
             </Text>
           </Pressable>
         </View>
+
+        {confirmedDonation && (
+          <View style={[styles.card, { backgroundColor: '#f0fdf4', borderColor: '#86efac' }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <MaterialCommunityIcons name="check-circle" size={32} color="#16a34a" />
+              <Text style={{ color: '#16a34a', fontWeight: '800', fontSize: scaled.title }}>
+                Contribuição confirmada!
+              </Text>
+            </View>
+            <Text style={{ color: '#166534', fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }}>
+              Valor: <Text style={{ fontWeight: '700' }}>R$ {confirmedDonation.amount.toFixed(2)}</Text>
+            </Text>
+            <Text style={{ color: '#166534', fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }}>
+              Tipo: <Text style={{ fontWeight: '700' }}>
+                {INTENT_OPTIONS.find((o) => o.value === confirmedDonation.intent)?.label ?? confirmedDonation.intent}
+              </Text>
+            </Text>
+            <Text style={{ color: '#166534', fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight }}>
+              Obrigado pela sua generosidade! Que Deus abençoe sua contribuição.
+            </Text>
+            <Pressable
+              style={[styles.button, { borderColor: '#16a34a', backgroundColor: 'transparent' }]}
+              onPress={() => setConfirmedDonation(null)}
+            >
+              <Text style={{ color: '#16a34a', fontWeight: '700', fontSize: scaled.buttonText }}>Fechar</Text>
+            </Pressable>
+          </View>
+        )}
 
         {pixResult && (
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 

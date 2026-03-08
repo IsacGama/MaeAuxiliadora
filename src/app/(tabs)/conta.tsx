@@ -344,6 +344,7 @@ export default function AccountScreen() {
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [logoutSubmitting, setLogoutSubmitting] = useState(false);
   const [postLogoutNotice, setPostLogoutNotice] = useState<string | null>(null);
+  const [registerConsentLgpd, setRegisterConsentLgpd] = useState(false);
 
   const setChapelsIfNeeded = (next: ChapelPublic[]) => {
     setChapels(next);
@@ -495,6 +496,10 @@ export default function AccountScreen() {
       setSubmitError('Selecione a paróquia.');
       return;
     }
+    if (!registerConsentLgpd) {
+      setSubmitError('Aceite a Política de Privacidade e os Termos de Uso para continuar.');
+      return;
+    }
 
     const selectedParish = parishes.find((parish) => parish.id === selectedParishId);
     const selectedChapel = chapels.find((chapel) => chapel.id === selectedChapelId);
@@ -515,6 +520,7 @@ export default function AccountScreen() {
         primaryPhone: onlyDigits(registerPhone),
         cpf: onlyDigits(registerCpf),
         gender: registerGender,
+        consentLgpd: true,
       });
       setAccountSetupNotice(result.message);
       setQueuedAccessEmail(result.email);
@@ -524,6 +530,7 @@ export default function AccountScreen() {
       setRegisterPhone('');
       setRegisterCpf('');
       setRegisterGender('UNDECLARED');
+      setRegisterConsentLgpd(false);
       setPassword('');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Não foi possível criar sua conta.';
@@ -990,9 +997,27 @@ export default function AccountScreen() {
                 </Text>
 
                 <Pressable
-                  style={[styles.button, { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.16)' }]}
+                  style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}
+                  onPress={() => setRegisterConsentLgpd((prev) => !prev)}
+                >
+                  <MaterialCommunityIcons
+                    name={registerConsentLgpd ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                    size={22}
+                    color={theme.secondary}
+                  />
+                  <Text style={{ color: theme.textSoft, fontSize: scaled.subtitle, flex: 1, lineHeight: 20 }}>
+                    Li e aceito a Política de Privacidade e os Termos de Uso
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={[
+                    styles.button,
+                    { borderColor: theme.secondary, backgroundColor: 'rgba(218, 139, 60, 0.16)' },
+                    !registerConsentLgpd && { opacity: 0.5 },
+                  ]}
                   onPress={onRegister}
-                  disabled={submitting || loadingParishes}
+                  disabled={submitting || loadingParishes || !registerConsentLgpd}
                 >
                   <Text style={[styles.buttonText, { color: theme.secondary, fontSize: scaled.buttonText }]}>
                     {submitting ? 'Enviando acesso...' : 'Criar conta'}

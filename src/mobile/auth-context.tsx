@@ -43,6 +43,7 @@ type AuthContextValue = {
     primaryPhone: string;
     cpf: string;
     gender: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
+    consentLgpd?: boolean;
   }) => Promise<AuthQueuedActionResponse>;
   changePassword: (
     currentPassword: string,
@@ -198,6 +199,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       primaryPhone: string;
       cpf: string;
       gender: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
+      consentLgpd?: boolean;
     }) => {
       return authApi.register(payload);
     },

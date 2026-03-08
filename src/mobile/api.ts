@@ -278,6 +278,7 @@ export const publicApi = {
       personId?: string;
       idempotencyKey?: string;
       expiresInMinutes?: number;
+      consentLgpd?: boolean;
     },
   ) =>
     fetchJson<GatewayPixPaymentResponse>(
@@ -299,6 +300,7 @@ export const publicApi = {
       donorEmail?: string;
       personId?: string;
       idempotencyKey?: string;
+      consentLgpd?: boolean;
     },
   ) =>
     fetchJson<GatewayCardCheckoutResponse>(
@@ -337,6 +339,7 @@ export const publicApi = {
       personId?: string;
       isAnonymous?: boolean;
       amount?: number;
+      consentLgpd?: boolean;
     },
   ) =>
     fetchJson<DevotionalRequestPixResponse>(
@@ -361,6 +364,7 @@ export const publicApi = {
       personId?: string;
       isAnonymous?: boolean;
       amount?: number;
+      consentLgpd?: boolean;
     },
   ) =>
     fetchJson<DevotionalRequestCardCheckoutResponse>(
@@ -453,6 +457,7 @@ export const authApi = {
     primaryPhone: string;
     cpf: string;
     gender: 'MALE' | 'FEMALE' | 'OTHER' | 'UNDECLARED';
+    consentLgpd?: boolean;
   }) =>
     fetchJson<AuthQueuedActionResponse>(api('/auth/register'), {
       method: 'POST',

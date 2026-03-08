@@ -24,6 +24,7 @@ import { scaleFont, useFontScalePreference } from '../mobile/font-scale-preferen
 import { HttpError } from '../mobile/http';
 import { useOrgContext } from '../mobile/hooks/use-org-context';
 import { useMemberDashboard } from '../mobile/hooks/use-member-dashboard';
+import { setCache, getCacheValue, clearCache } from '../mobile/storage';
 import type {
   DevotionalRequest,
   DevotionalRequestPixResponse,
@@ -91,6 +92,22 @@ const TYPE_OPTIONS: Array<{ value: DevotionalRequestType; label: string }> = [
   { value: 'MASS_INTENTION', label: 'Intenção de missa' },
   { value: 'PRAYER_REQUEST', label: 'Pedido de oração' },
 ];
+
+const DRAFT_CACHE_KEY = 'intencoes:draft';
+const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+
+type IntencoesDraft = {
+  type: DevotionalRequestType;
+  amountInput: string;
+  requesterName: string;
+  requesterEmail: string;
+  requesterPhone: string;
+  intentionFor: string;
+  requestedForDate: string;
+  scheduleId: string;
+  intentionText: string;
+  isAnonymous: boolean;
+};
 const WEEKDAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'] as const;
 
 type PaymentMethod = 'PIX' | 'CARD';
@@ -150,6 +167,7 @@ export default function DevotionalRequestsScreen() {
   const [pixResult, setPixResult] = useState<DevotionalRequestPixResponse | null>(null);
   const [requestStatus, setRequestStatus] = useState<DevotionalRequest | null>(null);
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const [draftLoaded, setDraftLoaded] = useState(false);
 
   const scaled = useMemo(
     () => ({
@@ -293,6 +311,60 @@ export default function DevotionalRequestsScreen() {
     }
   }, [filteredMassSchedules, scheduleId]);
 
+  // Carrega rascunho ao montar a tela
+  useEffect(() => {
+    const loadDraft = async () => {
+      const draft = await getCacheValue<IntencoesDraft>(DRAFT_CACHE_KEY);
+      if (!draft) {
+        setDraftLoaded(true);
+        return;
+      }
+      if (draft.type) setType(draft.type);
+      if (draft.amountInput) setAmountInput(draft.amountInput);
+      if (draft.requesterName) setRequesterName(draft.requesterName);
+      if (draft.requesterEmail) setRequesterEmail(draft.requesterEmail);
+      if (draft.requesterPhone) setRequesterPhone(draft.requesterPhone);
+      if (draft.intentionFor) setIntentionFor(draft.intentionFor);
+      if (draft.requestedForDate) setRequestedForDate(draft.requestedForDate);
+      if (draft.scheduleId) setScheduleId(draft.scheduleId);
+      if (draft.intentionText) setIntentionText(draft.intentionText);
+      setIsAnonymous(draft.isAnonymous ?? false);
+      setDraftLoaded(true);
+    };
+    void loadDraft();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Salva rascunho silenciosamente ao alterar qualquer campo do formulário
+  useEffect(() => {
+    if (!draftLoaded) return;
+    const draft: IntencoesDraft = {
+      type,
+      amountInput,
+      requesterName,
+      requesterEmail,
+      requesterPhone,
+      intentionFor,
+      requestedForDate,
+      scheduleId,
+      intentionText,
+      isAnonymous,
+    };
+    void setCache(DRAFT_CACHE_KEY, draft, { ttlMs: DRAFT_TTL_MS });
+  }, [
+    draftLoaded,
+    type,
+    amountInput,
+    requesterName,
+    requesterEmail,
+    requesterPhone,
+    intentionFor,
+    requestedForDate,
+    scheduleId,
+    intentionText,
+    isAnonymous,
+  ]);
+
   useEffect(() => {
     if (!activeRequestId || !org.entity?.orgUnitId) return;
 
@@ -383,6 +455,7 @@ export default function DevotionalRequestsScreen() {
       personId: session?.user?.personId ?? undefined,
       isAnonymous,
       amount: Number(amount.toFixed(2)),
+      consentLgpd: true,
     };
 
     setSubmitting(true);
@@ -391,11 +464,13 @@ export default function DevotionalRequestsScreen() {
         const result = await publicApi.createDevotionalRequestPix(orgUnitId, payload);
         setPixResult(result);
         setActiveRequestId(result.requestId);
+        void clearCache(DRAFT_CACHE_KEY);
         void notifyAppAlert('PIX gerado', 'Conclua o pagamento para enviar sua solicitação.', 'success');
         return;
       }
 
       const result = await publicApi.createDevotionalRequestCardCheckout(orgUnitId, payload);
+      void clearCache(DRAFT_CACHE_KEY);
       setActiveRequestId(result.requestId);
       const checkoutUrl = (result.checkoutUrl || result.sandboxCheckoutUrl || '').trim();
       if (!checkoutUrl) {
@@ -457,6 +532,15 @@ export default function DevotionalRequestsScreen() {
           </Text>
         </View>
 
+        {providerLoading && (
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+            <ActivityIndicator size="small" color={theme.secondary} />
+            <Text style={[styles.infoText, { color: theme.textSoft, fontSize: scaled.infoText, lineHeight: scaled.infoTextLineHeight, textAlign: 'center' }]}>
+              Carregando configurações...
+            </Text>
+          </View>
+        )}
+
         {!providerLoading && !providerAvailable && (
           <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
             <Text style={[styles.title, { color: theme.primary, fontSize: scaled.title }]}>Pagamento online indisponível</Text>
@@ -475,11 +559,15 @@ export default function DevotionalRequestsScreen() {
           </View>
         )}
 
-        {providerAvailable && devotionalEnabled && (
-        <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
+        {!providerLoading && providerAvailable && devotionalEnabled && (
+          <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
           <Text style={[styles.infoLabel, { color: theme.secondary, fontSize: scaled.infoLabel }]}>Tipo de solicitação</Text>
           <View style={styles.chipWrap}>
-            {TYPE_OPTIONS.map((option) => {
+            {TYPE_OPTIONS.filter((option) =>
+              option.value === 'MASS_INTENTION'
+                ? settings?.massIntentionEnabled
+                : settings?.prayerRequestEnabled,
+            ).map((option) => {
               const selected = type === option.value;
               return (
                 <Pressable
@@ -683,7 +771,7 @@ export default function DevotionalRequestsScreen() {
                   : 'Continuar no checkout'}
             </Text>
           </Pressable>
-        </View>
+          </View>
         )}
 
         {pixResult && (

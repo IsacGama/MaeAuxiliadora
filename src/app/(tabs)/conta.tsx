@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Modal,
   Pressable,
   RefreshControl,
@@ -23,6 +24,7 @@ import { PublicRegisterOrganization, TitherStatus } from '../../mobile/types';
 import { ThemePreference, useThemePreference } from '../../mobile/theme-preference';
 import { FontScalePreference, scaleFont, useFontScalePreference } from '../../mobile/font-scale-preference';
 import { AppAlertDialog } from '../../mobile/components/app-alert-dialog';
+import { appConfig } from '../../mobile/config';
 
 const styles = StyleSheet.create({
   screen: { flex: 1 },
@@ -725,6 +727,15 @@ export default function AccountScreen() {
     }
   };
 
+  const openLegalDoc = async (path: '/termos' | '/privacidade') => {
+    const target = `${appConfig.publicWebUrl}${path}`;
+    try {
+      await Linking.openURL(target);
+    } catch {
+      setSubmitError('Não foi possível abrir o link legal no momento.');
+    }
+  };
+
   const onResendAccessEmail = async () => {
     const targetEmail = queuedAccessEmail?.trim().toLowerCase();
     if (!targetEmail) {
@@ -1279,7 +1290,24 @@ export default function AccountScreen() {
                     color={theme.secondary}
                   />
                   <Text style={{ color: theme.textSoft, fontSize: scaled.subtitle, flex: 1, lineHeight: 20 }}>
-                    Li e aceito a Política de Privacidade e os Termos de Uso
+                    Li e aceito a{' '}
+                    <Text
+                      onPress={() => {
+                        void openLegalDoc('/privacidade');
+                      }}
+                      style={{ color: theme.secondary, fontWeight: '700' }}
+                    >
+                      Política de Privacidade
+                    </Text>
+                    {' '}e os{' '}
+                    <Text
+                      onPress={() => {
+                        void openLegalDoc('/termos');
+                      }}
+                      style={{ color: theme.secondary, fontWeight: '700' }}
+                    >
+                      Termos de Uso
+                    </Text>
                   </Text>
                 </Pressable>
 

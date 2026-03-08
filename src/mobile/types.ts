@@ -433,8 +433,10 @@ export type DevotionalRequestSettings = {
   orgUnitId: string;
   massIntentionEnabled: boolean;
   massIntentionAmount: number;
+  massIntentionCutoffMinutes: number;
   prayerRequestEnabled: boolean;
   prayerRequestAmount: number;
+  prayerRequestCutoffMinutes: number;
   publicInstructions?: string | null;
 };
 

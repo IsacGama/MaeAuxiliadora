@@ -44,6 +44,15 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const readString = (value: unknown): string | undefined =>
   typeof value === 'string' ? value : undefined;
 
+const readNumber = (value: unknown, fallback = 0): number => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return fallback;
+};
+
 const decodeHtmlEntities = (value: string) =>
   value
     .replace(/&#038;/gi, '&')
@@ -324,10 +333,21 @@ export const publicApi = {
         `/public/org-units/${encodeURIComponent(orgUnitId)}/gateway-payments/${encodeURIComponent(gatewayPaymentId)}`,
       ),
     ),
-  fetchDevotionalRequestSettings: (orgUnitId: string) =>
-    fetchJson<DevotionalRequestSettings>(
+  fetchDevotionalRequestSettings: async (orgUnitId: string) => {
+    const raw = await fetchJson<Partial<DevotionalRequestSettings>>(
       api(`/public/org-units/${encodeURIComponent(orgUnitId)}/devotional-requests/settings`),
-    ),
+    );
+    return {
+      orgUnitId: raw.orgUnitId ?? orgUnitId,
+      massIntentionEnabled: raw.massIntentionEnabled !== false,
+      massIntentionAmount: readNumber(raw.massIntentionAmount, 5),
+      massIntentionCutoffMinutes: readNumber(raw.massIntentionCutoffMinutes, 0),
+      prayerRequestEnabled: raw.prayerRequestEnabled !== false,
+      prayerRequestAmount: readNumber(raw.prayerRequestAmount, 5),
+      prayerRequestCutoffMinutes: readNumber(raw.prayerRequestCutoffMinutes, 0),
+      publicInstructions: typeof raw.publicInstructions === 'string' ? raw.publicInstructions : null,
+    };
+  },
   fetchPublicSchedules: (orgUnitId: string) =>
     fetchJson<PublicSchedule[]>(
       api(`/public/schedules?orgUnitId=${encodeURIComponent(orgUnitId)}`),

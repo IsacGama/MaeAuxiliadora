@@ -1,6 +1,7 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   Share,
@@ -11,9 +12,12 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as Sharing from 'expo-sharing';
+import ViewShot from 'react-native-view-shot';
 import { useAuth } from '../mobile/auth-context';
 import { useMemberDashboard } from '../mobile/hooks/use-member-dashboard';
 import { useOrgContext } from '../mobile/hooks/use-org-context';
+import { getMediaUrl } from '../mobile/media';
 import { useAppTheme, withAlpha } from '../mobile/theme';
 import { scaleFont, useFontScalePreference } from '../mobile/font-scale-preference';
 
@@ -39,21 +43,56 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     overflow: 'hidden',
+    position: 'relative',
+  },
+  cardPatternCircleLarge: {
+    position: 'absolute',
+    right: -36,
+    top: -30,
+    width: 160,
+    height: 160,
+    borderRadius: 999,
+    borderWidth: 4,
+  },
+  cardPatternCircleSmall: {
+    position: 'absolute',
+    left: -56,
+    bottom: -72,
+    width: 220,
+    height: 220,
+    borderRadius: 999,
+    borderWidth: 4,
   },
   cardInner: {
     paddingHorizontal: 14,
     paddingVertical: 14,
     gap: 10,
+    position: 'relative',
+    zIndex: 2,
   },
   cardTop: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 8,
   },
   cardTopLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
-    gap: 2,
+    gap: 10,
+  },
+  orgAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  orgAvatarImage: {
+    width: '100%',
+    height: '100%',
   },
   statusBadge: {
     borderRadius: 999,
@@ -128,6 +167,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: 10,
     alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
   },
 });
 
@@ -163,6 +205,8 @@ export default function MemberCardScreen() {
   const dashboard = useMemberDashboard();
   const { session } = useAuth();
   const { fontScale } = useFontScalePreference();
+  const cardCaptureRef = useRef<ViewShot | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
   const scaled = useMemo(
     () => ({
       title: scaleFont(22, fontScale),
@@ -182,14 +226,29 @@ export default function MemberCardScreen() {
   );
   const customDomain = org.entity?.raw?.customDomain?.trim();
   const domainLabel = customDomain || org.displayName || 'EclesialHub';
+  const logoUrl = getMediaUrl(org.branding?.logoAsset?.url ?? org.branding?.coatOfArmsAsset?.url);
 
   const onShare = async () => {
-    if (!person) return;
+    if (!person || isSharing) return;
+    setIsSharing(true);
     const shareMessage = `${person.fullName} — Membro Ativo${activeTither ? ' · Dizimista' : ''}${org.displayName ? ` · ${org.displayName}` : ''}`;
-    await Share.share({
-      title: 'Carteirinha EclesialHub',
-      message: shareMessage,
-    });
+    try {
+      const imageUri = await cardCaptureRef.current?.capture?.();
+      const canShareImage = Boolean(imageUri) && (await Sharing.isAvailableAsync());
+      if (canShareImage && imageUri) {
+        await Sharing.shareAsync(imageUri, {
+          mimeType: 'image/png',
+          dialogTitle: 'Compartilhar carteirinha',
+        });
+        return;
+      }
+      await Share.share({
+        title: 'Carteirinha EclesialHub',
+        message: shareMessage,
+      });
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   if (dashboard.isLoading && !dashboard.dashboard) {
@@ -232,72 +291,103 @@ export default function MemberCardScreen() {
           <Text style={{ color: theme.text, fontWeight: '700', fontSize: scaled.button }}>Voltar</Text>
         </Pressable>
 
-        <View style={[styles.card, { borderColor: withAlpha(theme.secondary, 0.35), backgroundColor: theme.primary }]}>
-          <View style={styles.cardInner}>
-            <View style={styles.cardTop}>
-              <View style={styles.cardTopLeft}>
-                <Text style={{ color: withAlpha('#FFFFFF', 0.7), fontSize: scaleFont(11, fontScale), fontWeight: '800' }}>
-                  {org.displayName || 'EclesialHub'}
-                </Text>
-                <Text style={{ color: '#FFFFFF', fontSize: scaleFont(13, fontScale), fontWeight: '600' }}>
-                  Carteirinha digital
-                </Text>
-              </View>
-              <View style={[styles.statusBadge, { borderColor: withAlpha('#FFFFFF', 0.5), backgroundColor: withAlpha('#FFFFFF', 0.15) }]}>
-                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: scaleFont(11, fontScale) }}>
-                  Membro ativo
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.nameRow}>
-              <View style={[styles.initialsAvatar, { borderColor: withAlpha('#FFFFFF', 0.4), backgroundColor: withAlpha('#FFFFFF', 0.12) }]}>
-                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: scaleFont(20, fontScale) }}>
-                  {getInitials(person.fullName)}
-                </Text>
-              </View>
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: scaleFont(21, fontScale) }}>
-                  {person.fullName}
-                </Text>
-                <Text style={{ color: withAlpha('#FFFFFF', 0.85), fontSize: scaleFont(13, fontScale) }}>
-                  {session?.user.email ?? person.primaryEmail ?? ''}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.chipRow}>
-              {activeTither ? (
-                <View style={[styles.chip, { borderColor: withAlpha('#FFFFFF', 0.45), backgroundColor: withAlpha('#FFFFFF', 0.12) }]}>
-                  <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: scaleFont(12, fontScale) }}>Dizimista</Text>
+        <ViewShot
+          ref={cardCaptureRef}
+          options={{
+            format: 'png',
+            quality: 1,
+            result: 'tmpfile',
+            fileName: `carteirinha-${person.id.slice(-6).toLowerCase()}`,
+          }}
+        >
+          <View style={[styles.card, { borderColor: withAlpha('#FFFFFF', 0.25), backgroundColor: '#B8860B' }]}>
+            <View
+              style={[
+                styles.cardPatternCircleLarge,
+                { borderColor: withAlpha('#FFFFFF', 0.24) },
+              ]}
+            />
+            <View
+              style={[
+                styles.cardPatternCircleSmall,
+                { borderColor: withAlpha('#FFFFFF', 0.2) },
+              ]}
+            />
+            <View style={styles.cardInner}>
+              <View style={styles.cardTop}>
+                <View style={styles.cardTopLeft}>
+                  <View style={[styles.orgAvatar, { borderColor: withAlpha('#FFFFFF', 0.35), backgroundColor: withAlpha('#FFFFFF', 0.16) }]}>
+                    {logoUrl ? (
+                      <Image source={{ uri: logoUrl }} style={styles.orgAvatarImage} resizeMode="cover" />
+                    ) : (
+                      <MaterialCommunityIcons name="church" size={18} color="#FFFFFF" />
+                    )}
+                  </View>
+                  <View style={{ flex: 1, gap: 2 }}>
+                    <Text style={{ color: withAlpha('#FFFFFF', 0.75), fontSize: scaleFont(10, fontScale), fontWeight: '800', textTransform: 'uppercase' }}>
+                      {org.displayName || 'EclesialHub'}
+                    </Text>
+                    <Text style={{ color: '#FFFFFF', fontSize: scaleFont(13, fontScale), fontWeight: '600' }}>
+                      Carteirinha digital
+                    </Text>
+                  </View>
                 </View>
-              ) : null}
-              {approvedPastorals.slice(0, 2).map((membership) => (
-                <View key={membership.id} style={[styles.chip, { borderColor: withAlpha('#FFFFFF', 0.45), backgroundColor: withAlpha('#FFFFFF', 0.12) }]}>
-                  <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: scaleFont(12, fontScale) }}>
-                    {membership.pastoral.name}
+                <View style={[styles.statusBadge, { borderColor: withAlpha('#FFFFFF', 0.5), backgroundColor: withAlpha('#FFFFFF', 0.15) }]}>
+                  <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: scaleFont(11, fontScale) }}>
+                    Membro ativo
                   </Text>
                 </View>
-              ))}
-              {approvedPastorals.length > 2 ? (
-                <View style={[styles.chip, { borderColor: withAlpha('#FFFFFF', 0.45), backgroundColor: withAlpha('#FFFFFF', 0.12) }]}>
-                  <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: scaleFont(12, fontScale) }}>
-                    +{approvedPastorals.length - 2}
+              </View>
+
+              <View style={styles.nameRow}>
+                <View style={[styles.initialsAvatar, { borderColor: withAlpha('#FFFFFF', 0.4), backgroundColor: withAlpha('#FFFFFF', 0.12) }]}>
+                  <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: scaleFont(20, fontScale) }}>
+                    {getInitials(person.fullName)}
                   </Text>
                 </View>
-              ) : null}
-            </View>
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: scaleFont(21, fontScale) }}>
+                    {person.fullName}
+                  </Text>
+                  <Text style={{ color: withAlpha('#FFFFFF', 0.85), fontSize: scaleFont(13, fontScale) }}>
+                    {session?.user.email ?? person.primaryEmail ?? ''}
+                  </Text>
+                </View>
+              </View>
 
-            <View style={[styles.rowBetween, { marginTop: 2 }]}>
-              <Text style={{ color: withAlpha('#FFFFFF', 0.7), fontSize: scaleFont(11, fontScale) }}>
-                ID: {person.id.slice(-8).toUpperCase()}
-              </Text>
-              <Text style={{ color: withAlpha('#FFFFFF', 0.7), fontSize: scaleFont(11, fontScale) }}>
-                {domainLabel}
-              </Text>
+              <View style={styles.chipRow}>
+                {activeTither ? (
+                  <View style={[styles.chip, { borderColor: withAlpha('#FFFFFF', 0.45), backgroundColor: withAlpha('#FFFFFF', 0.12) }]}>
+                    <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: scaleFont(12, fontScale) }}>Dizimista</Text>
+                  </View>
+                ) : null}
+                {approvedPastorals.slice(0, 2).map((membership) => (
+                  <View key={membership.id} style={[styles.chip, { borderColor: withAlpha('#FFFFFF', 0.45), backgroundColor: withAlpha('#FFFFFF', 0.12) }]}>
+                    <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: scaleFont(12, fontScale) }}>
+                      {membership.pastoral.name}
+                    </Text>
+                  </View>
+                ))}
+                {approvedPastorals.length > 2 ? (
+                  <View style={[styles.chip, { borderColor: withAlpha('#FFFFFF', 0.45), backgroundColor: withAlpha('#FFFFFF', 0.12) }]}>
+                    <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: scaleFont(12, fontScale) }}>
+                      +{approvedPastorals.length - 2}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
+              <View style={[styles.rowBetween, { marginTop: 2 }]}>
+                <Text style={{ color: withAlpha('#FFFFFF', 0.7), fontSize: scaleFont(11, fontScale) }}>
+                  ID: {person.id.slice(-8).toUpperCase()}
+                </Text>
+                <Text style={{ color: withAlpha('#FFFFFF', 0.7), fontSize: scaleFont(11, fontScale) }}>
+                  {domainLabel}
+                </Text>
+              </View>
             </View>
           </View>
-        </View>
+        </ViewShot>
 
         {activeTither?.titheControl ? (
           <View style={[styles.sectionCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
@@ -394,13 +484,15 @@ export default function MemberCardScreen() {
         ) : null}
 
         <Pressable
-          style={[styles.button, { borderColor: theme.secondary, backgroundColor: withAlpha(theme.secondary, 0.16) }]}
+          style={[styles.button, { borderColor: theme.secondary, backgroundColor: withAlpha(theme.secondary, 0.16), opacity: isSharing ? 0.75 : 1 }]}
           onPress={() => {
             void onShare();
           }}
+          disabled={isSharing}
         >
+          {isSharing ? <ActivityIndicator size="small" color={theme.secondary} /> : null}
           <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.button }}>
-            Compartilhar carteirinha
+            {isSharing ? 'Preparando imagem...' : 'Exportar carteirinha (imagem)'}
           </Text>
         </Pressable>
       </ScrollView>

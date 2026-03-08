@@ -1300,20 +1300,36 @@ export default function AccountScreen() {
                   Atualize sua senha agora para liberar o restante das áreas privadas.
                 </Text>
               ) : (
-                <Pressable
-                  style={[
-                    styles.button,
-                    {
-                      borderColor: theme.secondary,
-                      backgroundColor: 'rgba(218, 139, 60, 0.16)',
-                    },
-                  ]}
-                  onPress={() => router.push('/mensagens' as never)}
-                >
-                  <Text style={[styles.buttonText, { color: theme.secondary, fontSize: scaled.buttonText }]}>
-                    Ver mensagens recebidas
-                  </Text>
-                </Pressable>
+                <>
+                  <Pressable
+                    style={[
+                      styles.button,
+                      {
+                        borderColor: theme.secondary,
+                        backgroundColor: 'rgba(218, 139, 60, 0.16)',
+                      },
+                    ]}
+                    onPress={() => router.push('/carteirinha' as never)}
+                  >
+                    <Text style={[styles.buttonText, { color: theme.secondary, fontSize: scaled.buttonText }]}>
+                      Ver carteirinha
+                    </Text>
+                  </Pressable>
+                  <Pressable
+                    style={[
+                      styles.button,
+                      {
+                        borderColor: theme.secondary,
+                        backgroundColor: 'rgba(218, 139, 60, 0.16)',
+                      },
+                    ]}
+                    onPress={() => router.push('/mensagens' as never)}
+                  >
+                    <Text style={[styles.buttonText, { color: theme.secondary, fontSize: scaled.buttonText }]}>
+                      Ver mensagens recebidas
+                    </Text>
+                  </Pressable>
+                </>
               )}
 
               <Pressable

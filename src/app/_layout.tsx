@@ -252,6 +252,7 @@ function RootNavigator() {
       <StatusBar style={resolvedMode === 'dark' ? 'light' : 'dark'} />
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="carteirinha" />
         <Stack.Screen name="oracoes" />
         <Stack.Screen name="rosario" />
         <Stack.Screen name="intencoes" />

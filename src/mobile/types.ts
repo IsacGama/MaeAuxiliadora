@@ -227,6 +227,14 @@ export type MemberDashboard = {
       overdueCompetences?: string[];
     } | null;
   }>;
+  pastoralMemberships?: Array<{
+    id: string;
+    status: string;
+    pastoral: {
+      id: string;
+      name: string;
+    };
+  }>;
   payments: Array<{
     id: string;
     total: number;

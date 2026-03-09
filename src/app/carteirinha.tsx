@@ -219,6 +219,12 @@ const getInitials = (name: string) =>
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('');
 
+const normalizeHexColor = (value: string | null | undefined, fallback: string) => {
+  const candidate = (value ?? '').trim();
+  if (!candidate) return fallback;
+  return /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(candidate) ? candidate : fallback;
+};
+
 export default function MemberCardScreen() {
   const theme = useAppTheme();
   const org = useOrgContext();
@@ -256,6 +262,9 @@ export default function MemberCardScreen() {
   })();
   const domainLabel = customDomain || webDomainFallback;
   const logoUrl = getMediaUrl(org.branding?.logoAsset?.url ?? org.branding?.coatOfArmsAsset?.url);
+  const brandPrimary = normalizeHexColor(org.branding?.primaryColor, theme.primary);
+  const brandSecondary = normalizeHexColor(org.branding?.secondaryColor, theme.secondary);
+  const brandAccent = normalizeHexColor(org.branding?.accentColor, theme.accent);
 
   const onShare = async () => {
     if (!person || isSharing) return;
@@ -330,17 +339,17 @@ export default function MemberCardScreen() {
           }}
         >
           <View style={{ gap: 10 }}>
-            <View style={[styles.card, { borderColor: withAlpha('#FFFFFF', 0.25), backgroundColor: '#B8860B' }]}>
+            <View style={[styles.card, { borderColor: withAlpha('#FFFFFF', 0.25), backgroundColor: brandPrimary }]}>
               <View
                 style={[
                   styles.cardPatternCircleLarge,
-                  { borderColor: withAlpha('#FFFFFF', 0.24) },
+                  { borderColor: withAlpha(brandSecondary, 0.28) },
                 ]}
               />
               <View
                 style={[
                   styles.cardPatternCircleSmall,
-                  { borderColor: withAlpha('#FFFFFF', 0.2) },
+                  { borderColor: withAlpha(brandAccent, 0.22) },
                 ]}
               />
               <View style={styles.cardInner}>
@@ -423,15 +432,15 @@ export default function MemberCardScreen() {
                 style={[
                   styles.cardBack,
                   {
-                    borderColor: withAlpha('#B8860B', 0.45),
-                    backgroundColor: '#F8F1DD',
+                    borderColor: withAlpha(brandAccent, 0.45),
+                    backgroundColor: withAlpha(brandSecondary, 0.2),
                   },
                 ]}
               >
-                <Text style={{ color: '#7A5B00', fontSize: scaleFont(11, fontScale), fontWeight: '800', textTransform: 'uppercase' }}>
+                <Text style={{ color: brandAccent, fontSize: scaleFont(11, fontScale), fontWeight: '800', textTransform: 'uppercase' }}>
                   Verso da carteirinha
                 </Text>
-                <Text style={{ color: '#5C4300', fontSize: scaleFont(14, fontScale), fontWeight: '800' }}>
+                <Text style={{ color: brandPrimary, fontSize: scaleFont(14, fontScale), fontWeight: '800' }}>
                   Oração do Dizimista
                 </Text>
                 <Text style={{ color: '#2E2200', fontSize: scaleFont(13, fontScale), lineHeight: scaleFont(20, fontScale) }}>

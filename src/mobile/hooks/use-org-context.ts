@@ -35,6 +35,41 @@ const getMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
+const resolveDomainFromTree = async (orgUnitId: string) => {
+  const tree = await publicApi.fetchPublicCommunitiesTree();
+  for (const diocese of tree.dioceses) {
+    if (diocese.orgUnitId === orgUnitId) {
+      return { type: 'DIOCESE' as const, id: diocese.id, name: diocese.name, customDomain: diocese.customDomain };
+    }
+    for (const parish of diocese.parishes) {
+      if (parish.orgUnitId === orgUnitId) {
+        return { type: 'PARISH' as const, id: parish.id, name: parish.name, customDomain: parish.customDomain };
+      }
+      for (const chapel of parish.chapels) {
+        if (chapel.orgUnitId === orgUnitId) {
+          return { type: 'CHAPEL' as const, id: chapel.id, name: chapel.name, customDomain: chapel.customDomain };
+        }
+      }
+    }
+  }
+  for (const parish of tree.standaloneParishes) {
+    if (parish.orgUnitId === orgUnitId) {
+      return { type: 'PARISH' as const, id: parish.id, name: parish.name, customDomain: parish.customDomain };
+    }
+    for (const chapel of parish.chapels) {
+      if (chapel.orgUnitId === orgUnitId) {
+        return { type: 'CHAPEL' as const, id: chapel.id, name: chapel.name, customDomain: chapel.customDomain };
+      }
+    }
+  }
+  for (const chapel of tree.standaloneChapels) {
+    if (chapel.orgUnitId === orgUnitId) {
+      return { type: 'CHAPEL' as const, id: chapel.id, name: chapel.name, customDomain: chapel.customDomain };
+    }
+  }
+  return null;
+};
+
 export const useOrgContext = () => {
   const { session, isAuthenticated } = useAuth();
 
@@ -61,19 +96,23 @@ export const useOrgContext = () => {
 
   const resolveEntity = useCallback(async () => {
     if (isAuthenticated && selectedLink?.orgId) {
+      const treeMatch = await resolveDomainFromTree(selectedLink.orgId).catch(() => null);
       const orgUnitType = selectedLink.orgUnitType;
-      const entityType: OrgEntityType =
+      const fallbackEntityType: OrgEntityType =
         orgUnitType === 'CHAPEL' || orgUnitType === 'DIOCESE' || orgUnitType === 'PARISH'
           ? orgUnitType
           : 'PARISH';
+      const entityType: OrgEntityType = treeMatch?.type ?? fallbackEntityType;
       return {
         type: entityType,
-        id: selectedLink.orgId,
-        name: selectedLink.orgName ?? 'Comunidade',
+        id: treeMatch?.id ?? selectedLink.orgId,
+        name: treeMatch?.name ?? selectedLink.orgName ?? 'Comunidade',
+        customDomain: treeMatch?.customDomain ?? null,
         orgUnitId: selectedLink.orgId,
         raw: {
-          id: selectedLink.orgId,
-          name: selectedLink.orgName ?? 'Comunidade',
+          id: treeMatch?.id ?? selectedLink.orgId,
+          name: treeMatch?.name ?? selectedLink.orgName ?? 'Comunidade',
+          customDomain: treeMatch?.customDomain ?? null,
           orgUnit: { id: selectedLink.orgId },
         },
       };

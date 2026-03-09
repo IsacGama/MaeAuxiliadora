@@ -30,6 +30,7 @@ import {
   ParishPublic,
   PublicSchedule,
   PublicPost,
+  PublicCommunityTree,
   PublicPostPaginatedResponse,
   PublicPostDetail,
   PublicRegisterOrganization,
@@ -265,6 +266,8 @@ export const publicApi = {
   resolveEntityFromDomain,
   fetchPublicRegisterOrganizations: () =>
     fetchJson<PublicRegisterOrganization[]>(api('/public/register-organizations')),
+  fetchPublicCommunitiesTree: () =>
+    fetchJson<PublicCommunityTree>(api('/public/communities/tree')),
   fetchPublicParishes: (dioceseId?: string) =>
     fetchJson<ParishPublic[]>(
       api(`/public/parishes${dioceseId ? `?dioceseId=${encodeURIComponent(dioceseId)}` : ''}`),

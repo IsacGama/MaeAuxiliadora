@@ -204,6 +204,35 @@ export type PublicRegisterOrganization = {
   label: string;
 };
 
+export type PublicCommunityChapelNode = {
+  id: string;
+  name: string;
+  customDomain?: string | null;
+  orgUnitId?: string | null;
+};
+
+export type PublicCommunityParishNode = {
+  id: string;
+  name: string;
+  customDomain?: string | null;
+  orgUnitId?: string | null;
+  chapels: PublicCommunityChapelNode[];
+};
+
+export type PublicCommunityDioceseNode = {
+  id: string;
+  name: string;
+  customDomain?: string | null;
+  orgUnitId?: string | null;
+  parishes: PublicCommunityParishNode[];
+};
+
+export type PublicCommunityTree = {
+  dioceses: PublicCommunityDioceseNode[];
+  standaloneParishes: PublicCommunityParishNode[];
+  standaloneChapels: PublicCommunityChapelNode[];
+};
+
 export type MemberDashboard = {
   person: {
     id: string;

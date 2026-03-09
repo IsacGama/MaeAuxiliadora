@@ -330,9 +330,7 @@ export default function HomeScreen() {
                 <View style={styles.heroHeader}>
                   {logoUrl ? (
                     <Image source={{ uri: logoUrl }} style={[styles.logo, { borderColor: withAlpha(theme.text, 0.4) }]} />
-                  ) : (
-                    <View style={[styles.logo, { backgroundColor: withAlpha(theme.text, 0.2), borderColor: withAlpha(theme.text, 0.4) }]} />
-                  )}
+                  ) : null}
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.title, { color: heroTitleColor, fontSize: scaled.title }]}>{heroTitle}</Text>
                   </View>
@@ -368,9 +366,7 @@ export default function HomeScreen() {
               <View style={styles.heroHeader}>
                 {logoUrl ? (
                   <Image source={{ uri: logoUrl }} style={[styles.logo, { borderColor: withAlpha(theme.text, 0.4) }]} />
-                ) : (
-                  <View style={[styles.logo, { backgroundColor: withAlpha(theme.text, 0.2), borderColor: withAlpha(theme.text, 0.4) }]} />
-                )}
+                ) : null}
                 <View style={{ flex: 1 }}>
                   <Text style={[styles.title, { color: heroTitleColor, fontSize: scaled.title }]}>{heroTitle}</Text>
                 </View>

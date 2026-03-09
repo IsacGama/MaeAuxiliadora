@@ -20,7 +20,7 @@ type OrgContextState = {
   source: 'network' | 'cache' | null;
 };
 
-const cacheKeyForTarget = (target: string) => `spd-mobile:org-context:${target.toLowerCase()}`;
+const cacheKeyForTarget = (target: string) => `spd-mobile:org-context:v2:${target.toLowerCase()}`;
 
 const getMessage = (error: unknown, fallback: string) => {
   if (error instanceof HttpError) {
@@ -35,35 +35,35 @@ const getMessage = (error: unknown, fallback: string) => {
   return fallback;
 };
 
-const resolveDomainFromTree = async (orgUnitId: string) => {
+const resolveDomainFromTree = async (orgLookupId: string) => {
   const tree = await publicApi.fetchPublicCommunitiesTree();
   for (const diocese of tree.dioceses) {
-    if (diocese.orgUnitId === orgUnitId) {
+    if (diocese.orgUnitId === orgLookupId || diocese.id === orgLookupId) {
       return { type: 'DIOCESE' as const, id: diocese.id, name: diocese.name, customDomain: diocese.customDomain };
     }
     for (const parish of diocese.parishes) {
-      if (parish.orgUnitId === orgUnitId) {
+      if (parish.orgUnitId === orgLookupId || parish.id === orgLookupId) {
         return { type: 'PARISH' as const, id: parish.id, name: parish.name, customDomain: parish.customDomain };
       }
       for (const chapel of parish.chapels) {
-        if (chapel.orgUnitId === orgUnitId) {
+        if (chapel.orgUnitId === orgLookupId || chapel.id === orgLookupId) {
           return { type: 'CHAPEL' as const, id: chapel.id, name: chapel.name, customDomain: chapel.customDomain };
         }
       }
     }
   }
   for (const parish of tree.standaloneParishes) {
-    if (parish.orgUnitId === orgUnitId) {
+    if (parish.orgUnitId === orgLookupId || parish.id === orgLookupId) {
       return { type: 'PARISH' as const, id: parish.id, name: parish.name, customDomain: parish.customDomain };
     }
     for (const chapel of parish.chapels) {
-      if (chapel.orgUnitId === orgUnitId) {
+      if (chapel.orgUnitId === orgLookupId || chapel.id === orgLookupId) {
         return { type: 'CHAPEL' as const, id: chapel.id, name: chapel.name, customDomain: chapel.customDomain };
       }
     }
   }
   for (const chapel of tree.standaloneChapels) {
-    if (chapel.orgUnitId === orgUnitId) {
+    if (chapel.orgUnitId === orgLookupId || chapel.id === orgLookupId) {
       return { type: 'CHAPEL' as const, id: chapel.id, name: chapel.name, customDomain: chapel.customDomain };
     }
   }

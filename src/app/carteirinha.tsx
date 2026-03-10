@@ -1,10 +1,10 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Image,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   View,
@@ -13,8 +13,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Sharing from 'expo-sharing';
-import ViewShot from 'react-native-view-shot';
 import { useAuth } from '../mobile/auth-context';
 import { useMemberDashboard } from '../mobile/hooks/use-member-dashboard';
 import { useOrgContext } from '../mobile/hooks/use-org-context';
@@ -232,8 +230,7 @@ export default function MemberCardScreen() {
   const dashboard = useMemberDashboard();
   const { session } = useAuth();
   const { fontScale } = useFontScalePreference();
-  const cardCaptureRef = useRef<ViewShot | null>(null);
-  const [isSharing, setIsSharing] = useState(false);
+  const [isOpeningWeb, setIsOpeningWeb] = useState(false);
   const scaled = useMemo(
     () => ({
       title: scaleFont(22, fontScale),
@@ -267,26 +264,21 @@ export default function MemberCardScreen() {
   const brandSecondary = normalizeHexColor(org.branding?.secondaryColor, theme.secondary);
   const brandAccent = normalizeHexColor(org.branding?.accentColor, theme.accent);
 
-  const onShare = async () => {
-    if (!person || isSharing) return;
-    setIsSharing(true);
-    const shareMessage = `${person.fullName} — Membro Ativo${isTither ? ' · Dizimista' : ''}${org.displayName ? ` · ${org.displayName}` : ''}`;
+  const memberCardWebUrl = useMemo(() => {
+    const path = '/minha-conta/carteirinha';
+    if (customDomain) {
+      return `https://${customDomain}${path}`;
+    }
+    return `${appConfig.publicWebUrl}${path}`;
+  }, [customDomain]);
+
+  const openWebPdfFlow = async () => {
+    if (isOpeningWeb) return;
+    setIsOpeningWeb(true);
     try {
-      const imageUri = await cardCaptureRef.current?.capture?.();
-      const canShareImage = Boolean(imageUri) && (await Sharing.isAvailableAsync());
-      if (canShareImage && imageUri) {
-        await Sharing.shareAsync(imageUri, {
-          mimeType: 'image/png',
-          dialogTitle: 'Compartilhar carteirinha',
-        });
-        return;
-      }
-      await Share.share({
-        title: 'Carteirinha EclesialHub',
-        message: shareMessage,
-      });
+      await Linking.openURL(memberCardWebUrl);
     } finally {
-      setIsSharing(false);
+      setIsOpeningWeb(false);
     }
   };
 
@@ -330,16 +322,7 @@ export default function MemberCardScreen() {
           <Text style={{ color: theme.text, fontWeight: '700', fontSize: scaled.button }}>Voltar</Text>
         </Pressable>
 
-        <ViewShot
-          ref={cardCaptureRef}
-          options={{
-            format: 'png',
-            quality: 1,
-            result: 'tmpfile',
-            fileName: `carteirinha-${person.id.slice(-6).toLowerCase()}`,
-          }}
-        >
-          <View style={{ gap: 10 }}>
+        <View style={{ gap: 10 }}>
             <LinearGradient
               colors={[brandPrimary, brandPrimary, brandAccent]}
               locations={[0, 0.72, 1]}
@@ -456,7 +439,6 @@ export default function MemberCardScreen() {
               </View>
             ) : null}
           </View>
-        </ViewShot>
 
         {activeTither?.titheControl ? (
           <View style={[styles.sectionCard, { borderColor: theme.border, backgroundColor: theme.surface }]}>
@@ -553,17 +535,20 @@ export default function MemberCardScreen() {
         ) : null}
 
         <Pressable
-          style={[styles.button, { borderColor: theme.secondary, backgroundColor: withAlpha(theme.secondary, 0.16), opacity: isSharing ? 0.75 : 1 }]}
+          style={[styles.button, { borderColor: theme.secondary, backgroundColor: withAlpha(theme.secondary, 0.16), opacity: isOpeningWeb ? 0.75 : 1 }]}
           onPress={() => {
-            void onShare();
+            void openWebPdfFlow();
           }}
-          disabled={isSharing}
+          disabled={isOpeningWeb}
         >
-          {isSharing ? <ActivityIndicator size="small" color={theme.secondary} /> : null}
+          {isOpeningWeb ? <ActivityIndicator size="small" color={theme.secondary} /> : null}
           <Text style={{ color: theme.secondary, fontWeight: '700', fontSize: scaled.button }}>
-            {isSharing ? 'Preparando imagem...' : 'Exportar carteirinha (imagem)'}
+            {isOpeningWeb ? 'Abrindo navegador...' : 'Exportar carteirinha (PDF no site)'}
           </Text>
         </Pressable>
+        <Text style={{ color: theme.textSoft, fontSize: scaleFont(11, fontScale), textAlign: 'center' }}>
+          A exportação em PDF é feita no site da comunidade para garantir layout fiel.
+        </Text>
       </ScrollView>
     </SafeAreaView>
   );

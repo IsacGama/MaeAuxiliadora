@@ -12,6 +12,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as Sharing from 'expo-sharing';
 import ViewShot from 'react-native-view-shot';
 import { useAuth } from '../mobile/auth-context';
@@ -339,7 +340,13 @@ export default function MemberCardScreen() {
           }}
         >
           <View style={{ gap: 10 }}>
-            <View style={[styles.card, { borderColor: withAlpha('#FFFFFF', 0.25), backgroundColor: brandPrimary }]}>
+            <LinearGradient
+              colors={[brandPrimary, brandPrimary, brandAccent]}
+              locations={[0, 0.72, 1]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[styles.card, { borderColor: withAlpha('#FFFFFF', 0.25) }]}
+            >
               <View
                 style={[
                   styles.cardPatternCircleLarge,
@@ -425,7 +432,7 @@ export default function MemberCardScreen() {
                   </Text>
                 </View>
               </View>
-            </View>
+            </LinearGradient>
 
             {isTither ? (
               <View
@@ -433,17 +440,17 @@ export default function MemberCardScreen() {
                   styles.cardBack,
                   {
                     borderColor: withAlpha(brandAccent, 0.45),
-                    backgroundColor: withAlpha(brandSecondary, 0.2),
+                    backgroundColor: '#FFF7E3',
                   },
                 ]}
               >
-                <Text style={{ color: brandAccent, fontSize: scaleFont(11, fontScale), fontWeight: '800', textTransform: 'uppercase' }}>
+                <Text style={{ color: '#92400e', fontSize: scaleFont(11, fontScale), fontWeight: '800', textTransform: 'uppercase' }}>
                   Verso da carteirinha
                 </Text>
-                <Text style={{ color: brandPrimary, fontSize: scaleFont(14, fontScale), fontWeight: '800' }}>
+                <Text style={{ color: '#78350f', fontSize: scaleFont(14, fontScale), fontWeight: '800' }}>
                   Oração do Dizimista
                 </Text>
-                <Text style={{ color: '#2E2200', fontSize: scaleFont(13, fontScale), lineHeight: scaleFont(20, fontScale) }}>
+                <Text style={{ color: '#451a03', fontSize: scaleFont(13, fontScale), lineHeight: scaleFont(20, fontScale) }}>
                   {TITHER_PRAYER_PT_BODY}
                 </Text>
               </View>

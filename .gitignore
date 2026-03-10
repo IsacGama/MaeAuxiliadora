@@ -21,6 +21,7 @@ android/app/google-services.json
 android/keystore.properties
 android/app/*.keystore
 android/app/*.keystore.jks
+android/.kotlin/
 paroquiadigital-123a0-8d65aaea6664.json
 
 # Metro

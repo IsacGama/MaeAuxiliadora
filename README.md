@@ -163,3 +163,13 @@ Esse erro normalmente era sessão antiga. Solução:
 ### API inacessível no celular físico
 
 - `EXPO_PUBLIC_API_URL` deve apontar para URL pública HTTPS (não `localhost`).
+
+## Continuidade de contexto AI (workspace)
+
+Quando trabalhar este app junto com backend/web, use o kit no diretório pai do monorepo:
+
+- `../ai-context/BOOTSTRAP_PROMPT.md`
+- `../ai-context/HANDOFF.md`
+- atualizar handoff:
+  - Linux/macOS: `../scripts/generate-ai-handoff.sh`
+  - Windows (PowerShell): `..\scripts\generate-ai-handoff.ps1`
